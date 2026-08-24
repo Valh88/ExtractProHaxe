@@ -5,6 +5,7 @@
 -cp /home/vano/.haxe_lib/oimophysics/git/src
 
 -lib HeapsPhysics
+
 --main Main
 
 -hl bin/server/serv.hl

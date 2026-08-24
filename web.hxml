@@ -1,0 +1,22 @@
+-cp client/src
+
+-cp shared/src
+
+-D heapsphysics_render
+
+-D resourcesPath=client/res
+
+-lib heaps
+-lib HeapsPhysics
+-lib format
+
+
+-cp /home/vano/.haxe_lib/oimophysics/git/src
+-cp D:/projects/haxe/OimoPhysics/src
+
+-js bin/web/game.js
+
+-main Main
+
+-debug
+

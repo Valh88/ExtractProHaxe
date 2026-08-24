@@ -1,0 +1,21 @@
+-cp client/src
+
+-cp shared/src
+
+-D heapsphysics_render
+
+-cp D:/projects/haxe/OimoPhysics/src
+
+-D resourcesPath=client/res
+
+-lib HeapsPhysics
+-lib format
+-lib hlsdl
+-lib hlopenal
+# -lib hldx
+# -D dx12
+# output
+
+--main Main
+
+-hl bin/client/client.hl

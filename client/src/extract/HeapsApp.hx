@@ -91,6 +91,10 @@ class HeapsApp extends App
 		return new h3d.scene.Mesh(prim, m);
 	}
 
+	override function loadAssets(done) {
+        new hxd.fmt.pak.Loader(s2d, done);
+	}
+
 	public static function app()
 	{
 		// PBR renderer (requires HashLink or WebGL 2.0)
