@@ -2,10 +2,13 @@ package extract.design;
 
 import h2d.Flow;
 import h2d.domkit.Object;
+import extract.design.ModePanel;
+import extract.design.ReadyPanel;
 
 /**
 	Root of the lobby 2D HUD, built from the current Lunacy design:
-	a top bar, a bottom bar and the HUNT / SHOWDOWN title.
+	top bar, left "GAME MODE" panel (ModePanel), "READY" player panel
+	(ReadyPanel), bottom bar and the HUNT / SHOWDOWN title.
 
 	NOTE: Oswald / Inter fonts are not in the repo yet, so every text uses
 	DefaultFont (sizes from the design can't be reproduced without .bfnt files).
@@ -16,6 +19,8 @@ class Lobbydesign extends Flow implements Object
 	static var SRC =
 		<lobbydesign class="lobby-root">
 			<top-panel class="top-panel" x="0" y="0"/>
+			<mode-panel class="mode-panel" x="40" y="140"/>
+			<ready-panel class="ready-panel" x="40" y="620"/>
 			<bottom-panel class="bottom-panel" x="0" y="1010"/>
 			<text id="hunt" class="hunt-title" x="1573" y="114"/>
 			<text id="sub" class="subtitle" x="1650" y="215"/>

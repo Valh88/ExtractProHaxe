@@ -35,6 +35,29 @@ class LobbyView extends Scene3D
 ".bottom-gradient { position:absolute; width:1920; height:140; background:#000000 0.7; }",
 ".hunt-title { position:absolute; color:#C4A44A; }",
 ".subtitle { position:absolute; color:#6A5A3A; }",
+// --- ModePanel (PanelBG) ---
+".mode-panel { position:absolute; width:300; height:460; background:#C8956C; }",
+".mode-inner { position:absolute; width:296; height:456; background:#1A1208; }",
+".mode-title { position:absolute; width:88; height:27; color:#C4A44A; font-size:18; text-align:center; }",
+".map-image { position:absolute; width:180; height:120; background:#2A1A10; }",
+".duration { position:absolute; width:32; height:21; color:#6A5A3A; font-size:14; text-align:center; }",
+".mode-icons { position:absolute; width:130; height:56; }",
+".solo-icon { position:absolute; width:56; height:56; background:#2A1A10; }",
+".party-icon { position:absolute; width:56; height:56; background:#1A1208; }",
+".solo-label { position:absolute; width:8; height:30; color:#C4A44A; font-size:20; text-align:center; }",
+".party-label { position:absolute; width:11; height:30; color:#6A5A3A; font-size:20; text-align:center; }",
+".search-btn { position:absolute; width:180; height:50; background:#8B2010; }",
+".search-text { position:absolute; width:59; height:27; color:#C4A44A; font-size:18; text-align:center; }",
+// --- ReadyPanel (CheckReadingDesign) ---
+".ready-panel { position:absolute; width:600; height:190; background:#C8956C; }",
+".ready-inner { position:absolute; width:596; height:186; background:#1A1208; }",
+".ready-title { position:absolute; width:48; height:27; color:#BFBFBF; font-size:18; text-align:center; }",
+".player-group { position:absolute; width:236; height:104; }",
+".chip { position:absolute; width:72; height:104; background:#1A1208; }",
+".chip-frame { position:absolute; width:48; height:48; background:#2A1A10; }",
+".status-ready { position:absolute; width:32; height:18; color:#1ACC19; text-align:center; }",
+".status-waiting { position:absolute; width:41; height:18; color:#B3B319; text-align:center; }",
+".status-notready { position:absolute; width:50; height:17; color:#B33333; font-size:11; text-align:center; }",
 	].join("\n");
 
 	public function new()
