@@ -14,6 +14,7 @@ class LobbyView extends Scene3D
 	var style : Style;
 	var s2d : Scene2D;
 	var design : Lobbydesign;
+	var currentSubView : Null<PlaySubView>;
 
 	static var LOBBY_CSS = CSS.LOBBY_CSS;
 
@@ -49,9 +50,11 @@ class LobbyView extends Scene3D
 
 	public function switchSubView(sub : PlaySubView)
 	{
-		var panel = sub.panel;
-		s2d.addChild(panel);
-		style.addObject(panel);
+		if (currentSubView != null)
+			s2d.removeChild(currentSubView.panel);
+		currentSubView = sub;
+		s2d.addChild(sub.panel);
+		style.addObject(sub.panel);
 		style.sync();
 	}
 
