@@ -1,11 +1,15 @@
-import os
+import os, tempfile
 from PIL import Image, ImageDraw, ImageFont
+from fontTools.varLib.instancer import instantiateVariableFont
+from fontTools.ttLib import TTFont
 
 OUT = "client/res/font"
 SRC = {
     "oswald": "tools/fonts_in/oswald.ttf",
     "inter":  "tools/fonts_in/inter.ttf",
 }
+# fresh temp dir each run so we never overwrite a file locked by a lingering process
+INST_DIR = tempfile.mkdtemp(prefix="mkfont_")
 
 # (family, weight, size, out_name)
 CONFIGS = [
@@ -23,14 +27,26 @@ CHARS = [chr(c) for c in range(32, 127)] + [chr(c) for c in range(0x400, 0x4FF +
 ATLAS = 2048
 
 
+def get_static_font(family, weight, size):
+    path = SRC[family]
+    try:
+        f = TTFont(path)
+        if "fvar" in f:
+            axes = {a.axisTag: a for a in f["fvar"].axes}
+            inst = {"wght": weight}
+            if "opsz" in axes:
+                inst["opsz"] = max(axes["opsz"].minValue, min(size, axes["opsz"].maxValue))
+            instantiateVariableFont(f, inst, inplace=True)
+            os.makedirs(INST_DIR, exist_ok=True)
+            sp = os.path.join(INST_DIR, "%s_%d_%d.ttf" % (family, weight, size))
+            f.save(sp)
+            return ImageFont.truetype(sp, size)
+    except Exception as e:
+        print("  warn: instancing failed for %s: %s" % (family, e))
+    return ImageFont.truetype(path, size)
+
 def make_one(family, weight, size, name):
-    font = ImageFont.truetype(SRC[family], size)
-    axes = font.get_variation_axes()
-    if axes is not None:
-        if len(axes) == 1:
-            font.set_variation_by_axes([weight])
-        else:
-            font.set_variation_by_axes([14, weight])  # [opsz, wght]
+    font = get_static_font(family, weight, size)
 
     ascent, descent = font.getmetrics()
     line_height = ascent + descent
@@ -47,7 +63,7 @@ def make_one(family, weight, size, name):
         adv = font.getlength(ch)
         canvas = Image.new("L", (cell_w, cell_h), 0)
         d = ImageDraw.Draw(canvas)
-        d.text((pad, pad), ch, fill=255)
+        d.text((pad, pad), ch, font=font, fill=255)
         bbox = canvas.getbbox()
         if bbox is None:
             glyphs.append((ch, 0, 0, 0, 0, 0, 0, adv))
@@ -68,6 +84,10 @@ def make_one(family, weight, size, name):
             row_h = h
 
     atlas.save(os.path.join(OUT, name + ".png"))
+    for (gc, gx, gy, gw, gh, gox, goy, gadv) in glyphs:
+        if gc == "H":
+            print("  %s: H glyph %dx%d (size=%d)" % (name, gw, gh, size))
+            break
     with open(os.path.join(OUT, name + ".fnt"), "w") as f:
         f.write('info face="%s" size=%d bold=0 italic=0 charset="" unicode=1 stretchH=100 aa=1 padding=0,0,0,0 spacing=1,1\n'
                 % (family, size))

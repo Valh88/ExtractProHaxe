@@ -3,3 +3,8 @@ js_externs.txt
 js_imports.txt
 bin/
 client/res/.tmp/
+tools/_jar/
+tools/_inst/
+tools/__pycache__/
+tools/hiero/_static/
+tools/hiero/out/
