@@ -2,3 +2,4 @@ js_exports.txt
 js_externs.txt
 js_imports.txt
 bin/
+client/res/.tmp/
