@@ -22,6 +22,7 @@ class LobbyView extends Scene3D
 	public function new()
 	{
 		super();
+		h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
 		// physics is Y-up, Heaps camera defaults to Z-up
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);

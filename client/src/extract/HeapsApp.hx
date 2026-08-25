@@ -24,6 +24,10 @@ class HeapsApp extends App
 		lobbyView = new LobbyView();
 		setScene(lobbyView);
 
+		// сброс фона
+		var pbr : h3d.scene.pbr.Renderer = Std.downcast(s3d.renderer, h3d.scene.pbr.Renderer);
+		if (pbr != null && pbr.env != null) pbr.env.power = 0;
+
 		// shared simulation — same class the server runs
 		sim = new SimWorld();
 
