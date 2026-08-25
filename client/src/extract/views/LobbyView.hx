@@ -64,7 +64,7 @@ class LobbyView extends Scene3D
 ".chip-waiting .chip-frame { background:#3A2A18; }",
 ".chip-notready .chip-frame { background:#3A2A18; }",
 ".chip-icon { position:absolute; width:44; height:44; background:#2A1A10; }",
-".status { position:absolute; width:48; height:14; text-align:center; font: font/oswald_bold_11.fnt; }",
+".status { position:absolute; width:72; height:14; text-align:center; font: font/oswald_bold_11.fnt; }",
 ".chip-ready .status { color:#1ACC19; }",
 ".chip-waiting .status { color:#B3B319; }",
 ".chip-notready .status { color:#B33333; }",

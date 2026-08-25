@@ -17,7 +17,7 @@ class PlayerChip extends Flow implements Object
 					<flow class="chip-icon" x="2" y="2"/>
 				</flow>
 			</flow>
-			<text id="status" class="status" x="12" y="86"/>
+			<text id="status" class="status" x="35" y="86"/>
 		</player-chip>;
 
 	public function new(?parent)
