@@ -9,3 +9,4 @@ tools/__pycache__/
 tools/hiero/_static/
 tools/hiero/out/
 tools/runnable-hiero.jar
+*.txt
