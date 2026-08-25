@@ -1,13 +1,29 @@
-/* Text colors are driven by CSS; geometry (rounded panels) is drawn in code.
+/* Square domkit panels; geometry/positions live in the SRC markup, colors here.
    Once Oswald .bfnt fonts are added to client/res/font/, also set e.g.
    font: font/oswald-bold.bfnt 18; on each text class. */
 
-.mode-title { color: #C4A44A; }
-.duration { color: #6A5A3A; }
-.mode-icon-label { color: #C4A44A; }
-.mode-icon-label-idle { color: #6A5A3A; }
-.search-text { color: #C4A44A; }
-.ready-title { color: #BFBFBF; } /* design had fill:"BF" (incomplete) — defaulting to light gray */
-.player-status-ready { color: #1ACC19; }
-.player-status-waiting { color: #B3B319; }
-.player-status-notready { color: #B33333; }
+.lobby-root {}
+
+.mode-panel { position:absolute; width:300; height:460; background:#1A1208; }
+.ready-panel { position:absolute; width:600; height:190; background:#1A1208; }
+
+.mode-title { position:absolute; color:#C4A44A; }
+.duration { position:absolute; color:#6A5A3A; }
+.map-image { position:absolute; width:180; height:120; background:#2A1A10; }
+
+.mode-icon-solo { position:absolute; width:56; height:56; background:#2A1A10; }
+.mode-icon-party { position:absolute; width:56; height:56; background:#1A1208; }
+.mode-icon-label { position:absolute; color:#D8B98A; }
+.mode-icon-party .mode-icon-label { color:#6A5A3A; }
+
+.search-button { position:absolute; width:180; height:50; background:#8B2010; }
+.search-text { position:absolute; color:#F0E0D0; }
+
+.ready-title { position:absolute; color:#BFBFBF; }
+
+.player-chip { position:absolute; width:72; height:104; background:#1A1208; }
+.chip-icon { position:absolute; x:12; y:10; width:48; height:48; background:#2A1A10; }
+.player-status { position:absolute; color:#BFBFBF; }
+.player-chip-ready .player-status { color:#1ACC19; }
+.player-chip-waiting .player-status { color:#B3B319; }
+.player-chip-notready .player-status { color:#B33333; }
