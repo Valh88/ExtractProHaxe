@@ -29,8 +29,13 @@ class LobbyView extends Scene3D
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);
 		camera.target.set(0, 1, 0);
-		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, 0.4, -1), this);
+		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, -0.4, -1), this);
 		light.power = 2;
+		light.isMainLight = true;
+		light.shadows.mode = h3d.pass.Shadows.RenderMode.Dynamic;
+		light.shadows.size = 2048;
+		light.shadows.power = 150;
+		light.shadows.bias *= 0.3;
 		attachUI(new Lobbydesign());
 	}
 
