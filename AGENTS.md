@@ -39,10 +39,12 @@ Correct pattern (already in place):
   ```
   (Running `hl bin/client/client.hl` from the repo root would look for `./res.pak` at the root instead — don't.)
 
-### The `hxd.fmt.pak.Loader` problem (caveats)
+### `hxd.fmt.pak.Loader` — works, but mind its quirks
 
-`hxd.fmt.pak.Loader` (`HeapsApp.loadAssets`) is the correct web-compatible loader, but it has
-sharp edges — most black screens here came from misunderstanding them:
+`hxd.fmt.pak.Loader` (`HeapsApp.loadAssets`) is the correct, working web-compatible loader for
+both HL and web. It is **NOT broken** — the only thing that fails to compile in this checkout is
+`hxd.fmt.hmd.Library` (see below), which the Loader does not use. The black screens were a usage
+mistake (`hxd.Res.initPak()` from `main()`), not a Loader defect. Its sharp edges:
 
 - **Hardcoded name, ignores `-D resourcesPath`.** It loads `res.pak`, then `res1.pak`, `res2.pak`…
   relative to the HTML page (web) / cwd (HL). The `resourcesPath` define is **not** consulted, so
@@ -67,39 +69,79 @@ For on-demand named paks (e.g. `forest.pak`): read bytes (web `hxd.net.BinaryLoa
 after that `hxd.Res.load("forest/tree.png")` resolves from that pak. Stock `hxd.fmt.pak.FileSystem`
 has no public per-pak unload — to reclaim memory you `fs.dispose()` and re-add what you still need.
 
-### Building res.pak (new method) — custom builder
+### Building res.pak
 
-The standard `haxe -lib heaps --run hxd.fmt.pak.Build` does NOT compile against the current
-heaps-git checkout — it fails with `hxd._FloatBuffer.InnerData should be haxe.ds._Vector.VectorData`
-in `hxd/fmt/hmd/Library.hx` (a heaps-git vs Haxe version mismatch, pulled in only by the model
-conversion path). Instead use the small custom builder:
+`hxd.fmt.pak.Build` (the standard Heaps pak builder) works against this heaps-git checkout, but
+only after a **one-line fix** to `hxd/fmt/hmd/Library.hx:268`. That line is the `#else` (non-neko)
+branch:
+
+```haxe
+buf.vertexes = haxe.ds.Vector.fromData(vertexes.getNative());
+```
+
+`vertexes` is a `hxd.FloatBuffer`; `getNative()` returns `Array<hxd.impl.Float32>` (see
+`hxd/FloatBuffer.hx:4`). But in **Haxe 4.3.7** `haxe.ds.Vector.VectorData<T>` is **not** `Array<T>`
+on every target — it is `hl.NativeArray<T>` on HL, `neko.NativeArray<T>` on neko, `cs/java.NativeArray`
+on cs/java (see `std/haxe/ds/Vector.hx`). `fromData` therefore wants e.g. `hl.NativeArray<Float32>`,
+while `getNative()` yields a plain `Array<hxd.impl.Float32>` → type error on HL/neko/`--run`.
+(On the **JS** target `VectorData` is `Array`, so it would compile there.) This is a
+heaps-git × Haxe-4.3.x mismatch, not a local deviation — the upstream `HeapsIO/heaps` `master`
+has the **exact same** un-casted line (`haxe.ds.Vector.fromData(vertexes.getNative())`); upstream
+simply targets a Haxe where `VectorData == Array`. The fix is a single `cast` (works on all targets):
+The fix is a single cast (works on all targets):
+
+```diff
+- buf.vertexes = haxe.ds.Vector.fromData(vertexes.getNative());
++ buf.vertexes = haxe.ds.Vector.fromData(cast vertexes.getNative());
+```
+
+This is **independent of `hxd.fmt.pak.Loader`** — the Loader never references `hmd`. The patch is
+**currently APPLIED** in this environment's heaps-git checkout
+(`C:/Users/simpl/scoop/apps/haxe/current/lib/heaps/git/hxd/fmt/hmd/Library.hx:268`), so the standard
+`hxd.fmt.pak.Build` compiles and builds paks out of the box here (verified, produces `res.pak`):
+
+```sh
+haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/client/res
+haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/web/res
+# несколько групп за один запуск (имена res/res1/res2 чтобы Loader подхватил автоматом):
+haxe -lib heaps --run hxd.fmt.pak.Build -res client/levels/forest -out bin/client/res1 -res client/levels/forest -out bin/web/res1
+```
+
+> **Re-applying after a heaps update.** The patch lives in the global heaps-git checkout
+> (`C:/Users/simpl/scoop/apps/haxe/current/lib/heaps/git/hxd/fmt/hmd/Library.hx`), NOT in this
+> repo, so `haxelib update heaps` / `git pull` inside heaps-git **wipes it**. After any heaps
+> update, verify and restore it:
+> 1. Compile the pak builder: `haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/client/res`
+> 2. If it compiles → newer heaps already fixed it, nothing to do.
+> 3. If it fails with exactly this error, the patch was wiped and must be re-applied:
+>    `hxd/fmt/hmd/Library.hx:268: ... : hxd._FloatBuffer.InnerData should be haxe.ds._Vector.VectorData<Unknown<0>>`
+>    Use the repo-contained helper (idempotent; safe to run even if unsure):
+>    ```sh
+>    haxe -lib heaps -hl tools/applypatch.hl -main ApplyHeapsPatch -cp tools
+>    hl tools/applypatch.hl
+>    ```
+>    It rewrites the one-line cast at that line and prints `PATCH APPLIED` / `ALREADY PATCHED`.
+>    (A newer heaps may also have changed the surrounding code — in that case the helper exits with
+>    `PATCH TARGET NOT FOUND` and you re-read the function and apply an equivalent `cast`.)
+
+#### `tools/MakePak.hx` (redundant workaround — keep or delete)
+
+Before the patch, a custom console builder `tools/MakePak.hx` was added to dodge the broken `hmd`
+import (it uses only `hxd.fmt.pak.{Data,Writer,Reader}` + `sys.io`). It still works and has a
+`-info <pak>` mode (via `hxd.fmt.pak.Reader`) that the standard Build lacks:
 
 ```sh
 haxe -lib heaps -hl tools/makepak.hl -main MakePak -cp tools
-hl tools/makepak.hl -res client/res -out bin/client/res   # HL pak
-hl tools/makepak.hl -res client/res -out bin/web/res       # web pak
-# несколько групп за один запуск (имена res/res1/res2 чтобы Loader подхватил автоматом):
-hl tools/makepak.hl -res client/levels/forest -out bin/client/res1 -res client/levels/forest -out bin/web/res1
-# без аргументов — совместимость: client/res -> bin/client/res.pak + bin/web/res.pak
-hl tools/makepak.hl
-# инспекция содержимого пака (замена сломанному `hxd.fmt.pak.Build -info`):
-hl tools/makepak.hl -info bin/web/res.pak
-```
-
-`tools/MakePak.hx` — консольный пакер с интерфейсом, повторяющим штатный Heaps
-`haxe -lib heaps --run hxd.fmt.pak.Build` (`-res <папка>` / `-out <префикс>`; можно несколько пар
-за запуск). Только использует `hxd.fmt.pak.{Data,Writer,Reader}` + `sys.io`, обходя сломанный `hmd`
-(ошибка `hxd._FloatBuffer.InnerData` в `hxd/fmt/hmd/Library.hx` при компиляции стандартного
-`hxd.fmt.pak.Build` в текущем heaps-git). Пропускает dot-файлы. `-out` — полный префикс пути
-(создаёт каталог при необходимости), пишет `<префикс>.pak`. После смены ассетов пересобери нужные паки.
-Режим `-info <pak>` печатает дерево файлов пака с размерами (через `hxd.fmt.pak.Reader`,
-без hmd) — замена недоступному `hxd.fmt.pak.Build -info` в этом heaps-git:
-```sh
+hl tools/makepak.hl -res client/res -out bin/client/res
+hl tools/makepak.hl -res client/res -out bin/web/res
 hl tools/makepak.hl -info bin/web/res.pak
 # PAK bin/web/res.pak  (version 0, header 51b, data 15b)
 # > <root>  15b
 #     placeholder.txt  15b
 ```
+
+With the heaps patch already applied, the standard `hxd.fmt.pak.Build` is preferred; `MakePak` is
+kept only for its `-info` inspector.
 
 
 ## Architecture
