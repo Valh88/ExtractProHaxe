@@ -3,7 +3,8 @@ package extract.views;
 class CSS
 {
    	public static var LOBBY_CSS = [
-   ".lobby-root {}",
+   ".lobby-root { width:1920; height:1080; }",
+   ".play-view { position:absolute; width:1920; height:1080; }",
    ".top-panel { position:absolute; width:1920; height:70; background:#1A1208; }",
    ".top-border { position:absolute; width:1920; height:2; background:#C8956C; }",
    ".gold-group { position:absolute; }",
