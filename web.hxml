@@ -10,6 +10,7 @@
 -lib HeapsPhysics
 -lib format
 -lib domkit
+-D domkit
 
 -cp /home/vano/.haxe_lib/oimophysics/git/src
 -cp D:/projects/haxe/OimoPhysics/src

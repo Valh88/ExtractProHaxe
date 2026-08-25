@@ -8,15 +8,22 @@ import phys.core.PhysCore;
 import phys.render.PhysRenderer;
 
 import shared.SimWorld;
+import extract.views.LobbyView;
+import extract.design.Lobbydesign;
 
 class HeapsApp extends App
 {
 
 	var sim : SimWorld;
 	var renderer : PhysRenderer;
+	var lobbyView : LobbyView;
 
 	override function init()
 	{
+		// 1) LobbyView becomes the root 3D scene (s3d) of the whole lobby
+		lobbyView = new LobbyView();
+		setScene(lobbyView);
+
 		// shared simulation — same class the server runs
 		sim = new SimWorld();
 
@@ -38,13 +45,8 @@ class HeapsApp extends App
 		for (b in sim.existingBodies())
 			sim.onSpawn(b);
 
-		// camera is Z-up by default in Heaps — set Y-up to match physics
-		s3d.camera.up.set(0, 1, 0);
-		s3d.camera.pos.set(8, 8, 8);
-		s3d.camera.target.set(0, 1, 0);
-
-		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, -0.4, -1), s3d);
-		light.power = 2;
+		// 2) attach the 2D domkit HUD on top of the 3D scene
+		lobbyView.attachUI(new Lobbydesign(), s2d);
 	}
 
 	override function update(dt : Float)
@@ -53,6 +55,7 @@ class HeapsApp extends App
 
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		renderer.render(); // interpolated visuals every frame
+		lobbyView.update(dt); // domkit style sync
 	}
 
 	/** Build a mesh for a spawned body. Extend this switch for new entities. */

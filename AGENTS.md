@@ -124,6 +124,25 @@ haxe -lib heaps --run hxd.fmt.pak.Build -res client/levels/forest -out bin/clien
 >    (A newer heaps may also have changed the surrounding code — in that case the helper exits with
 >    `PATCH TARGET NOT FOUND` and you re-read the function and apply an equivalent `cast`.)
 
+#### domkit `h2d.domkit.Style.sync()` patch (local, re-apply after heaps update)
+The `domkit` [git] currently checked out is NEWER than the `h2d.domkit.Style` in this heaps-git:
+`Style.sync()` still calls `syncDirty(o.dom)`, a method that no longer exists in current domkit
+(sync moved into `domkit.Properties.applyStyle(style, partialRefresh)`). This breaks compilation of
+the entire `h2d.domkit` package. Fix — one line in
+`C:/Users/simpl/scoop/apps/haxe/current/lib/heaps/git/h2d/domkit/Style.hx` (inside `sync()`):
+```diff
+- for( o in currentObjects )
+-     syncDirty(o.dom);
++ for( o in currentObjects )
++     o.dom.applyStyle(this, true);
+```
+`domkit.CssStyle.TAG` and `updateTime(dt)` still exist, so only that call changes. `partialRefresh=true`
+mirrors the old `syncDirty` (only re-applies when the object is dirty). Verified: both `linx.hxml`
+and `web.hxml` compile after the change.
+> **Wiped on heaps update.** Same as the `hmd` patch — `haxelib update heaps` / `git pull` in
+> heaps-git removes it. If domkit UI stops compiling with `Unknown identifier : syncDirty`, re-apply
+> the one-line edit above.
+
 #### `tools/MakePak.hx` (redundant workaround — keep or delete)
 
 Before the patch, a custom console builder `tools/MakePak.hx` was added to dodge the broken `hmd`

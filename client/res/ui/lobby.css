@@ -1,0 +1,13 @@
+/* Text colors are driven by CSS; geometry (rounded panels) is drawn in code.
+   Once Oswald .bfnt fonts are added to client/res/font/, also set e.g.
+   font: font/oswald-bold.bfnt 18; on each text class. */
+
+.mode-title { color: #C4A44A; }
+.duration { color: #6A5A3A; }
+.mode-icon-label { color: #C4A44A; }
+.mode-icon-label-idle { color: #6A5A3A; }
+.search-text { color: #C4A44A; }
+.ready-title { color: #BFBFBF; } /* design had fill:"BF" (incomplete) — defaulting to light gray */
+.player-status-ready { color: #1ACC19; }
+.player-status-waiting { color: #B3B319; }
+.player-status-notready { color: #B33333; }

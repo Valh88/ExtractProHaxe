@@ -13,6 +13,7 @@
 -lib hlsdl
 -lib hlopenal
 -lib domkit
+-D domkit
 # -lib hldx
 # -D dx12
 # output

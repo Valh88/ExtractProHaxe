@@ -5,12 +5,14 @@
 -D heapsphysics_render
 
 -cp /home/vano/.haxe_lib/oimophysics/git/src
+-cp D:/projects/haxe/OimoPhysics/src
 
 -lib HeapsPhysics
 -lib format
 -lib hlsdl
 -lib hlopenal
 -lib domkit
+-D domkit
 # -lib hldx
 # -D dx12
 # output
