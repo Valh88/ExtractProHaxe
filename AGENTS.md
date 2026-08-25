@@ -163,6 +163,63 @@ With the heaps patch already applied, the standard `hxd.fmt.pak.Build` is prefer
 kept only for its `-info` inspector.
 
 
+## Fonts (bitmap BMFont generation)
+
+HUD text uses bitmap BMFonts (`client/res/font/<name>.fnt` + `<name>.png`) for Oswald/Inter, baked
+at the exact pixel sizes the HUD needs. domkit `font:` entries in `LobbyView.LOBBY_CSS` reference them
+as `font/<name>.fnt` (Heaps converts `.fnt`→`.bfnt` at load). One baked config per (family, weight,
+size) is required because bitmap fonts are fixed-size.
+
+- **Configs** (family, weight, size): `oswald 400/14`, `oswald 500/22`, `oswald 700/18`, `oswald 700/20`,
+  `oswald 700/22`, `oswald 700/11`, `inter 400/18`, `inter 900/72`.
+- **Character set**: ASCII 32–126 + Cyrillic U+0400–U+04FF (351 glyphs).
+- **Atlas**: 2048×2048, single page.
+
+### Canonical generator — `tools/makefonts.py` (Pillow + fontTools)
+Supports full Unicode (incl. Cyrillic). Run from repo root:
+```sh
+python3 tools/makefonts.py
+```
+Writes `client/res/font/*.fnt` + `*.png`. It instances the variable TTFs (`tools/fonts_in/oswald.ttf`,
+`tools/fonts_in/inter.ttf`) to a static TTF per (family, weight, size) via fontTools, then rasterizes
+with PIL.
+
+Gotchas that cost a day (do not regress):
+- `ImageDraw.Draw(canvas).text(..., font=font, fill=255)` — the **`font=font` arg is REQUIRED**.
+  Forgetting it silently draws PIL's default **6×8** bitmap font while `.fnt` metrics are computed
+  from the real font → glyphs render microscopic but `lineHeight` looks correct.
+- Instance cache filename MUST include `size` (not just family+weight): bold configs share a weight,
+  and re-saving the same file while PIL holds it open → `Permission denied` → silent fallback to the
+  raw variable font (regular weight, wrong). `makefonts.py` uses a fresh `tempfile.mkdtemp` per run
+  to avoid locked-file reuse entirely.
+- After regenerating fonts you must rebuild BOTH paks and BOTH targets (HL loads loose
+  `client/res/` via `hxd.Res.initLocal()`, web uses the async pak loader — see Web target above):
+  ```sh
+  haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/client/res
+  haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/web/res
+  haxe win.hxml && haxe web.hxml
+  ```
+
+### Alternative — `tools/runnable-hiero.jar` (libGDX Hiero / FreeType)
+Higher-quality hinting than PIL, but **cannot render non-Latin-1 characters**: Hiero reads
+`glyph.text` as a single-byte charset, so any codepoint ≥256 (incl. Cyrillic, codepoint ≥1024) is
+dropped from the atlas regardless of conf encoding (`utf-8`/`cp1251`) or `-Dfile.encoding`. Use Hiero
+only for Latin-only fonts; for Cyrillic use `makefonts.py`.
+
+Batch usage (needs a display/AWT; on headless it may hang on the AWT thread — always run with
+`--batch` and kill the lingering `java` process afterwards, it does not self-exit reliably):
+```sh
+# write a .hiero config first — see tools/hiero/conf.hiero for a working sample / the key format
+java -jar tools/runnable-hiero.jar --input conf.hiero --output outname --batch
+# produces outname.fnt + outname1.png (+ outname2.png if it spills to more pages)
+```
+Hiero config keys of interest: `font2.file=<ttf>`, `font.size`, `font.bold`/`font.italic` (these only
+toggle the style flag — for variable fonts, **pre-instance the weight to a static TTF** instead),
+`glyph.text=<chars>`, `glyph.page.width/height` (use 2048), `render_type=0` (FreeType), and
+`effect.class=...ColorEffect` / `effect.Color=ffffff` for plain white glyphs. Keep `glyph.text` on a
+**SINGLE line** (multi-line breaks the parser with `ArrayIndexOutOfBoundsException`).
+
+
 ## Architecture
 
 - `shared/src/shared/SimWorld.hx` is THE simulation, run identically by client (`client/src/extract/HeapsApp.hx`) and server (`server/src/serv/ServerApp.hx`). Gameplay rules (auto-spawn cubes, level geometry) go in SimWorld, not in client/server code.
