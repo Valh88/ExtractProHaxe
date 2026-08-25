@@ -11,7 +11,9 @@ class ReadyPanel extends Flow implements Object
 	static var SRC =
 		<ready-panel>
 			<flow class="ready-inner" x="2" y="2">
-				<text id="title" class="ready-title" x="296" y="12"/>
+				<flow id="titleWrap" class="ready-title-wrap" x="0" y="12">
+					<text id="title" class="ready-title"/>
+				</flow>
 				<flow id="playerGroup" class="player-group" x="135" y="45"/>
 			</flow>
 		</ready-panel>;
@@ -26,6 +28,7 @@ class ReadyPanel extends Flow implements Object
 		panelBg = new Graphics();
 		this.addChildAt(panelBg, 0);
 		drawPanelBg();
+		titleWrap.horizontalAlign = Middle;
 		title.text = "READY";
 		addChip(PlayerChip.READY);
 		addChip(PlayerChip.WAITING);

@@ -13,7 +13,9 @@ class PlayerChip extends Flow implements Object
 
 	static var SRC =
 		<player-chip class="chip">
-			<text id="status" class="status" x="35" y="86"/>
+			<flow id="statusWrap" class="status-wrap" x="0" y="86">
+				<text id="status" class="status"/>
+			</flow>
 		</player-chip>;
 
 	var bg : Graphics;
@@ -22,6 +24,7 @@ class PlayerChip extends Flow implements Object
 	{
 		super(parent);
 		initComponent();
+		statusWrap.horizontalAlign = Middle;
 		bg = new Graphics();
 		this.addChildAt(bg, 0);
 		setStatus(READY);

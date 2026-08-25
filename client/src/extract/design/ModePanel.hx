@@ -10,9 +10,13 @@ class ModePanel extends Flow implements Object
 	static var SRC =
 		<mode-panel>
 			<flow class="mode-inner" x="2" y="2">
-				<text id="title" class="mode-title" x="106" y="15"/>
+				<flow id="titleWrap" class="title-wrap" x="0" y="15">
+					<text id="title" class="mode-title"/>
+				</flow>
 				<flow id="mapImage" class="map-image" x="60" y="55"/>
-				<text id="dur" class="duration" x="134" y="185"/>
+				<flow id="durWrap" class="dur-wrap" x="60" y="185">
+					<text id="dur" class="duration"/>
+				</flow>
 				<flow class="mode-icons" x="85" y="215">
 					<flow id="soloIcon" class="solo-icon" x="0" y="0">
 						<text id="solo" class="solo-label" x="48" y="0"/>
@@ -22,7 +26,9 @@ class ModePanel extends Flow implements Object
 					</flow>
 				</flow>
 				<flow id="searchBtn" class="search-btn" x="60" y="290">
-					<text id="search" class="search-text" x="60" y="12"/>
+					<flow id="searchWrap" class="search-wrap" x="0" y="0">
+						<text id="search" class="search-text"/>
+					</flow>
 				</flow>
 			</flow>
 		</mode-panel>;
@@ -42,6 +48,11 @@ class ModePanel extends Flow implements Object
 		addRoundedChild(soloIcon, 56, 56, 6, 0x2A1A10, 0xC8956C);
 		addRoundedChild(partyIcon, 56, 56, 6, 0x1A1208, 0x3A2A18);
 		addRoundedChild(searchBtn, 180, 50, 4, 0x8B2010, 0xA03020);
+
+		titleWrap.horizontalAlign = Middle;
+		durWrap.horizontalAlign = Middle;
+		searchWrap.horizontalAlign = Middle;
+		searchWrap.verticalAlign = Middle;
 
 		title.text = "GAME MODE";
 		dur.text = "30:00";
