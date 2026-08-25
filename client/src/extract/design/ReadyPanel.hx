@@ -1,6 +1,7 @@
 package extract.design;
 
 import h2d.Flow;
+import h2d.Graphics;
 import h2d.domkit.Object;
 import extract.design.PlayerChip;
 
@@ -15,16 +16,31 @@ class ReadyPanel extends Flow implements Object
 			</flow>
 		</ready-panel>;
 
+	var panelBg : Graphics;
 	var chipCount : Int = 0;
 
 	public function new(?parent)
 	{
 		super(parent);
 		initComponent();
+		panelBg = new Graphics();
+		this.addChildAt(panelBg, 0);
+		drawPanelBg();
 		title.text = "READY";
 		addChip(PlayerChip.READY);
 		addChip(PlayerChip.WAITING);
 		addChip(PlayerChip.NOT_READY);
+	}
+
+	function drawPanelBg()
+	{
+		panelBg.clear();
+		panelBg.beginFill(0xC8956C);
+		panelBg.drawRoundedRect(0, 0, 600, 190, 6);
+		panelBg.endFill();
+		panelBg.beginFill(0x1A1208);
+		panelBg.drawRoundedRect(2, 2, 596, 186, 4);
+		panelBg.endFill();
 	}
 
 	public function addChip(status : String) : PlayerChip
