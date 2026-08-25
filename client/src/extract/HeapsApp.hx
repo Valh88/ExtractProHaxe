@@ -9,7 +9,6 @@ import phys.render.PhysRenderer;
 
 import shared.SimWorld;
 import extract.views.LobbyView;
-import extract.design.Lobbydesign;
 
 class HeapsApp extends App
 {
@@ -21,12 +20,8 @@ class HeapsApp extends App
 	override function init()
 	{
 		// 1) LobbyView becomes the root 3D scene (s3d) of the whole lobby
-		lobbyView = new LobbyView();
+		lobbyView = new LobbyView(s2d);
 		setScene(lobbyView);
-
-		// сброс фона
-		var pbr : h3d.scene.pbr.Renderer = Std.downcast(s3d.renderer, h3d.scene.pbr.Renderer);
-		if (pbr != null && pbr.env != null) pbr.env.power = 0;
 
 		// shared simulation — same class the server runs
 		sim = new SimWorld();
@@ -48,9 +43,6 @@ class HeapsApp extends App
 		// draw the initial scene too (created before onSpawn was set)
 		for (b in sim.existingBodies())
 			sim.onSpawn(b);
-
-		// 2) attach the 2D domkit HUD on top of the 3D scene
-		lobbyView.attachUI(new Lobbydesign(), s2d);
 	}
 
 	override function update(dt : Float)

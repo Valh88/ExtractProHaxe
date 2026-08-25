@@ -14,25 +14,28 @@ import extract.views.CSS;
 class LobbyView extends Scene3D
 {
 	var style : Style;
+	var s2d : Scene2D;
 
 	// Mirror of client/res/ui/lobby.css (kept in sync by hand). Parsed inline
 	// rather than from a resource file so the CSS stays part of the source tree.
 	static var LOBBY_CSS = CSS.LOBBY_CSS;
 
-	public function new()
+	public function new(s2d : Scene2D)
 	{
 		super();
+		this.s2d = s2d;
 		h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
 		// physics is Y-up, Heaps camera defaults to Z-up
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);
 		camera.target.set(0, 1, 0);
-		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, -0.4, -1), this);
+		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, 0.4, -1), this);
 		light.power = 2;
+		attachUI(new Lobbydesign());
 	}
 
 	/** Attach the 2D domkit HUD (built by Lobbydesign) onto the 2D scene. */
-	public function attachUI(design : Lobbydesign, s2d : Scene2D)
+	function attachUI(design : Lobbydesign)
 	{
 		style = new Style();
 		style.add(style.cssParser.parseSheet(LOBBY_CSS, "ui/lobby.css"));
