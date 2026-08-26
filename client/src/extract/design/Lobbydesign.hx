@@ -13,6 +13,7 @@ class Lobbydesign extends Flow implements Object
 			<bottom-panel class="bottom-panel" x="0" y="1010"/>
 			<text id="hunt" class="hunt-title" x="1573" y="114"/>
 			<text id="sub" class="subtitle" x="1650" y="215"/>
+			<flow id="subView" class="sub-view"/>
 		</lobbydesign>;
 
 	public function new(?parent)
@@ -22,4 +23,6 @@ class Lobbydesign extends Flow implements Object
 		hunt.text = "HUNT";
 		sub.text = "SHOWDOWN";
 	}
+
+	public function getSubView() : h2d.Flow return subView;
 }

@@ -8,7 +8,7 @@ import h2d.domkit.Object;
 class ModePanel extends Flow implements Object
 {
 	static var SRC =
-		<mode-panel>
+		<mode-panel class="mode-panel">
 			<flow class="mode-inner" x="2" y="2">
 				<flow id="titleWrap" class="title-wrap" x="0" y="15">
 					<text id="title" class="mode-title"/>

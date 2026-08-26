@@ -50,10 +50,11 @@ class LobbyView extends Scene3D
 
 	public function switchSubView(sub : PlaySubView)
 	{
+		var container = design.getSubView();
 		if (currentSubView != null)
-			s2d.removeChild(currentSubView.panel);
+			container.removeChild(currentSubView.panel);
 		currentSubView = sub;
-		s2d.addChild(sub.panel);
+		container.addChild(sub.panel);
 		style.addObject(sub.panel);
 		style.sync();
 	}

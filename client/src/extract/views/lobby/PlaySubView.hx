@@ -1,14 +1,13 @@
 package extract.views.lobby;
 
-import extract.design.ModePanel;
+import extract.design.PlayDesign;
 
 class PlaySubView
 {
-	public var panel : ModePanel;
+	public var panel : PlayDesign;
 
 	public function new()
 	{
-		panel = new ModePanel();
-		panel.setPosition(40, 140);
+		panel = new PlayDesign();
 	}
 }
