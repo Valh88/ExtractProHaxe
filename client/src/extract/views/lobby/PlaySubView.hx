@@ -4,10 +4,10 @@ import extract.design.PlayDesign;
 
 class PlaySubView
 {
-	public var panel : PlayDesign;
+	public var design : PlayDesign;
 
 	public function new()
 	{
-		panel = new PlayDesign();
+		design = new PlayDesign();
 	}
 }

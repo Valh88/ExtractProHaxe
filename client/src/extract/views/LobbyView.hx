@@ -52,10 +52,10 @@ class LobbyView extends Scene3D
 	{
 		var container = design.getSubView();
 		if (currentSubView != null)
-			container.removeChild(currentSubView.panel);
+			container.removeChild(currentSubView.design);
 		currentSubView = sub;
-		container.addChild(sub.panel);
-		style.addObject(sub.panel);
+		container.addChild(sub.design);
+		style.addObject(sub.design);
 		style.sync();
 	}
 
