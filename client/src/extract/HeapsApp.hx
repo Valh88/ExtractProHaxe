@@ -23,6 +23,9 @@ class HeapsApp extends App
 		lobbyView = new LobbyView(s2d);
 		setScene(lobbyView);
 
+		// project-wide screen-space AO (PBR renderer only)
+		lobbyView.renderer.effects.push(new extract.gfx.ScalableAO());
+
 		// shared simulation — same class the server runs
 		sim = new SimWorld();
 
