@@ -15,6 +15,7 @@ class LobbyView extends Scene3D
 	var s2d : Scene2D;
 	var design : Lobbydesign;
 	var currentSubView : Null<PlaySubView>;
+	var flyCam : phys.utils.CameraFly;
 
 	static var LOBBY_CSS = CSS.LOBBY_CSS;
 
@@ -26,6 +27,7 @@ class LobbyView extends Scene3D
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);
 		camera.target.set(0, 1, 0);
+		flyCam = new phys.utils.CameraFly(camera);
 		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, -0.4, -1), this);
 		light.power = 2;
 		light.isMainLight = true;
@@ -66,6 +68,7 @@ class LobbyView extends Scene3D
 
 	public function update(dt : Float)
 	{
+		flyCam.update(dt);
 		style.sync(dt);
 	}
 }
