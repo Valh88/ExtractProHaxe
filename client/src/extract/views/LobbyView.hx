@@ -7,6 +7,7 @@ import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
 import extract.design.ReadyPanel;
+import extract.design.TopPanel;
 import shared.IUpdate;
 import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
@@ -20,6 +21,7 @@ class LobbyView extends Scene3D implements IUpdate
 	var s2d : Scene2D;
 	var design : Lobbydesign;
 	var readyPanel : ReadyPanel;
+	var topPanel : TopPanel;
 	var bus : EventBus;
 	var currentSubView : Null<SubView>; // SubView implements IUpdate
 	var subViews : Map<LobbyTab, SubView> = new Map();
@@ -47,8 +49,9 @@ class LobbyView extends Scene3D implements IUpdate
 		design = new Lobbydesign();
 		attachUI(design);
 		readyPanel = design.getReadyPanel();
+		topPanel = design.getTopPanel();
+		topPanel.onTabSelected = onTabSelected;
 
-		// SEARCH event -> show the ready panel
 		bus.subscribe(SearchStarted, function(e : SearchStarted)
 		{
 			trace("SearchStarted: mode=" + e.mode);
@@ -74,17 +77,35 @@ class LobbyView extends Scene3D implements IUpdate
 		if (sub == null)
 		{
 			sub = createSubView(tab);
-			if (sub == null) return;
+			if (sub == null)
+			{
+				trace(tab + " sub-view not implemented yet");
+				return;
+			}
 			subViews.set(tab, sub);
+			var container = design.getSubViewDesign();
+			container.addChild(sub.design);
+			style.addObject(sub.design);
 		}
+		if (currentSubView == sub) return;
 
-		var container = design.getSubViewDesign();
 		if (currentSubView != null)
-			container.removeChild(currentSubView.design);
+			currentSubView.design.visible = false;
 		currentSubView = sub;
-		container.addChild(sub.design);
-		style.addObject(sub.design);
+		sub.design.visible = true;
+		topPanel.setActiveTab(tabIndex(tab));
 		style.sync();
+	}
+
+	/** Tab click -> LobbyTab (index order == enum constructor order). */
+	function onTabSelected(i : Int) : Void
+	{
+		switchSubView(Type.createEnumIndex(LobbyTab, i));
+	}
+
+	function tabIndex(tab : LobbyTab) : Int
+	{
+		return Type.enumIndex(tab);
 	}
 
 	function createSubView(tab : LobbyTab) : SubView
