@@ -78,7 +78,7 @@ class LobbyView extends Scene3D implements IUpdate
 			subViews.set(tab, sub);
 		}
 
-		var container = design.getSubView();
+		var container = design.getSubViewDesign();
 		if (currentSubView != null)
 			container.removeChild(currentSubView.design);
 		currentSubView = sub;
