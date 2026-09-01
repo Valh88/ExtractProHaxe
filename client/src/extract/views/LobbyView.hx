@@ -11,6 +11,8 @@ import extract.IScene;
 import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
 import extract.views.lobby.HeroesSubView;
+import shared.events.EventBus;
+import shared.events.GameEvents.SearchStarted;
 
 class LobbyView extends Scene3D implements IScene
 {
@@ -18,15 +20,17 @@ class LobbyView extends Scene3D implements IScene
 	var s2d : Scene2D;
 	var design : Lobbydesign;
 	var readyPanel : ReadyPanel;
+	var bus : EventBus;
 	var currentSubView : Null<SubView>;
 	var subViews : Map<LobbyTab, SubView> = new Map();
 	var flyCam : phys.utils.CameraFly;
 
-	public function new(s2d : Scene2D, style : Style)
+	public function new(s2d : Scene2D, style : Style, bus : EventBus)
 	{
 		super();
 		this.s2d = s2d;
 		this.style = style;
+		this.bus = bus;
 		//h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);
@@ -43,6 +47,14 @@ class LobbyView extends Scene3D implements IScene
 		design = new Lobbydesign();
 		attachUI(design);
 		readyPanel = design.getReadyPanel();
+
+		// SEARCH event -> show the ready panel
+		bus.subscribe(SearchStarted, function(e : SearchStarted)
+		{
+			trace("SearchStarted: mode=" + e.mode);
+			showReadyPanel();
+		});
+
 		switchSubView(LobbyTab.Play);
 	}
 
@@ -79,8 +91,8 @@ class LobbyView extends Scene3D implements IScene
 	{
 		return switch (tab)
 		{
-			case Play: new PlaySubView();
-			case Heroes: new HeroesSubView();
+			case Play: new PlaySubView(bus);
+			case Heroes: new HeroesSubView(bus);
 			case Inventory, Market: null; // not implemented yet
 		}
 	}

@@ -2,10 +2,12 @@ package extract;
 
 import h3d.Vector;
 import hxd.App;
+import extract.events.ClientEventBus;
 
 class HeapsApp extends App
 {
 	var sceneManager : SceneManager;
+	var eventBus : ClientEventBus;
 
 	/** Global domkit style shared by all views (loads ui/lobby.css once). */
 	public var uiStyle : h2d.domkit.Style;
@@ -16,8 +18,11 @@ class HeapsApp extends App
 		uiStyle = new h2d.domkit.Style();
 		uiStyle.load(hxd.Res.load("ui/lobby.css"));
 
+		// shared event bus (local delivery on flush, transport in subclass)
+		eventBus = new ClientEventBus();
+
 		// scene manager handles creation/caching/switching of scenes
-		sceneManager = new SceneManager(this, s2d, uiStyle);
+		sceneManager = new SceneManager(this, s2d, uiStyle, eventBus);
 		sceneManager.switchScene(SceneManager.GameScene.Lobby);
 	}
 
@@ -25,6 +30,7 @@ class HeapsApp extends App
 	{
 		super.update(dt);
 		sceneManager.update(dt);
+		eventBus.flush(); // dispatch queued events at end of frame
 	}
 
 	override function loadAssets(done) 

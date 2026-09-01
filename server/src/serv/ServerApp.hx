@@ -6,6 +6,8 @@ import phys.core.PhysJoint;
 
 import shared.Config;
 import shared.SimWorld;
+import shared.events.GameEvents.SearchStarted;
+import serv.events.ServerEventBus;
 
 /**
 	Headless server entry point: the SAME SimWorld as the client, but instead
@@ -20,6 +22,13 @@ class ServerApp
 		trace("== template server (headless) ==");
 		var sim = new SimWorld();
 
+		// SERVER event bus (local delivery on flush, transport in subclass)
+		var bus = new ServerEventBus();
+		bus.subscribe(SearchStarted, function(e : SearchStarted)
+		{
+			trace("SEARCH mode=" + e.mode + " (from client)");
+		});
+
 		// SERVER consumer: same interface as the client's renderer
 		var logger = new StateLogger();
 		sim.phys.addConsumer(logger);
@@ -31,6 +40,7 @@ class ServerApp
 		while (t < Config.SERVER_RUN_SECONDS)
 		{
 			sim.update(dt); // identical call to the client's
+			bus.flush();    // dispatch queued events at end of tick
 			logger.dump();
 			Sys.sleep(dt);
 			t += dt;

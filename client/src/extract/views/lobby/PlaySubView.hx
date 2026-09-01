@@ -3,6 +3,8 @@ package extract.views.lobby;
 import h2d.Object;
 import extract.design.PlayDesign;
 import extract.views.SubView;
+import shared.events.EventBus;
+import shared.events.GameEvents.SearchStarted;
 
 class PlaySubView extends SubView
 {
@@ -11,9 +13,9 @@ class PlaySubView extends SubView
 	/** Selected team size (client-side for now). */
 	public var mode(default, null) : LobbyMode = LobbyMode.Solo;
 
-	public function new(?parent : Object)
+	public function new(bus : EventBus, ?parent : Object)
 	{
-		super(parent);
+		super(bus, parent);
 		playDesign = new PlayDesign();
 		design = playDesign;
 
@@ -37,6 +39,6 @@ class PlaySubView extends SubView
 
 	function onSearchClick() : Void
 	{
-		trace("SEARCH clicked, mode=" + mode);
+		bus.publish(new SearchStarted(Std.string(mode)));
 	}
 }
