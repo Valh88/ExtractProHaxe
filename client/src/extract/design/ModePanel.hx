@@ -34,9 +34,13 @@ class ModePanel extends Flow implements Object
 		</mode-panel>;
 
 	var panelBg : Graphics;
+	var soloBorder : Graphics;
+	var partyBorder : Graphics;
 
 	/** Set by the owning sub-view; fired on SEARCH click. */
 	public var onSearch : Null<Void -> Void>;
+	/** Set by the owning sub-view; fired on solo/party icon click (true = solo). */
+	public var onModeSelect : Null<Bool -> Void>;
 
 	public function new(?parent)
 	{
@@ -48,8 +52,8 @@ class ModePanel extends Flow implements Object
 		drawPanelBg();
 
 		addRoundedChild(mapImage, 180, 120, 4, 0x2A1A10, 0x3A2A18);
-		addRoundedChild(soloIcon, 56, 56, 6, 0x2A1A10, 0xC8956C);
-		addRoundedChild(partyIcon, 56, 56, 6, 0x1A1208, 0x3A2A18);
+		soloBorder = addRoundedChild(soloIcon, 56, 56, 6, 0x2A1A10, 0xC8956C);
+		partyBorder = addRoundedChild(partyIcon, 56, 56, 6, 0x1A1208, 0x3A2A18);
 		addRoundedChild(searchBtn, 180, 50, 4, 0x8B2010, 0xA03020);
 
 		titleWrap.horizontalAlign = Middle;
@@ -67,6 +71,22 @@ class ModePanel extends Flow implements Object
 		searchBtn.enableInteractive = true;
 		searchBtn.interactive.cursor = Button;
 		searchBtn.interactive.onClick = function(_) if (onSearch != null) onSearch();
+
+		// solo/party click -> onModeSelect(true = solo)
+		soloIcon.enableInteractive = true;
+		soloIcon.interactive.cursor = Button;
+		soloIcon.interactive.onClick = function(_) if (onModeSelect != null) onModeSelect(true);
+
+		partyIcon.enableInteractive = true;
+		partyIcon.interactive.cursor = Button;
+		partyIcon.interactive.onClick = function(_) if (onModeSelect != null) onModeSelect(false);
+	}
+
+	/** Redraw icon borders: `soloActive` = solo gets the gold rim. */
+	public function setActiveMode(soloActive : Bool) : Void
+	{
+		redrawRounded(soloBorder, 56, 56, 6, 0x2A1A10, soloActive ? 0xC8956C : 0x3A2A18);
+		redrawRounded(partyBorder, 56, 56, 6, 0x1A1208, soloActive ? 0x3A2A18 : 0xC8956C);
 	}
 
 	function drawPanelBg()
@@ -80,10 +100,22 @@ class ModePanel extends Flow implements Object
 		panelBg.endFill();
 	}
 
-	function addRoundedChild(parent : Flow, w : Int, h : Int, r : Int, fill : Int, border : Int)
+	function addRoundedChild(parent : Flow, w : Int, h : Int, r : Int, fill : Int, border : Int) : Graphics
 	{
 		var g = new Graphics();
 		parent.addChildAt(g, 0);
+		drawRounded(g, w, h, r, fill, border);
+		return g;
+	}
+
+	function redrawRounded(g : Graphics, w : Int, h : Int, r : Int, fill : Int, border : Int) : Void
+	{
+		g.clear();
+		drawRounded(g, w, h, r, fill, border);
+	}
+
+	function drawRounded(g : Graphics, w : Int, h : Int, r : Int, fill : Int, border : Int) : Void
+	{
 		g.beginFill(border);
 		g.drawRoundedRect(0, 0, w, h, r);
 		g.endFill();
