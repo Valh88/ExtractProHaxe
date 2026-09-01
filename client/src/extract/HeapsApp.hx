@@ -17,10 +17,17 @@ class HeapsApp extends App
 	var renderer : PhysRenderer;
 	var lobbyView : LobbyView;
 
+	/** Global domkit style shared by all views (loads ui/lobby.css once). */
+	public var uiStyle : h2d.domkit.Style;
+
 	override function init()
 	{
+		// app-wide UI style: first thing so every view can style.addObject()
+		uiStyle = new h2d.domkit.Style();
+		uiStyle.load(hxd.Res.load("ui/lobby.css"));
+
 		// 1) LobbyView becomes the root 3D scene (s3d) of the whole lobby
-		lobbyView = new LobbyView(s2d);
+		lobbyView = new LobbyView(s2d, uiStyle);
 		setScene(lobbyView);
 
 		// project-wide screen-space AO (PBR renderer only)
@@ -93,7 +100,8 @@ class HeapsApp extends App
 		return new h3d.scene.Mesh(prim, m);
 	}
 
-	override function loadAssets(done) {
+	override function loadAssets(done) 
+	{
         #if sys
             hxd.Res.initLocal();
             done();

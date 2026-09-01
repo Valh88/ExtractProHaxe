@@ -1,29 +1,49 @@
-/* Square domkit panels; geometry/positions live in the SRC markup, colors here.
-   Once Oswald .bfnt fonts are added to client/res/font/, also set e.g.
-   font: font/oswald-bold.bfnt 18; on each text class. */
+/* Lobby UI stylesheet — loaded at runtime via hxd.Res (native: from disk, web: from res.pak) */
 
-.lobby-root {}
-
-.mode-panel { position:absolute; width:300; height:460; background:#1A1208; }
-.ready-panel { position:absolute; width:600; height:190; background:#1A1208; }
-
-.mode-title { position:absolute; color:#C4A44A; }
-.duration { position:absolute; color:#6A5A3A; }
-.map-image { position:absolute; width:180; height:120; background:#2A1A10; }
-
-.mode-icon-solo { position:absolute; width:56; height:56; background:#2A1A10; }
-.mode-icon-party { position:absolute; width:56; height:56; background:#1A1208; }
-.mode-icon-label { position:absolute; color:#D8B98A; }
-.mode-icon-party .mode-icon-label { color:#6A5A3A; }
-
-.search-button { position:absolute; width:180; height:50; background:#8B2010; }
-.search-text { position:absolute; color:#F0E0D0; }
-
-.ready-title { position:absolute; color:#BFBFBF; }
-
-.player-chip { position:absolute; width:72; height:104; background:#1A1208; }
-.chip-icon { position:absolute; x:12; y:10; width:48; height:48; background:#2A1A10; }
-.player-status { position:absolute; color:#BFBFBF; }
-.player-chip-ready .player-status { color:#1ACC19; }
-.player-chip-waiting .player-status { color:#B3B319; }
-.player-chip-notready .player-status { color:#B33333; }
+.lobby-root { width:1920; height:1080; }
+.play-view { position:absolute; width:1920; height:1080; }
+.sub-view { position:absolute; width:1920; height:1080; }
+.top-panel { position:absolute; width:1920; height:70; background:#1A1208; }
+.top-border { position:absolute; width:1920; height:2; background:#C8956C; }
+.gold-group { position:absolute; }
+.gold-icon { position:absolute; width:30; height:30; background:#D4A574; }
+.gold-amount { position:absolute; color:#BFBFBF; font: font/oswald_bold_18.fnt; }
+.menu-tabs { position:absolute; }
+.tab { position:absolute; }
+.tab-idle { color:#737373; font: font/oswald_medium_22.fnt; }
+.tab-active { color:#BFBFBF; font: font/oswald_bold_22.fnt; }
+.right-icons { position:absolute; }
+.slot { position:absolute; width:40; height:40; }
+.icon { position:absolute; width:40; height:40; }
+.bottom-panel { position:absolute; width:1920; height:70; background:#1A1208; }
+.bottom-gradient { position:absolute; width:1920; height:140; background:#000000 0.7; }
+.hunt-title { position:absolute; color:#C4A44A; font: font/inter_black_72.fnt; }
+.subtitle { position:absolute; color:#6A5A3A; font: font/inter_regular_18.fnt; }
+/* --- ModePanel (PanelBG) --- */
+.mode-panel { position:absolute; width:300; height:460; }
+.mode-inner { position:absolute; width:296; height:456; }
+.title-wrap { position:absolute; width:296; height:27; h-align:center; }
+.mode-title { color:#C4A44A; font: font/oswald_bold_18.fnt; }
+.map-image { position:absolute; width:180; height:120; }
+.dur-wrap { position:absolute; width:180; height:21; h-align:center; }
+.duration { color:#6A5A3A; font: font/oswald_regular_14.fnt; }
+.mode-icons { position:absolute; width:130; height:56; }
+.solo-icon { position:absolute; width:56; height:56; }
+.party-icon { position:absolute; width:56; height:56; }
+.solo-label { position:absolute; width:8; height:30; color:#C4A44A; font: font/oswald_bold_20.fnt; text-align:center; }
+.party-label { position:absolute; width:11; height:30; color:#6A5A3A; font: font/oswald_bold_20.fnt; text-align:center; }
+.search-btn { position:absolute; width:180; height:50; }
+.search-wrap { position:absolute; width:180; height:50; h-align:center; v-align:center; }
+.search-text { color:#C4A44A; font: font/oswald_bold_18.fnt; }
+/* --- ReadyPanel (CheckReadingDesign) --- */
+.ready-panel { position:absolute; width:600; height:190; }
+.ready-inner { position:absolute; width:596; height:186; }
+.ready-title-wrap { position:absolute; width:596; height:27; h-align:center; }
+.ready-title { color:#BFBFBF; font: font/oswald_bold_18.fnt; }
+.player-group { position:absolute; width:236; height:104; }
+.chip { position:absolute; width:72; height:104; }
+.status-wrap { position:absolute; width:72; height:14; h-align:center; }
+.status { font: font/oswald_bold_11.fnt; }
+.chip-ready .status { color:#1ACC19; }
+.chip-waiting .status { color:#B3B319; }
+.chip-notready .status { color:#B33333; }

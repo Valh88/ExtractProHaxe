@@ -6,7 +6,6 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
-import extract.views.CSS;
 import extract.views.lobby.PlaySubView;
 
 class LobbyView extends Scene3D
@@ -17,12 +16,11 @@ class LobbyView extends Scene3D
 	var currentSubView : Null<PlaySubView>;
 	var flyCam : phys.utils.CameraFly;
 
-	static var LOBBY_CSS = CSS.LOBBY_CSS;
-
-	public function new(s2d : Scene2D)
+	public function new(s2d : Scene2D, style : Style)
 	{
 		super();
 		this.s2d = s2d;
+		this.style = style;
 		h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);
@@ -43,8 +41,6 @@ class LobbyView extends Scene3D
 
 	function attachUI(d : Lobbydesign)
 	{
-		style = new Style();
-		style.add(style.cssParser.parseSheet(LOBBY_CSS, "ui/lobby.css"));
 		s2d.addChild(d);
 		style.addObject(d);
 		style.sync();
