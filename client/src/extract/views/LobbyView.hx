@@ -6,7 +6,9 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
+import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
+import extract.views.lobby.HeroesSubView;
 
 class LobbyView extends Scene3D
 {
@@ -14,6 +16,7 @@ class LobbyView extends Scene3D
 	var s2d : Scene2D;
 	var design : Lobbydesign;
 	var currentSubView : Null<SubView>;
+	var subViews : Map<LobbyTab, SubView> = new Map();
 	var flyCam : phys.utils.CameraFly;
 
 	public function new(s2d : Scene2D, style : Style)
@@ -21,7 +24,7 @@ class LobbyView extends Scene3D
 		super();
 		this.s2d = s2d;
 		this.style = style;
-		h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
+		//h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
 		camera.up.set(0, 1, 0);
 		camera.pos.set(8, 8, 8);
 		camera.target.set(0, 1, 0);
@@ -36,7 +39,7 @@ class LobbyView extends Scene3D
 
 		design = new Lobbydesign();
 		attachUI(design);
-		switchSubView(new PlaySubView());
+		switchSubView(LobbyTab.Play);
 	}
 
 	function attachUI(d : Lobbydesign)
@@ -46,8 +49,16 @@ class LobbyView extends Scene3D
 		style.sync();
 	}
 
-	public function switchSubView(sub : SubView)
+	public function switchSubView(tab : LobbyTab)
 	{
+		var sub = subViews.get(tab);
+		if (sub == null)
+		{
+			sub = createSubView(tab);
+			if (sub == null) return;
+			subViews.set(tab, sub);
+		}
+
 		var container = design.getSubView();
 		if (currentSubView != null)
 			container.removeChild(currentSubView.design);
@@ -55,6 +66,16 @@ class LobbyView extends Scene3D
 		container.addChild(sub.design);
 		style.addObject(sub.design);
 		style.sync();
+	}
+
+	function createSubView(tab : LobbyTab) : SubView
+	{
+		return switch (tab)
+		{
+			case Play: new PlaySubView();
+			case Heroes: new HeroesSubView();
+			case Inventory, Market: null; // not implemented yet
+		}
 	}
 
 	public function addModel(o : h3d.scene.Object)
