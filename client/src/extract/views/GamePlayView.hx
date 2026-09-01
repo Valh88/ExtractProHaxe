@@ -10,9 +10,10 @@ import phys.core.PhysCore;
 import phys.render.PhysRenderer;
 
 import shared.SimWorld;
+import extract.IScene;
 import extract.design.HudDesign;
 
-class GamePlayView extends Scene3D
+class GamePlayView extends Scene3D implements IScene
 {
 	var style : Style;
 	var s2d : Scene2D;

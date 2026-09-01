@@ -6,11 +6,12 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
+import extract.IScene;
 import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
 import extract.views.lobby.HeroesSubView;
 
-class LobbyView extends Scene3D
+class LobbyView extends Scene3D implements IScene
 {
 	var style : Style;
 	var s2d : Scene2D;

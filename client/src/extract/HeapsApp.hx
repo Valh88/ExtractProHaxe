@@ -3,17 +3,9 @@ package extract;
 import h3d.Vector;
 import hxd.App;
 
-import phys.core.PhysBody;
-import phys.core.PhysCore;
-import phys.render.PhysRenderer;
-
-import shared.SimWorld;
-import extract.views.GamePlayView;
-
 class HeapsApp extends App
 {
-
-	var gamePlayView : GamePlayView;
+	var sceneManager : SceneManager;
 
 	/** Global domkit style shared by all views (loads ui/lobby.css once). */
 	public var uiStyle : h2d.domkit.Style;
@@ -24,16 +16,15 @@ class HeapsApp extends App
 		uiStyle = new h2d.domkit.Style();
 		uiStyle.load(hxd.Res.load("ui/lobby.css"));
 
-		// gameplay scene (falling cubes) + HUD
-		gamePlayView = new GamePlayView(s2d, uiStyle);
-		setScene(gamePlayView);
+		// scene manager handles creation/caching/switching of scenes
+		sceneManager = new SceneManager(this, s2d, uiStyle);
+		sceneManager.switchScene(SceneManager.GameScene.Gameplay);
 	}
 
 	override function update(dt : Float)
 	{
 		super.update(dt);
-
-		gamePlayView.update(dt); // simulation + domkit style sync
+		sceneManager.update(dt);
 	}
 
 	override function loadAssets(done) 
