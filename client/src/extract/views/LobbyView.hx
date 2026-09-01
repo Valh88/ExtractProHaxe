@@ -6,6 +6,7 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
+import extract.design.ReadyPanel;
 import extract.IScene;
 import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
@@ -16,6 +17,7 @@ class LobbyView extends Scene3D implements IScene
 	var style : Style;
 	var s2d : Scene2D;
 	var design : Lobbydesign;
+	var readyPanel : ReadyPanel;
 	var currentSubView : Null<SubView>;
 	var subViews : Map<LobbyTab, SubView> = new Map();
 	var flyCam : phys.utils.CameraFly;
@@ -40,8 +42,12 @@ class LobbyView extends Scene3D implements IScene
 
 		design = new Lobbydesign();
 		attachUI(design);
+		readyPanel = design.getReadyPanel();
 		switchSubView(LobbyTab.Play);
 	}
+
+	public function showReadyPanel() : Void readyPanel.show();
+	public function hideReadyPanel() : Void readyPanel.hide();
 
 	function attachUI(d : Lobbydesign)
 	{

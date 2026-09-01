@@ -60,4 +60,14 @@ class ReadyPanel extends Flow implements Object
 		playerGroup.removeChildren();
 		chipCount = 0;
 	}
+
+	public function show() : Void
+	{
+		this.visible = true;
+	}
+
+	public function hide() : Void
+	{
+		this.visible = false;
+	}
 }
