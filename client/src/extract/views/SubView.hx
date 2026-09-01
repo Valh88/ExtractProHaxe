@@ -1,7 +1,6 @@
 package extract.views;
 
 import h2d.Object;
-
 import h2d.Flow;
 
 /**
