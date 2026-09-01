@@ -9,5 +9,6 @@ class HeroesSubView extends SubView
 	public function new(bus : EventBus, ?parent : Object)
 	{
 		super(bus, parent);
+		trace('view load');
 	}
 }
