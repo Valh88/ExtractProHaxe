@@ -47,8 +47,17 @@ class CSS
    ".chip { position:absolute; width:72; height:104; }",
    ".status-wrap { position:absolute; width:72; height:14; h-align:center; }",
    ".status { font: font/oswald_bold_11.fnt; }",
-   ".chip-ready .status { color:#1ACC19; }",
-   ".chip-waiting .status { color:#B3B319; }",
-   ".chip-notready .status { color:#B33333; }",
+".chip-ready .status { color:#1ACC19; }",
+    ".chip-waiting .status { color:#B3B319; }",
+    ".chip-notready .status { color:#B33333; }",
+    // --- HudDesign (test) ---
+    ".hud-root { position:absolute; width:1920; height:1080; }",
+    ".skills-panel { position:absolute; width:376; height:56; }",
+    ".skill-slot { position:absolute; width:56; height:56; }",
+    ".stance-indicator { position:absolute; width:58; height:58; }",
+    ".hp-bg { position:absolute; width:300; height:24; background:#000000 0.5; }",
+    ".hp-fill { position:absolute; width:300; height:24; background:#8C1A1A; }",
+    ".energy-bg { position:absolute; width:300; height:10; background:#000000 0.5; }",
+    ".energy-fill { position:absolute; width:300; height:10; background:#B34D0D; }",
 	].join("\n");
 }
