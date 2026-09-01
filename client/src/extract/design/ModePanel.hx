@@ -35,6 +35,9 @@ class ModePanel extends Flow implements Object
 
 	var panelBg : Graphics;
 
+	/** Set by the owning sub-view; fired on SEARCH click. */
+	public var onSearch : Null<Void -> Void>;
+
 	public function new(?parent)
 	{
 		super(parent);
@@ -59,6 +62,11 @@ class ModePanel extends Flow implements Object
 		solo.text = "1";
 		party.text = "3";
 		search.text = "SEARCH";
+
+		// SEARCH click -> onSearch callback (flow-sized interactive, follows reflow)
+		searchBtn.enableInteractive = true;
+		searchBtn.interactive.cursor = Button;
+		searchBtn.interactive.onClick = function(_) if (onSearch != null) onSearch();
 	}
 
 	function drawPanelBg()

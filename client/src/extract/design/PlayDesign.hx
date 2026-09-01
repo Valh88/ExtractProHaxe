@@ -16,4 +16,6 @@ class PlayDesign extends Flow implements Object
 		super(parent);
 		initComponent();
 	}
+
+	public function getModePanel() : ModePanel return modePanel;
 }
