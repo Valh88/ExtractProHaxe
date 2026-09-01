@@ -8,8 +8,9 @@ import phys.core.IPhysics;
 import phys.core.PhysBody;
 
 import shared.Config;
+import shared.IUpdate;
 
-class SimWorld
+class SimWorld implements IUpdate
 {
 
 	/** The physics world (unified interface — any consumer can use it). */

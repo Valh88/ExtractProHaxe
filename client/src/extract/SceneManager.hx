@@ -4,6 +4,7 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import h3d.scene.Scene as Scene3D;
 
+import shared.IUpdate;
 import shared.events.EventBus;
 import extract.views.GamePlayView;
 import extract.views.LobbyView;
@@ -28,7 +29,7 @@ class SceneManager
 	var scenes : Map<GameScene, Scene3D> = new Map();
 
 	public var current(default, null) : Null<GameScene>;
-	public var currentScene(default, null) : Null<IScene>;
+	public var currentScene(default, null) : Null<IUpdate>;
 
 	public function new(app : hxd.App, s2d : Scene2D, style : Style, bus : EventBus)
 	{

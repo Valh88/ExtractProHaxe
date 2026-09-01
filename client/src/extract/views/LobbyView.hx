@@ -7,21 +7,21 @@ import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
 import extract.design.ReadyPanel;
-import extract.IScene;
+import shared.IUpdate;
 import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
 import extract.views.lobby.HeroesSubView;
 import shared.events.EventBus;
 import shared.events.GameEvents.SearchStarted;
 
-class LobbyView extends Scene3D implements IScene
+class LobbyView extends Scene3D implements IUpdate
 {
 	var style : Style;
 	var s2d : Scene2D;
 	var design : Lobbydesign;
 	var readyPanel : ReadyPanel;
 	var bus : EventBus;
-	var currentSubView : Null<SubView>;
+	var currentSubView : Null<SubView>; // SubView implements IUpdate
 	var subViews : Map<LobbyTab, SubView> = new Map();
 	var flyCam : phys.utils.CameraFly;
 
@@ -106,5 +106,7 @@ class LobbyView extends Scene3D implements IScene
 	{
 		flyCam.update(dt);
 		style.sync(dt);
+		if (currentSubView != null)
+			currentSubView.update(dt);
 	}
 }
