@@ -6,7 +6,6 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
-import extract.views.ISubView;
 import extract.views.lobby.PlaySubView;
 
 class LobbyView extends Scene3D
@@ -14,7 +13,7 @@ class LobbyView extends Scene3D
 	var style : Style;
 	var s2d : Scene2D;
 	var design : Lobbydesign;
-	var currentSubView : Null<ISubView>;
+	var currentSubView : Null<SubView>;
 	var flyCam : phys.utils.CameraFly;
 
 	public function new(s2d : Scene2D, style : Style)
@@ -47,7 +46,7 @@ class LobbyView extends Scene3D
 		style.sync();
 	}
 
-	public function switchSubView(sub : ISubView)
+	public function switchSubView(sub : SubView)
 	{
 		var container = design.getSubView();
 		if (currentSubView != null)

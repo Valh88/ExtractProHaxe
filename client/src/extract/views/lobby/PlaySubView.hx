@@ -1,18 +1,13 @@
 package extract.views.lobby;
 
 import extract.design.PlayDesign;
-import extract.views.SubViewObject;
+import extract.views.SubView;
 
-class PlaySubView extends SubViewObject
+class PlaySubView extends SubView
 {
-	var playDesign : PlayDesign;
-
 	public function new(?parent : Object)
 	{
 		super(parent);
-		playDesign = new PlayDesign();
-		design = playDesign;
+		design = new PlayDesign();
 	}
-
-	public function getPlayDesign() : PlayDesign return playDesign;
 }
