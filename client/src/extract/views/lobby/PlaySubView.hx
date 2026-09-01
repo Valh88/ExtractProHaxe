@@ -1,5 +1,6 @@
 package extract.views.lobby;
 
+import h2d.Object;
 import extract.design.PlayDesign;
 import extract.views.SubView;
 
