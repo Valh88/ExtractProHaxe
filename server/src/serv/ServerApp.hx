@@ -34,9 +34,9 @@ class ServerApp
 			trace("CDB not found (" + e + ") — using Config defaults");
 			gd = new GameData();
 		}
-		trace("GAMEDATA floorHalf=" + gd.floorHalf + " cubeSize=" + gd.cubeSize
-			+ " spawn=" + gd.cubeSpawnInterval + " gravity=" + gd.gravityY
-			+ " heroR=" + gd.heroRadius + " heroHH=" + gd.heroHalfHeight);
+		trace("GAMEDATA db=" + (gd.db != null ? "loaded" : "null")
+			+ " heroR=" + gd.f("Hero", "heroRadius", 0.4)
+			+ " heroHH=" + gd.f("Hero", "heroHalfHeight", 0.45));
 
 		var sim = new SimWorld(gd);
 
