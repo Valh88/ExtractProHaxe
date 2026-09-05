@@ -24,6 +24,14 @@
 				{
 					"name": "gravityY",
 					"typeStr": "4"
+				},
+				{
+					"name": "heroRadius",
+					"typeStr": "4"
+				},
+				{
+					"name": "heroHalfHeight",
+					"typeStr": "4"
 				}
 			],
 			"lines": [
@@ -32,7 +40,9 @@
 					"floorHalf": 10,
 					"cubeSize": 1,
 					"cubeSpawnInterval": 2,
-					"gravityY": -9.80665
+					"gravityY": -9.80665,
+					"heroRadius": 0.4,
+					"heroHalfHeight": 0.45
 				}
 			],
 			"separators": [],

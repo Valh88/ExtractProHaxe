@@ -9,6 +9,7 @@ import phys.render.PhysRenderer;
 import phys.utils.CameraFly;
 
 import shared.SimWorld;
+import shared.GameData;
 import extract.design.HudDesign;
 import extract.utils.BaseScene;
 
@@ -20,9 +21,9 @@ class GamePlayView extends BaseScene
 	var physRenderer : PhysRenderer;
 	var debugCam : CameraFly;
 
-	public function new(s2d : Scene2D, style : Style)
+	public function new(s2d : Scene2D, style : Style, gd : GameData)
 	{
-		super(s2d, style, 0x0D0D0D);
+		super(s2d, style, gd, 0x0D0D0D);
 
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
@@ -32,10 +33,10 @@ class GamePlayView extends BaseScene
 		// the web target has no hide support and uses the procedural level below)
 		var level = hxd.Res.load("levels/test.prefab").toPrefab();
 		level.load().make(this);
-		sim = new SimWorld();
+		sim = new SimWorld(this.gd);
 	#else
 		//procedural level on targets without hide (web)
-		sim = new SimWorld();
+		sim = new SimWorld(this.gd);
 	#end
 
 		// CLIENT consumer: maps each PhysBody to a mesh and interpolates it
@@ -83,6 +84,12 @@ class GamePlayView extends BaseScene
 				new h3d.prim.Cube(sizes.hx * 2, sizes.hy * 2, sizes.hz * 2, true);
 			case "cube":
 				new h3d.prim.Cube(sizes.hx * 2, sizes.hy * 2, sizes.hz * 2, true);
+			case "hero":
+				// capsule collider: hx = radius, hy = cylinder half-height; Oimo
+				// capsule is Y-aligned, so build the heaps mesh on the Y axis
+				var cap = new h3d.prim.Capsule(sizes.hx, sizes.hy * 2, 12, h3d.prim.Capsule.Axis.Y);
+				cap.addNormals();
+				cap;
 			default:
 				null;
 		}
@@ -103,6 +110,10 @@ class GamePlayView extends BaseScene
 				pbr.metalnessValue = 0.8;
 				pbr.roughnessValue = 0.3;
 				m.color.set(0.4, 0.6, 1, 1);
+			case "hero": // warm orange hero capsule
+				pbr.metalnessValue = 0.1;
+				pbr.roughnessValue = 0.5;
+				m.color.set(1, 0.55, 0.2, 1);
 		}
 		m.mainPass.addShader(pbr);
 		return new h3d.scene.Mesh(prim, m);

@@ -1,19 +1,28 @@
-package extract.utils;
+package shared;
 
 import cdb.Database;
-import shared.Config;
 
 /**
-	Starter client-side loader for the shared `res/db/data.cdb` (castle/cdb).
-	Defaults come from Config; fields found in the `Gameplay` sheet override them.
-	(Same file can later feed the headless server via sys.io.)
+	Data-driven game numbers loaded from the shared `res/db/data.cdb`
+	(castle/cdb). Defaults come from `Config`; values found in the
+	`Gameplay` sheet override them. No heaps dependency — the same parser
+	feeds the client (`hxd.Res`) and the headless server (`sys.io.File`).
 **/
 class GameData
 {
+	/** Raw parsed database (null when built from defaults without cdb). */
+	public var db(default, null) : Database;
+
 	public var floorHalf : Float;
 	public var cubeSize : Float;
 	public var cubeSpawnInterval : Float;
 	public var gravityY : Float;
+
+	/** Hero capsule radius (total height = 2*(heroHalfHeight + heroRadius)). */
+	public var heroRadius : Float;
+
+	/** Hero capsule cylinder half-height. */
+	public var heroHalfHeight : Float;
 
 	public function new()
 	{
@@ -21,6 +30,8 @@ class GameData
 		cubeSize = Config.CUBE_SIZE;
 		cubeSpawnInterval = Config.CUBE_SPAWN_INTERVAL;
 		gravityY = Config.GRAVITY_Y;
+		heroRadius = 0.4;
+		heroHalfHeight = 0.45; // total height = 2*(0.45 + 0.4) = 1.7
 	}
 
 	public static function fromCdb(content : String) : GameData
@@ -30,12 +41,13 @@ class GameData
 		{
 			var db = new Database();
 			db.load(content);
+			gd.db = db;
 			var sheet = db.getSheet("Gameplay");
 			if (sheet == null) return gd;
 			var lines = sheet.getLines();
 			if (lines.length == 0) return gd;
 			var line = lines[0];
-			for (f in ["floorHalf", "cubeSize", "cubeSpawnInterval", "gravityY"]) {
+			for (f in ["floorHalf", "cubeSize", "cubeSpawnInterval", "gravityY", "heroRadius", "heroHalfHeight"]) {
 				var v : Dynamic = Reflect.field(line, f);
 				if (v != null && Std.isOfType(v, Float))
 					Reflect.setField(gd, f, v);

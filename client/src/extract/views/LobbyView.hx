@@ -12,6 +12,7 @@ import extract.views.lobby.PlaySubView;
 import extract.views.lobby.HeroesSubView;
 import shared.events.EventBus;
 import shared.events.GameEvents.SearchStarted;
+import shared.GameData;
 
 class LobbyView extends BaseScene
 {
@@ -23,9 +24,9 @@ class LobbyView extends BaseScene
 	var subViews : Map<LobbyTab, SubView> = new Map();
 	var flyCam : phys.utils.CameraFly;
 
-	public function new(s2d : Scene2D, style : Style, bus : EventBus)
+	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
-		super(s2d, style);
+		super(s2d, style, gd);
 		this.bus = bus;
 		flyCam = new phys.utils.CameraFly(camera);
 

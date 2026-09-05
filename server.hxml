@@ -6,6 +6,7 @@
 -cp D:/projects/haxe/OimoPhysics/src
 
 -lib HeapsPhysics
+-lib castle
 
 --main Main
 

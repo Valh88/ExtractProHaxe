@@ -19,7 +19,7 @@ class HeapsApp extends App
 		uiStyle.load(hxd.Res.load("ui/lobby.css"));
 
 		// starter data-config from the shared cdb (fallback=none, see GameData)
-		var gd = extract.utils.GameData.fromCdb(hxd.Res.load("db/data.cdb").toText());
+		var gd = shared.GameData.fromCdb(hxd.Res.load("db/data.cdb").toText());
 		trace("GAMEDATA floorHalf=" + gd.floorHalf + " cubeSize=" + gd.cubeSize
 			+ " spawn=" + gd.cubeSpawnInterval + " gravity=" + gd.gravityY);
 
@@ -27,7 +27,7 @@ class HeapsApp extends App
 		eventBus = new ClientEventBus();
 
 		// scene manager handles creation/caching/switching of scenes
-		sceneManager = new SceneManager(this, s2d, uiStyle, eventBus);
+		sceneManager = new SceneManager(this, s2d, uiStyle, eventBus, gd);
 		sceneManager.switchScene(SceneManager.GameScene.Gameplay);
 	}
 

@@ -34,6 +34,8 @@ class GenDb
 			{ name : "cubeSize", type : TFloat, typeStr : null },
 			{ name : "cubeSpawnInterval", type : TFloat, typeStr : null },
 			{ name : "gravityY", type : TFloat, typeStr : null },
+			{ name : "heroRadius", type : TFloat, typeStr : null },
+			{ name : "heroHalfHeight", type : TFloat, typeStr : null },
 		];
 		for (c in cols) {
 			var err = sheet.addColumn(c);
@@ -49,6 +51,8 @@ class GenDb
 		Reflect.setField(line, "cubeSize", 1.0);
 		Reflect.setField(line, "cubeSpawnInterval", 2.0);
 		Reflect.setField(line, "gravityY", -9.80665);
+		Reflect.setField(line, "heroRadius", 0.4);
+		Reflect.setField(line, "heroHalfHeight", 0.45);
 		sheet.lines.push(line);
 
 		var dir = haxe.io.Path.directory(out);
@@ -63,6 +67,8 @@ class GenDb
 		Sys.println("OK " + s.name + ": floorHalf=" + Reflect.field(l, "floorHalf")
 			+ " cubeSize=" + Reflect.field(l, "cubeSize")
 			+ " spawn=" + Reflect.field(l, "cubeSpawnInterval")
-			+ " gravity=" + Reflect.field(l, "gravityY"));
+			+ " gravity=" + Reflect.field(l, "gravityY")
+			+ " heroR=" + Reflect.field(l, "heroRadius")
+			+ " heroHH=" + Reflect.field(l, "heroHalfHeight"));
 	}
 }

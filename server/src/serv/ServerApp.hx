@@ -5,6 +5,7 @@ import phys.core.PhysBody;
 import phys.core.PhysJoint;
 
 import shared.Config;
+import shared.GameData;
 import shared.SimWorld;
 import shared.events.GameEvents.SearchStarted;
 import serv.events.ServerEventBus;
@@ -20,7 +21,24 @@ class ServerApp
 	public static function main()
 	{
 		trace("== template server (headless) ==");
-		var sim = new SimWorld();
+
+		// same cdb as the client (path relative to the CWD the server runs from);
+		// missing file -> Config defaults, never a crash
+		var gd : GameData;
+		try
+		{
+			gd = GameData.fromCdb(sys.io.File.getContent("client/res/db/data.cdb"));
+		}
+		catch (e : Dynamic)
+		{
+			trace("CDB not found (" + e + ") — using Config defaults");
+			gd = new GameData();
+		}
+		trace("GAMEDATA floorHalf=" + gd.floorHalf + " cubeSize=" + gd.cubeSize
+			+ " spawn=" + gd.cubeSpawnInterval + " gravity=" + gd.gravityY
+			+ " heroR=" + gd.heroRadius + " heroHH=" + gd.heroHalfHeight);
+
+		var sim = new SimWorld(gd);
 
 		// SERVER event bus (local delivery on flush, transport in subclass)
 		var bus = new ServerEventBus();
