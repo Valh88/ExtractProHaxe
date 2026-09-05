@@ -220,6 +220,47 @@ toggle the style flag — for variable fonts, **pre-instance the weight to a sta
 **SINGLE line** (multi-line breaks the parser with `ArrayIndexOutOfBoundsException`).
 
 
+## Game data — castle/cdb (`res/db/data.cdb`)
+
+Starter data-driven config lives in `client/res/db/data.cdb` (castle/cdb format —
+plain JSON; `cdb.Parser` maps the numeric `typeStr` to `cdb.Data.ColumnType`:
+0=TId, 1=TString, 3=TInt, 4=TFloat…). One file, meant to be shared: the client reads it
+via `client/src/extract/utils/GameData.hx` (`hxd.Res.load("db/data.cdb").toText()`
+→ `GameData.fromCdb`), the headless server can later use the SAME parser with
+`sys.io.File.getContent` (cdb has no heaps dependency). Client builds link cdb via
+`-lib castle` in `win.hxml`/`web.hxml`.
+
+### Regenerating the starter DB — `tools/GenDb.hx`
+
+```sh
+haxe -lib castle -hl tools/gendb.hl -main GenDb -cp tools
+hl tools/gendb.hl                # writes client/res/db/data.cdb
+hl tools/gendb.hl -out <path>    # custom output path
+```
+
+Idempotent: builds the `Gameplay` sheet (columns id/floorHalf/cubeSize/
+cubeSpawnInterval/gravityY, one `default` row), serializes with `db.save()`, then
+re-loads the written file and prints the values (round-trip self-check). After any
+schema change → re-run the tool AND rebuild both paks + both targets (web reads
+`db/data.cdb` from the pak):
+
+```sh
+haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/client/res
+haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/web/res
+haxe win.hxml && haxe web.hxml
+```
+
+Gotchas:
+- castle `Sheet.newLine()` crashes on an empty sheet (`lines[-1]`, `Sheet.hx:215`) —
+  GenDb pushes directly into the public `sheet.lines` instead.
+- Column literals must use `typeStr : null` (NOT `""`): `Parser.save()` only fills
+  `typeStr` when it is null, and `""` round-trips into "Unknown type" on load.
+- The client loader (`GameData.fromCdb`) falls back to `Config.hx` defaults on a
+  missing file/sheet/field, so a broken db never breaks startup (missing `res.pak`
+  still hangs, but that's the pak loader, not cdb).
+- hide's Data tab is not wired up yet (would need `cdb.databaseFile` project config
+  pointing at `res/db/data.cdb`); for now the file is authored by GenDb.
+
 ## Architecture
 
 - `shared/src/shared/SimWorld.hx` is THE simulation, run identically by client (`client/src/extract/HeapsApp.hx`) and server (`server/src/serv/ServerApp.hx`). Gameplay rules (auto-spawn cubes, level geometry) go in SimWorld, not in client/server code.

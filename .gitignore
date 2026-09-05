@@ -10,3 +10,4 @@ tools/hiero/_static/
 tools/hiero/out/
 tools/runnable-hiero.jar
 *.txt
+tools/gendb.hl

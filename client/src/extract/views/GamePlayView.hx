@@ -25,11 +25,11 @@ class GamePlayView extends BaseScene
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 
-		//#if hide
+		#if hide
 		// level authored in Hide's scene editor, loaded as a prefab at runtime
 		var level = hxd.Res.load("levels/test.prefab").toPrefab();
 		level.load().make(this);
-		//#end
+		#end
 
 		// shared simulation вЂ” same class the server runs
 		sim = new SimWorld();

@@ -8,6 +8,7 @@
 
 -lib heaps
 -lib HeapsPhysics
+-lib castle
 -lib format
 -lib domkit
 -D domkit

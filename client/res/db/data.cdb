@@ -1,0 +1,42 @@
+{
+	"compress": false,
+	"customTypes": [],
+	"sheets": [
+		{
+			"name": "Gameplay",
+			"columns": [
+				{
+					"name": "id",
+					"typeStr": "0"
+				},
+				{
+					"name": "floorHalf",
+					"typeStr": "4"
+				},
+				{
+					"name": "cubeSize",
+					"typeStr": "4"
+				},
+				{
+					"name": "cubeSpawnInterval",
+					"typeStr": "4"
+				},
+				{
+					"name": "gravityY",
+					"typeStr": "4"
+				}
+			],
+			"lines": [
+				{
+					"id": "default",
+					"floorHalf": 10,
+					"cubeSize": 1,
+					"cubeSpawnInterval": 2,
+					"gravityY": -9.80665
+				}
+			],
+			"separators": [],
+			"props": {}
+		}
+	]
+}

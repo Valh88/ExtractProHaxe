@@ -18,6 +18,11 @@ class HeapsApp extends App
 		uiStyle = new h2d.domkit.Style();
 		uiStyle.load(hxd.Res.load("ui/lobby.css"));
 
+		// starter data-config from the shared cdb (fallback=none, see GameData)
+		var gd = extract.utils.GameData.fromCdb(hxd.Res.load("db/data.cdb").toText());
+		trace("GAMEDATA floorHalf=" + gd.floorHalf + " cubeSize=" + gd.cubeSize
+			+ " spawn=" + gd.cubeSpawnInterval + " gravity=" + gd.gravityY);
+
 		// shared event bus (local delivery on flush, transport in subclass)
 		eventBus = new ClientEventBus();
 

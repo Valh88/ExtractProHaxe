@@ -9,6 +9,7 @@
 -D resourcesPath=client/res
 
 -lib HeapsPhysics
+-lib castle
 -lib format
 -lib hlsdl
 -lib hlopenal
