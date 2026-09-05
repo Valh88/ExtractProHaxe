@@ -3,7 +3,7 @@
 	"customTypes": [],
 	"sheets": [
 		{
-			"name": "Gameplay",
+			"name": "World",
 			"columns": [
 				{
 					"name": "id",
@@ -24,6 +24,26 @@
 				{
 					"name": "gravityY",
 					"typeStr": "4"
+				}
+			],
+			"lines": [
+				{
+					"cubeSize": 1,
+					"cubeSpawnInterval": 2,
+					"floorHalf": 10,
+					"gravityY": -9.80665,
+					"id": "default"
+				}
+			],
+			"separators": [],
+			"props": {}
+		},
+		{
+			"name": "Hero",
+			"columns": [
+				{
+					"name": "id",
+					"typeStr": "0"
 				},
 				{
 					"name": "heroRadius",
@@ -36,13 +56,9 @@
 			],
 			"lines": [
 				{
-					"id": "default",
-					"floorHalf": 10,
-					"cubeSize": 1,
-					"cubeSpawnInterval": 2,
-					"gravityY": -9.80665,
+					"heroHalfHeight": 0.45,
 					"heroRadius": 0.4,
-					"heroHalfHeight": 0.45
+					"id": "default"
 				}
 			],
 			"separators": [],

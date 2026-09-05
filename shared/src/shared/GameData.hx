@@ -42,15 +42,23 @@ class GameData
 			var db = new Database();
 			db.load(content);
 			gd.db = db;
-			var sheet = db.getSheet("Gameplay");
-			if (sheet == null) return gd;
-			var lines = sheet.getLines();
-			if (lines.length == 0) return gd;
-			var line = lines[0];
-			for (f in ["floorHalf", "cubeSize", "cubeSpawnInterval", "gravityY", "heroRadius", "heroHalfHeight"]) {
-				var v : Dynamic = Reflect.field(line, f);
-				if (v != null && Std.isOfType(v, Float))
-					Reflect.setField(gd, f, v);
+			var world = db.getSheet("World");
+			if (world != null && world.getLines().length > 0) {
+				var line = world.getLines()[0];
+				for (f in ["floorHalf", "cubeSize", "cubeSpawnInterval", "gravityY"]) {
+					var v : Dynamic = Reflect.field(line, f);
+					if (v != null && Std.isOfType(v, Float))
+						Reflect.setField(gd, f, v);
+				}
+			}
+			var hero = db.getSheet("Hero");
+			if (hero != null && hero.getLines().length > 0) {
+				var line = hero.getLines()[0];
+				for (f in ["heroRadius", "heroHalfHeight"]) {
+					var v : Dynamic = Reflect.field(line, f);
+					if (v != null && Std.isOfType(v, Float))
+						Reflect.setField(gd, f, v);
+				}
 			}
 		}
 		catch (e : Dynamic)
