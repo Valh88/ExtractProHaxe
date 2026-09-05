@@ -4,14 +4,6 @@
 	"children": [
 		{
 			"type": "box",
-			"name": "floor",
-			"y": -0.1,
-			"scaleX": 100,
-			"scaleY": 0.2,
-			"scaleZ": 100
-		},
-		{
-			"type": "box",
 			"name": "pillar1",
 			"x": -2,
 			"y": 0.5,
@@ -21,8 +13,11 @@
 			"type": "box",
 			"name": "pillar2",
 			"x": 2,
-			"y": 0.5,
-			"z": -2
+			"y": 2.3837341188736674,
+			"z": -2,
+			"scaleX": 0.5,
+			"scaleY": 1.7,
+			"scaleZ": 0.5
 		},
 		{
 			"type": "box",
