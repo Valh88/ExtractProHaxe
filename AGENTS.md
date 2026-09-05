@@ -220,6 +220,37 @@ toggle the style flag — for variable fonts, **pre-instance the weight to a sta
 **SINGLE line** (multi-line breaks the parser with `ArrayIndexOutOfBoundsException`).
 
 
+## Hide editor & `hide-plugin.js`
+
+This is a hide project: the level prefabs (`client/res/levels/*.prefab`) are authored in the
+hide scene editor, and the game view loads the prefab via `hrt.prefab` under `#if hide`
+(HL-only; the web build is procedural). Two pieces have to be generated:
+
+- **The hide editor itself** — wrapped as an NW.js app at `D:\projects\haxe\windows\hide.cmd`
+  (web/JS build of hide; opens Chromium with `--remote-debugging-port=9222`). Launch it with
+  `D:\projects\haxe\windows\hide.cmd`, then **Open** the project: pick the `client` folder
+  (or `client/hide-plugin.hxml`). Resources are `client/res`.
+- **The project plugin** — the editor is vanilla hide; game-specific editor code (custom
+  prefab classes/properties) lives in `client/hide-plugin.hxml` and must be compiled to JS:
+
+```sh
+haxe --cwd client client/hide-plugin.hxml   # -> client/hide-plugin.js (+ .map)
+```
+
+The hxml uses `-js hide-plugin.js` and `-cp src`, so **always run it with `--cwd client`**
+(`-cp`/`-js` in hxml resolve against the working directory, NOT the hxml location — verified).
+It links `-lib hide/hxnodejs/domkit`, `--macro hide.Plugin.init()`, `-D script`. A rebuild is
+idempotent (`git status` stays clean on the existing `client/hide-plugin.js`).
+
+Plugins are registered per-project in `client/res/props.json`:
+`{ "plugins": ["../hide-plugin.js"] }`. `loadPlugin` resolves the path relative to the resource
+dir (`client/res`), so `../hide-plugin.js` → `client/hide-plugin.js`. The plugin file is
+file-watched — regenerate it while hide is open and it hot-reloads.
+
+Workflow: `haxe --cwd client client/hide-plugin.hxml` → start `hide.cmd` → Open `client` →
+open `client/res/levels/test.prefab` in the Scene tab → edit → save (writes the `.prefab`),
+then rebuild the paks + win target to see it in-game.
+
 ## Game data — castle/cdb (`res/db/data.cdb`)
 
 Starter data-driven config lives in `client/res/db/data.cdb` (castle/cdb format —

@@ -4,6 +4,6 @@
 -lib domkit
 --macro hide.Plugin.init()
 -D script
--js client/hide-plugin.js
+-js hide-plugin.js
 -debug
 -dce no
