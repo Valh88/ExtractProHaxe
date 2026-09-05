@@ -25,14 +25,16 @@ class GamePlayView extends BaseScene
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 
-		#if hide
-		// level authored in Hide's scene editor, loaded as a prefab at runtime
-		var level = hxd.Res.load("levels/test.prefab").toPrefab();
-		level.load().make(this);
-		#end
-
-		// shared simulation вЂ” same class the server runs
+		//#if hide
+		//// level authored in Hide's scene editor, loaded as a prefab (HL only —
+		//// the web target has no hide support and uses the procedural level below)
+		//var level = hxd.Res.load("levels/test.prefab").toPrefab();
+		//level.load().make(this);
+		//sim = new SimWorld(false);
+		//#else
+		// procedural level on targets without hide (web)
 		sim = new SimWorld();
+		//#end
 
 		// CLIENT consumer: maps each PhysBody to a mesh and interpolates it
 		physRenderer = new PhysRenderer();
@@ -51,6 +53,15 @@ class GamePlayView extends BaseScene
 		// draw the initial scene too (created before onSpawn was set)
 		for (b in sim.existingBodies())
 			sim.onSpawn(b);
+
+		#if hide
+		// static level colliders from the same prefab (pure JSON вЂ” works headless too).
+		// Spawned AFTER the initial draw: the prefab above already renders these
+		// objects, so they must not get a second mesh from onSpawn.
+		var prefabPhys = new shared.PrefabPhysics(sim.phys);
+		var statics = prefabPhys.load(shared.PrefabPhysics.defaultLevelPath("levels/test.prefab"));
+		trace("PREFAB-PHYS statics=" + statics.length + " " + [for (b in statics) b.name].join(","));
+		#end
 
 		// HUD on top of the gameplay scene
 		hud = new HudDesign();

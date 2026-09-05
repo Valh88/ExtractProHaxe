@@ -36,7 +36,7 @@ class BaseScene extends Scene3D implements IUpdate
 		light.power = 2;
 		light.isMainLight = true;
 		light.shadows.mode = h3d.pass.Shadows.RenderMode.Dynamic;
-		light.shadows.size = 2048;
+		light.shadows.size = 3048;
 		light.shadows.power = 150;
 		light.shadows.bias *= 0.3;
 		return light;

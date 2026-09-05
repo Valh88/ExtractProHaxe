@@ -28,7 +28,7 @@ class HeapsApp extends App
 
 		// scene manager handles creation/caching/switching of scenes
 		sceneManager = new SceneManager(this, s2d, uiStyle, eventBus);
-		sceneManager.switchScene(SceneManager.GameScene.Lobby);
+		sceneManager.switchScene(SceneManager.GameScene.Gameplay);
 	}
 
 	override function update(dt : Float)

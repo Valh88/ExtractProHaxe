@@ -22,14 +22,19 @@ class SimWorld implements IUpdate
 	var spawnT : Float;
 	var spawnI : Int;
 
-	public function new()
+	/**
+		@param spawnDefaultLevel build the built-in floor/cubes level.
+		Pass `false` when the level comes from a hide prefab (client) —
+		the server keeps the default level.
+	**/
+	public function new(?spawnDefaultLevel : Bool = true)
 	{
 		var world = new GameWorld(new Vec3(0, Config.GRAVITY_Y, 0));
 		world.phys.setPhysicsHz(Config.PHYSICS_HZ);
 		phys = world.phys;
 		spawnT = 0;
 		spawnI = 0;
-		buildLevel();
+		if (spawnDefaultLevel) buildLevel();
 	}
 
 	/** Static level geometry. Extend with walls/props as needed. */
