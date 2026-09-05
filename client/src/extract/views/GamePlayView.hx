@@ -1,7 +1,5 @@
 ﻿package extract.views;
 
-import h3d.Vector;
-import h3d.scene.Scene as Scene3D;
 import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 
@@ -10,13 +8,11 @@ import phys.core.PhysCore;
 import phys.render.PhysRenderer;
 
 import shared.SimWorld;
-import shared.IUpdate;
 import extract.design.HudDesign;
+import extract.utils.BaseScene;
 
-class GamePlayView extends Scene3D implements IUpdate
+class GamePlayView extends BaseScene
 {
-	var style : Style;
-	var s2d : Scene2D;
 	var hud : HudDesign;
 
 	var sim : SimWorld;
@@ -24,31 +20,16 @@ class GamePlayView extends Scene3D implements IUpdate
 
 	public function new(s2d : Scene2D, style : Style)
 	{
-		super();
-		this.s2d = s2d;
-		this.style = style;
-
-		h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
-		camera.up.set(0, 1, 0);
-		camera.pos.set(8, 8, 8);
-		camera.target.set(0, 1, 0);
-
-		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, -0.4, -1), this);
-		light.power = 2;
-		light.isMainLight = true;
-		light.shadows.mode = h3d.pass.Shadows.RenderMode.Dynamic;
-		light.shadows.size = 2048;
-		light.shadows.power = 150;
-		light.shadows.bias *= 0.3;
+		super(s2d, style, 0x0D0D0D);
 
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 
-		#if hide
+		//#if hide
 		// level authored in Hide's scene editor, loaded as a prefab at runtime
 		var level = hxd.Res.load("levels/test.prefab").toPrefab();
 		level.load().make(this);
-		#end
+		//#end
 
 		// shared simulation вЂ” same class the server runs
 		sim = new SimWorld();
@@ -114,10 +95,10 @@ class GamePlayView extends Scene3D implements IUpdate
 		return new h3d.scene.Mesh(prim, m);
 	}
 
-	public function update(dt : Float)
+	override public function update(dt : Float)
 	{
 		sim.update(dt);    // shared simulation (fixed Hz) вЂ” same call as the server
 		physRenderer.render(); // interpolated visuals every frame
-		style.sync(dt);
+		super.update(dt);
 	}
 }

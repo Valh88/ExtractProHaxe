@@ -1,24 +1,20 @@
 package extract.views;
 
-import h3d.Vector;
-import h3d.scene.Scene as Scene3D;
+import extract.utils.BaseScene;
 import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
 import extract.design.ModePanel;
 import extract.design.ReadyPanel;
 import extract.design.TopPanel;
-import shared.IUpdate;
 import extract.views.lobby.LobbyTab;
 import extract.views.lobby.PlaySubView;
 import extract.views.lobby.HeroesSubView;
 import shared.events.EventBus;
 import shared.events.GameEvents.SearchStarted;
 
-class LobbyView extends Scene3D implements IUpdate
+class LobbyView extends BaseScene
 {
-	var style : Style;
-	var s2d : Scene2D;
 	var design : Lobbydesign;
 	var readyPanel : ReadyPanel;
 	var topPanel : TopPanel;
@@ -29,22 +25,9 @@ class LobbyView extends Scene3D implements IUpdate
 
 	public function new(s2d : Scene2D, style : Style, bus : EventBus)
 	{
-		super();
-		this.s2d = s2d;
-		this.style = style;
+		super(s2d, style);
 		this.bus = bus;
-		//h3d.Engine.getCurrent().backgroundColor = 0x0D0D0D;
-		camera.up.set(0, 1, 0);
-		camera.pos.set(8, 8, 8);
-		camera.target.set(0, 1, 0);
 		flyCam = new phys.utils.CameraFly(camera);
-		var light = new h3d.scene.pbr.DirLight(new Vector(-0.5, -0.4, -1), this);
-		light.power = 2;
-		light.isMainLight = true;
-		light.shadows.mode = h3d.pass.Shadows.RenderMode.Dynamic;
-		light.shadows.size = 2048;
-		light.shadows.power = 150;
-		light.shadows.bias *= 0.3;
 
 		design = new Lobbydesign();
 		attachUI(design);
@@ -123,10 +106,10 @@ class LobbyView extends Scene3D implements IUpdate
 		this.addChild(o);
 	}
 
-	public function update(dt : Float)
+	override public function update(dt : Float)
 	{
 		flyCam.update(dt);
-		style.sync(dt);
+		super.update(dt);
 		if (currentSubView != null)
 			currentSubView.update(dt);
 	}
