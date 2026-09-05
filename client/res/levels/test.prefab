@@ -1,0 +1,53 @@
+{
+	"type": "prefab",
+	"name": "test",
+	"children": [
+		{
+			"type": "box",
+			"name": "floor",
+			"y": -0.1,
+			"scaleX": 6,
+			"scaleY": 0.2,
+			"scaleZ": 6
+		},
+		{
+			"type": "box",
+			"name": "pillar1",
+			"x": -2,
+			"y": 0.5,
+			"z": 2
+		},
+		{
+			"type": "box",
+			"name": "pillar2",
+			"x": 2,
+			"y": 0.5,
+			"z": -2
+		},
+		{
+			"type": "box",
+			"name": "pillar3",
+			"x": 2.5,
+			"y": 1.5,
+			"z": 2.5
+		},
+		{
+			"type": "box",
+			"name": "pillar4",
+			"x": -2.5,
+			"y": 1.5,
+			"z": -2.5
+		},
+		{
+			"type": "light",
+			"name": "sun",
+			"x": -0.7726790415131244,
+			"y": 2.588881146252429,
+			"rotationX": -90,
+			"kind": "Directional",
+			"color": 13393502,
+			"power": 2,
+			"isMainLight": true
+		}
+	]
+}

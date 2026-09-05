@@ -13,7 +13,12 @@
 -lib hlsdl
 -lib hlopenal
 -lib domkit
--D domkit
+-cp C:/Users/simpl/scoop/apps/haxe/current/lib/hide/git
+-D hide
+-D dce=no
+--macro include("hrt.prefab", true, ["hrt.prefab.l3d.modellibrary*"])
+--macro include("hrt.shader", true)
+--macro include("hrt.shgraph", true)
 # -lib hldx
 # -D dx12
 # output

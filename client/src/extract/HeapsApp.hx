@@ -35,12 +35,12 @@ class HeapsApp extends App
 
 	override function loadAssets(done) 
 	{
-        #if sys
-            hxd.Res.initLocal();
-            done();
-        #else
-            new hxd.fmt.pak.Loader(s2d, done);
-        #end
+#if sys
+        hxd.Res.initLocal();
+        done();
+#else
+        new hxd.fmt.pak.Loader(s2d, done);
+#end
 	}
 
 	public static function app()

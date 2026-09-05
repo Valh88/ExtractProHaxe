@@ -1,0 +1,9 @@
+-cp src
+-lib hide
+-lib hxnodejs
+-lib domkit
+--macro hide.Plugin.init()
+-D script
+-js client/hide-plugin.js
+-debug
+-dce no

@@ -41,8 +41,14 @@ class GamePlayView extends Scene3D implements IUpdate
 		light.shadows.power = 150;
 		light.shadows.bias *= 0.3;
 
-		// project-wide screen-space AO (PBR renderer only)
+// project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
+
+		#if hide
+		// level authored in Hide's scene editor, loaded as a prefab at runtime
+		var level = hxd.Res.load("levels/test.prefab").toPrefab();
+		level.load().make(this);
+		#end
 
 		// shared simulation вЂ” same class the server runs
 		sim = new SimWorld();
