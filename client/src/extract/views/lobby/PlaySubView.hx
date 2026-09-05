@@ -2,11 +2,11 @@ package extract.views.lobby;
 
 import h2d.Object;
 import extract.design.PlayDesign;
-import extract.views.SubView;
+import extract.utils.SubView;
 import shared.events.EventBus;
 import shared.events.GameEvents.SearchStarted;
 
-class PlaySubView extends SubView
+class PlaySubView extends SubView<PlayDesign>
 {
 	var playDesign : PlayDesign;
 
@@ -15,9 +15,7 @@ class PlaySubView extends SubView
 
 	public function new(bus : EventBus, ?parent : Object)
 	{
-		super(bus, parent);
-		playDesign = new PlayDesign();
-		design = playDesign;
+		super(bus, playDesign = new PlayDesign(), parent);
 
 		var mp = playDesign.getModePanel();
 		mp.setActiveMode(mode == LobbyMode.Solo); // default state -> design

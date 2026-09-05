@@ -1,10 +1,11 @@
 package extract.views;
 
 import extract.utils.BaseScene;
+import extract.utils.SubView;
+import extract.utils.SubViewSwitcher;
 import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
-import extract.design.ModePanel;
 import extract.design.ReadyPanel;
 import extract.design.TopPanel;
 import extract.views.lobby.LobbyTab;
@@ -20,8 +21,7 @@ class LobbyView extends BaseScene
 	var readyPanel : ReadyPanel;
 	var topPanel : TopPanel;
 	var bus : EventBus;
-	var currentSubView : Null<SubView>; // SubView implements IUpdate
-	var subViews : Map<LobbyTab, SubView> = new Map();
+	var subSwitcher : SubViewSwitcher<LobbyTab>;
 	var flyCam : phys.utils.CameraFly;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
@@ -36,13 +36,16 @@ class LobbyView extends BaseScene
 		topPanel = design.getTopPanel();
 		topPanel.onTabSelected = onTabSelected;
 
+		subSwitcher = new SubViewSwitcher<LobbyTab>(createSubView, attachSubView,
+			function(tab : LobbyTab) topPanel.setActiveTab(Type.enumIndex(tab)));
+
 		bus.subscribe(SearchStarted, function(e : SearchStarted)
 		{
 			trace("SearchStarted: mode=" + e.mode);
 			showReadyPanel();
 		});
 
-		switchSubView(LobbyTab.Play);
+		subSwitcher.switchTo(LobbyTab.Play);
 	}
 
 	public function showReadyPanel() : Void readyPanel.show();
@@ -55,44 +58,20 @@ class LobbyView extends BaseScene
 		style.sync();
 	}
 
-	public function switchSubView(tab : LobbyTab)
+	/** Fresh sub-view: container addChild + domkit style registration. */
+	function attachSubView(sub : SubView<Dynamic>) : Void
 	{
-		var sub = subViews.get(tab);
-		if (sub == null)
-		{
-			sub = createSubView(tab);
-			if (sub == null)
-			{
-				trace(tab + " sub-view not implemented yet");
-				return;
-			}
-			subViews.set(tab, sub);
-			var container = design.getSubViewDesign();
-			container.addChild(sub.design);
-			style.addObject(sub.design);
-		}
-		if (currentSubView == sub) return;
-
-		if (currentSubView != null)
-			currentSubView.design.visible = false;
-		currentSubView = sub;
-		sub.design.visible = true;
-		topPanel.setActiveTab(tabIndex(tab));
-		style.sync();
+		design.getSubViewDesign().addChild(sub.design);
+		style.addObject(sub.design);
 	}
 
 	/** Tab click -> LobbyTab (index order == enum constructor order). */
 	function onTabSelected(i : Int) : Void
 	{
-		switchSubView(Type.createEnumIndex(LobbyTab, i));
+		subSwitcher.switchTo(Type.createEnumIndex(LobbyTab, i));
 	}
 
-	function tabIndex(tab : LobbyTab) : Int
-	{
-		return Type.enumIndex(tab);
-	}
-
-	function createSubView(tab : LobbyTab) : SubView
+	function createSubView(tab : LobbyTab) : Null<SubView<Dynamic>>
 	{
 		return switch (tab)
 		{
@@ -111,7 +90,6 @@ class LobbyView extends BaseScene
 	{
 		flyCam.update(dt);
 		super.update(dt);
-		if (currentSubView != null)
-			currentSubView.update(dt);
+		subSwitcher.update(dt);
 	}
 }

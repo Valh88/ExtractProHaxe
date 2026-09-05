@@ -39,7 +39,7 @@ class HeapsApp extends App
 				case Gameplay: new GamePlayView(s2d, uiStyle, gd);
 			}
 		});
-		sceneManager.switchScene(GameScene.Gameplay);
+		sceneManager.switchScene(GameScene.Lobby);
 	}
 
 	override function update(dt : Float)
