@@ -3,10 +3,14 @@ package extract;
 import h3d.Vector;
 import hxd.App;
 import extract.events.ClientEventBus;
+import extract.utils.SceneManager;
+import extract.utils.SceneManager.GameScene;
+import extract.views.LobbyView;
+import extract.views.GamePlayView;
 
 class HeapsApp extends App
 {
-	var sceneManager : SceneManager;
+	var sceneManager : SceneManager<GameScene>;
 	var eventBus : ClientEventBus;
 
 	/** Global domkit style shared by all views (loads ui/lobby.css once). */
@@ -25,9 +29,17 @@ class HeapsApp extends App
 		// shared event bus (local delivery on flush, transport in subclass)
 		eventBus = new ClientEventBus();
 
-		// scene manager handles creation/caching/switching of scenes
-		sceneManager = new SceneManager(this, s2d, uiStyle, eventBus, gd);
-		sceneManager.switchScene(SceneManager.GameScene.Gameplay);
+		// scene manager handles creation/caching/switching of scenes;
+		// the factory closes over style/gd/bus — the app owns dependencies
+		sceneManager = new SceneManager<GameScene>(this, function(id : GameScene)
+		{
+			return switch (id)
+			{
+				case Lobby: new LobbyView(s2d, uiStyle, gd, eventBus);
+				case Gameplay: new GamePlayView(s2d, uiStyle, gd);
+			}
+		});
+		sceneManager.switchScene(GameScene.Gameplay);
 	}
 
 	override function update(dt : Float)
