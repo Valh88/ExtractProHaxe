@@ -40,8 +40,11 @@ class GamePlayView extends BaseScene
 		sim = new SimWorld(this.gd, bus);
 	#end
 
-		// CLIENT consumer: maps each PhysBody to a mesh and interpolates it
-		physRenderer = new PhysRenderer();
+		// CLIENT consumer: maps each PhysBody to a mesh and interpolates it;
+		// the core is required — it drives the alpha (interpol phase) of
+		// every render() call. Without it alpha=1.0: no interpolation,
+		// meshes teleport between 30 Hz physics states = jitter
+		physRenderer = new PhysRenderer(sim.physCore);
 		sim.phys.addConsumer(physRenderer);
 
 		// when the shared logic spawns a body, the client decides how to draw it

@@ -7,6 +7,7 @@ import oimo.dynamics.rigidbody.RigidBodyType;
 import phys.GameWorld;
 import phys.core.IPhysics;
 import phys.core.PhysBody;
+import phys.core.PhysCore;
 
 import shared.GameData;
 import shared.IUpdate;
@@ -17,6 +18,9 @@ class SimWorld implements IUpdate
 
 	/** The physics world (unified interface — any consumer can use it). */
 	public var phys(default, null) : IPhysics;
+
+	/** The concrete physics core (exposes `interpol` for render-side interpolation). */
+	public var physCore(default, null) : PhysCore;
 
 	/** Called when a body is spawned, so a consumer can attach visuals/logic. */
 	public var onSpawn : Null<PhysBody -> Void>;
@@ -49,6 +53,7 @@ class SimWorld implements IUpdate
 		var world = new GameWorld(new Vec3(0, gravityY(), 0));
 		world.phys.setPhysicsHz(Config.PHYSICS_HZ);
 		phys = world.phys;
+		physCore = cast world.phys;
 		spawnT = 0;
 		spawnI = 0;
 		buildLevel();
