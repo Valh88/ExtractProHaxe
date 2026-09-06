@@ -3,6 +3,7 @@ package extract.views;
 import extract.utils.BaseScene;
 import extract.utils.SubView;
 import extract.utils.SubViewSwitcher;
+import extract.systems.DebugCameraSystem;
 import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
@@ -21,12 +22,13 @@ class LobbyView extends BaseScene
 	var readyPanel : ReadyPanel;
 	var topPanel : TopPanel;
 	var subSwitcher : SubViewSwitcher<LobbyTab>;
-	var flyCam : phys.utils.CameraFly;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
 		super(s2d, style, gd, bus);
-		flyCam = new phys.utils.CameraFly(camera);
+
+		// debug fly camera as a presentation system (WASD/QE/Shift/RMB)
+		systems.add(new DebugCameraSystem(bus, camera));
 
 		design = new Lobbydesign();
 		attachUI(design);
@@ -86,7 +88,6 @@ class LobbyView extends BaseScene
 
 	override public function update(dt : Float)
 	{
-		flyCam.update(dt);
 		super.update(dt);
 		subSwitcher.update(dt);
 	}

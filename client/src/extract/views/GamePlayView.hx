@@ -6,12 +6,12 @@ import h2d.domkit.Style;
 import phys.core.PhysBody;
 import phys.core.PhysCore;
 import phys.render.PhysRenderer;
-import phys.utils.CameraFly;
 
 import shared.SimWorld;
 import shared.GameData;
 import shared.events.EventBus;
 import extract.design.HudDesign;
+import extract.systems.DebugCameraSystem;
 import extract.utils.BaseScene;
 
 class GamePlayView extends BaseScene
@@ -20,7 +20,6 @@ class GamePlayView extends BaseScene
 
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
-	var debugCam : CameraFly;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
@@ -71,7 +70,7 @@ class GamePlayView extends BaseScene
 		style.sync();
 
 		// fly camera: WASD move, Q/E down/up, Shift fast, RMB drag to look
-		debugCam = new CameraFly(camera, 12);
+		systems.add(new DebugCameraSystem(bus, camera, 12));
 	}
 
 	/** Build a mesh for a spawned body. Extend this switch for new entities. */
@@ -122,9 +121,8 @@ class GamePlayView extends BaseScene
 
 	override public function update(dt : Float)
 	{
-		sim.update(dt);    // shared simulation (fixed Hz) вЂ” same call as the server
+		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
-		debugCam.update(dt);
-		super.update(dt);
+		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
 	}
 }
