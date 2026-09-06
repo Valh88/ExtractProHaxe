@@ -118,7 +118,7 @@
 			"lines": [
 				{
 					"id": "default",
-					"sensitivity": 0.005,
+					"sensitivity": 0.002,
 					"fov": 75,
 					"maxPitch": 1.5533,
 					"lookSmooth": 25,
