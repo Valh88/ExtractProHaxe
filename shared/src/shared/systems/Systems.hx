@@ -27,6 +27,13 @@ class Systems implements IUpdate
 		return map.get(name);
 	}
 
+	/** Type-safe lookup: var cam = systems.getSystem<PlayerCameraSystem>(); */
+	public function getSystem<S : System>( type : Class<S> ) : Null<S>
+	{
+		var s = map.get(Type.getClassName(type));
+		return cast s;
+	}
+
 	/** Remove by instance or by name. */
 	public function remove(s : System) : Void
 	{
