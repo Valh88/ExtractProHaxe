@@ -11,7 +11,7 @@ import shared.SimWorld;
 import shared.GameData;
 import shared.events.EventBus;
 import extract.design.HudDesign;
-import extract.systems.PlayerCameraSystem;
+import extract.systems.PlayerControllerSystem;
 import extract.utils.BaseScene;
 
 class GamePlayView extends BaseScene
@@ -20,7 +20,7 @@ class GamePlayView extends BaseScene
 
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
-	var playerCamera : PlayerCameraSystem;
+	var player : PlayerControllerSystem;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
@@ -46,8 +46,8 @@ class GamePlayView extends BaseScene
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
-		playerCamera = new PlayerCameraSystem(bus, camera, null, this.gd);
-		systems.add(playerCamera);
+		player = new PlayerControllerSystem(bus, camera, null, this.gd);
+		systems.add(player);
 		sim.onSpawn = b ->
 		{
 			var mesh = meshForBody(b);
@@ -55,7 +55,7 @@ class GamePlayView extends BaseScene
 			{
 				this.addChild(mesh);
 				physRenderer.bind(b, mesh);
-				if (b.name == "hero") playerCamera.mesh = mesh;
+				if (b.name == "hero") player.mesh = mesh;
 			}
 		};
 		// draw the initial scene too (created before onSpawn was set)

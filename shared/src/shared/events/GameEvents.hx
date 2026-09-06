@@ -10,3 +10,22 @@ class SearchStarted
 		this.mode = mode;
 	}
 }
+
+/**
+	Client -> sim movement intent: world-space move direction (normalized
+	horizontal) and the desired body yaw (camera yaw). Published only when
+	state changes; the sim (HeroSystem) applies it each tick.
+**/
+class HeroMoveIntent
+{
+	public var dirX : Float;
+	public var dirZ : Float;
+	public var yaw : Float;
+
+	public function new(dirX : Float, dirZ : Float, yaw : Float)
+	{
+		this.dirX = dirX;
+		this.dirZ = dirZ;
+		this.yaw = yaw;
+	}
+}

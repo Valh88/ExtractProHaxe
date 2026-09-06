@@ -96,11 +96,11 @@ class CameraController implements IUpdate
 
 		// view basis from yaw/pitch (Y-up, forward = -Z at yaw 0)
 		var cp = Math.cos(sPitch);
-		var fx = Math.cos(sYaw) * cp;
+		var fx = -Math.sin(sYaw) * cp;
 		var fy = Math.sin(sPitch);
-		var fz = Math.sin(sYaw) * cp;
-		// right = up x forward (Y-up)
-		var rx = fz; // (0,1,0) x f  ->  (fz, 0, -fx)
+		var fz = -Math.cos(sYaw) * cp;
+		// right = up x forward (Y-up): (0,1,0) x (fx,fy,fz) = (fz, 0, -fx)
+		var rx = fz;
 		var rz = -fx;
 
 		var off = computeOffset(fx, fy, fz, rx, rz);
