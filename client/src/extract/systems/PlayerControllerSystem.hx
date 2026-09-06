@@ -70,7 +70,7 @@ class PlayerControllerSystem extends System
 		camCtrl.invertX = true; // mouse right -> camera left (request)
 		moveCtrl.speed = gd.f("Hero", "speed", 6);
 		moveCtrl.invertX = true; // A<->D swapped (request)
-		moveCtrl.invertZ = true; // W<->S swapped (request)
+		moveCtrl.invertZ = false; // W/S normal (invertZ was the W-backward bug)
 		return mesh = m;
 	}
 
