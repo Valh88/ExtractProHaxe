@@ -8,6 +8,7 @@ import shared.GameData;
 import shared.IUpdate;
 import shared.events.EventBus;
 import shared.systems.Systems;
+import extract.utils.animations.AnimationController;
 
 /** Common root-scene scaffolding: 2D/domkit handles, game data, camera, theme light. */
 class BaseScene extends Scene3D implements IUpdate
@@ -20,6 +21,8 @@ class BaseScene extends Scene3D implements IUpdate
 	public var bus(default, null) : EventBus;
 	/** Presentation/input systems — advanced at the start of update(). */
 	public var systems(default, null) : Systems;
+	/** Scene-local animation controller — each scene owns its own tweens. */
+	public var animCtrl(default, null) : AnimationController;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, ?bus : EventBus, ?bgColor : Null<Int>)
 	{
@@ -29,6 +32,7 @@ class BaseScene extends Scene3D implements IUpdate
 		this.gd = gd;
 		this.bus = bus != null ? bus : new EventBus();
 		this.systems = new Systems();
+		this.animCtrl = new AnimationController();
 		if (bgColor != null)
 			h3d.Engine.getCurrent().backgroundColor = bgColor;
 		setupCamera();
@@ -57,6 +61,7 @@ class BaseScene extends Scene3D implements IUpdate
 	public function update(dt : Float) : Void
 	{
 		systems.update(dt); // presentation/input systems first...
+		animCtrl.update(dt); // advance scene tweens
 		style.sync(dt);     // ...then domkit picks up the new state
 	}
 }
