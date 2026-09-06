@@ -73,7 +73,8 @@ class SimWorld implements IUpdate
 	function buildLevel() : Void
 	{
 		add(phys.spawnBody(RigidBodyType._STATIC, new Vec3(0, -0.5, 0), "floor")
-			.addBox(floorHalf(), 0.25, floorHalf()));
+			.addBox(floorHalf(), 0.25, floorHalf())
+			.setGroup(Collision.WORLD).setMask(Collision.ALL));
 	}
 
 	/** Called by systems (HeroSystem) that spawn the hero. */
@@ -106,7 +107,8 @@ class SimWorld implements IUpdate
 	{
 		var h = cubeSize() * 0.5;
 		return add(phys.spawnBody(RigidBodyType._DYNAMIC, pos, "cube")
-			.addBox(h, h, h, null, 0.7, 0.7));
+			.addBox(h, h, h, null, 0.7, 0.7)
+			.setGroup(Collision.WORLD).setMask(Collision.ALL));
 	}
 
 	/** All bodies currently in the world (for initial view building). */

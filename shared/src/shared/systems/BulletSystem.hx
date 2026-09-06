@@ -14,8 +14,9 @@ import shared.systems.System;
 
 /**
 	Simulation system for hero shooting. Subscribes to BulletFired, spawns a
-	sphere projectile at the requested position flying along the direction,
-	and removes it on the first collision (console print on hit).
+	sphere projectile at the requested position flying along the direction
+	(no gravity, HERO-immune via collision layers), and removes it on the
+	first collision or when its lifetime expires (cdb "Bullet"."lifetime").
 
 	Sim system (sim != null): mutates the world directly; runs inside
 	SimWorld.update() identically on client and server.
@@ -26,18 +27,23 @@ class BulletSystem extends System
 	var radius : Float;
 	var speed : Float;
 	var cooldown : Float;
+	/** Seconds a bullet lives without hitting anything (cdb "Bullet"."lifetime"). */
+	var lifetime : Float;
 
 	// fire cooldown state
 	var cd : Float = 0;
 	/** Bullets flagged by contact callbacks — destroyed after phys.step. */
 	var pending : Array<PhysBody> = [];
-	
+	/** Live bullets with remaining lifetime, in spawn order. */
+	var alive : Array<{ b : PhysBody, t : Float }> = [];
+
 	public function new(bus : EventBus, sim : SimWorld, ?gd : GameData)
 	{
 		super(bus, sim, gd, "Bullet");
 		radius = gd.req("Bullet", "radius");
 		speed = gd.req("Bullet", "speed");
 		cooldown = gd.req("Bullet", "cooldown");
+		lifetime = gd.req("Bullet", "lifetime");
 		bus.subscribe(BulletFired, onFire);
 	}
 
@@ -47,12 +53,16 @@ class BulletSystem extends System
 		cd = cooldown;
 
 		// create (not spawn: must go through sim.add so the client view
-		// gets onSpawn and draws the mesh) then add via the sim
+		// gets onSpawn and draws the mesh) then add via the sim.
+		// BULLET layer, WORLD mask: hits floor/cubes, ignores the HERO
+		// (player's own bullet never collides with themself)
 		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(e.x, e.y, e.z), "bullet")
 			.addSphere(radius, null, 0.0, 0.5)
 			.setGravityScale(0) // straight-flying projectile: no gravity
+			.setGroup(Collision.BULLET).setMask(Collision.WORLD)
 			.setLinearVelocity(e.dirX * speed, e.dirY * speed, e.dirZ * speed);
 		sim.add(b);
+		alive.push({ b : b, t : lifetime });
 		// first contact with anything: queue for destruction — removing a
 		// body INSIDE the physics step callback would mutate the world mid-solve
 		b.setCollisionCallbacks(
@@ -71,11 +81,32 @@ class BulletSystem extends System
 	override public function update(dt : Float) : Void
 	{
 		if (cd > 0) cd -= dt;
+
+		// lifetime expiry (10 s without a hit -> destroy)
+		var i = alive.length - 1;
+		while (i >= 0)
+		{
+			var a = alive[i];
+			a.t -= dt;
+			if (a.t <= 0)
+			{
+				alive.splice(i, 1);
+				sim.phys.removeBody(a.b);
+			}
+			i--;
+		}
+
 		// deferred destruction: SimWorld runs systems AFTER phys.step, so
 		// removing here is safe (outside the solver)
 		if (pending.length > 0)
 		{
-			for (b in pending) sim.phys.removeBody(b);
+			for (b in pending)
+			{
+				sim.phys.removeBody(b);
+				// drop its lifetime record (identity scan — bullet count is small)
+				for (j in 0...alive.length)
+					if (alive[j].b == b) { alive.splice(j, 1); break; }
+			}
 			pending.resize(0);
 		}
 	}

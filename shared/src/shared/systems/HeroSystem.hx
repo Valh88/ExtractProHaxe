@@ -67,10 +67,12 @@ class HeroSystem extends System
 	/** Create the hero capsule resting on the floor at the origin. */
 	public function spawnHero() : Void
 	{
-		// capsule total height = 2*(hh + r); spawn so the bottom touches the floor
-		var b = sim.phys.spawnBody(RigidBodyType._DYNAMIC, new Vec3(0, heroR + heroHH + SPAWN_MARGIN, 0), "hero")
+		// capsule total height = 2*(hh + r); spawn so the bottom touches the floor.
+		// HERO layer; mask without BULLET: player's own bullets ignore them
+		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(0, heroR + heroHH + SPAWN_MARGIN, 0), "hero")
 			.addShape(new CapsuleGeometry(heroR, heroHH), null, null, 0.0, 0.6)
-			.setRotationFactor(0, 1, 0); // can't topple: pitch/roll locked, only yaw
+			.setRotationFactor(0, 1, 0) // can't topple: pitch/roll locked, only yaw
+			.setGroup(Collision.HERO).setMask(Collision.WORLD);
 		sim.setHero(b);
 	}
 
