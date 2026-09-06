@@ -52,6 +52,9 @@ class HeroSystem extends System
 	var jumpVel : Float;
 	/** Ground check: ray length below the feet (cdb "Hero"."groundProbe"). */
 	var groundProbe : Float;
+	/** Velocity easing rate — exponential smoothing toward the intent
+		target each tick (cdb "Controller"."moveSmooth"). */
+	var smooth : Float;
 	// cached cdb numbers (ray/spawn math needs them every tick)
 	var heroR : Float;
 	var heroHH : Float;
@@ -65,6 +68,7 @@ class HeroSystem extends System
 		speed = gd.req("Hero", "speed");
 		jumpVel = gd.req("Hero", "jumpVelocity");
 		groundProbe = gd.req("Hero", "groundProbe");
+		smooth = gd.req("Controller", "moveSmooth");
 		heroR = gd.req("Hero", "heroRadius");
 		heroHH = gd.req("Hero", "heroHalfHeight");
 		bus.subscribe(HeroMoveIntent, onIntent);
@@ -136,11 +140,20 @@ class HeroSystem extends System
 
 		// horizontal velocity from the intent, scaled by eased magnitude
 		// (0..1 — smooth accel/decel from the client's input smoothing);
-		// Y left to gravity/contacts
-		var vx = s.dirX * speed * s.mag;
-		var vz = s.dirZ * speed * s.mag;
+		// Y left to gravity/contacts.
+		// Frame-rate independent exponential easing toward the target
+		// prevents velocity snaps on landing: during air the body keeps
+		// its physics velocity, and easing smoothly transitions to the
+		// intended ground speed — the same feel as walk-start.
+		var tx = s.dirX * speed * s.mag;
+		var tz = s.dirZ * speed * s.mag;
 		var v = body.body.getLinearVelocity();
-		body.setLinearVelocity(vx, v.y, vz);
+		var k = 1.0 - Math.exp(-smooth * dt);
+		body.setLinearVelocity(
+			v.x + (tx - v.x) * k,
+			v.y,
+			v.z + (tz - v.z) * k
+		);
 
 		// face the camera yaw: rotation around Y, forward = -Z at yaw 0.
 		// Oimo Quat has no euler ctor — build the axis-angle quat directly.
