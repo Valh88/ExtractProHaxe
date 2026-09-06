@@ -121,17 +121,18 @@ class PlayerControllerSystem extends System
 		moveCtrl.setYaw(camCtrl.yaw);
 		moveCtrl.update(dt);
 
-		// --- publish intent on change ---
+		// --- publish intent on change (jump is always delivered, one-shot) ---
 		var d = moveCtrl.dirWorld();
 		var yaw = camCtrl.yaw;
 		var mag = moveCtrl.magnitude();
-		if (d.x != pDirX || d.z != pDirZ || yaw != pYaw || mag != pMag)
+		var jump = moveCtrl.consumeJump();
+		if (jump || d.x != pDirX || d.z != pDirZ || yaw != pYaw || mag != pMag)
 		{
 			pDirX = d.x;
 			pDirZ = d.z;
 			pYaw = yaw;
 			pMag = mag;
-			bus.publish(new HeroMoveIntent(d.x, d.z, yaw, mag));
+			bus.publish(new HeroMoveIntent(d.x, d.z, yaw, mag, jump));
 		}
 
 		// --- camera follows the hero mesh anchor ---

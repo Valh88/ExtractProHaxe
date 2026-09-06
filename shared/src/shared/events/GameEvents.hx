@@ -13,9 +13,9 @@ class SearchStarted
 
 /**
 	Client -> sim movement intent: world-space move direction (normalized
-	horizontal), eased magnitude 0..1 (smooth accel/decel) and the desired
-	body yaw (camera yaw). Published only when state changes; the sim
-	(HeroSystem) applies it each tick.
+	horizontal), eased magnitude 0..1 (smooth accel/decel), the desired
+	body yaw (camera yaw) and a one-shot jump request. Published only when
+	state changes; the sim (HeroSystem) applies it each tick.
 **/
 class HeroMoveIntent
 {
@@ -23,12 +23,15 @@ class HeroMoveIntent
 	public var dirZ : Float;
 	public var yaw : Float;
 	public var mag : Float;
+	/** One-shot jump request (consumed by the sim on delivery). */
+	public var jump : Bool;
 
-	public function new(dirX : Float, dirZ : Float, yaw : Float, mag : Float)
+	public function new(dirX : Float, dirZ : Float, yaw : Float, mag : Float, jump : Bool)
 	{
 		this.dirX = dirX;
 		this.dirZ = dirZ;
 		this.yaw = yaw;
 		this.mag = mag;
+		this.jump = jump;
 	}
 }

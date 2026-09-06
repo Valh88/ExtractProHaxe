@@ -36,6 +36,7 @@ class MovementController implements IUpdate
 	// smoothed velocity (world-space, updated against the last known yaw)
 	var vel : h3d.Vector = new h3d.Vector();
 	var lastYaw : Float = 0;
+	var spaceWasDown : Bool = false;
 
 	public function new() {}
 
@@ -55,6 +56,10 @@ class MovementController implements IUpdate
 
 	public function update(dt : Float) : Void
 	{
+		// jump: fresh Space press only (no auto-repeat while held)
+		if (Key.isDown(Key.SPACE) && !spaceWasDown) requestJump();
+		spaceWasDown = Key.isDown(Key.SPACE);
+
 		var sp = speed * (Key.isDown(Key.SHIFT) ? fastMult : 1);
 		// local input: +x right, +z forward (matches camera yaw basis)
 		var ix = 0.0;
