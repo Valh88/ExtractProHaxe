@@ -7,7 +7,7 @@ Haxe/HashLink physics demo built on the local `HeapsPhysics` haxelib (`phys.*`, 
 hxml files live at repo root; output goes to gitignored `bin/`.
 
 ```sh
-haxe linx.hxml      # client -> bin/client/client.hl
+haxe win.hxml       # client -> bin/client/client.hl
 hl bin/client/client.hl   # opens a window
 
 haxe web.hxml       # client -> bin/web/game.js  (HTML5 / WebGL2 target)
@@ -17,7 +17,11 @@ haxe server.hxml    # headless server -> bin/server/serv.hl
 hl bin/server/serv.hl     # runs ~15s then exits (Config.SERVER_RUN_SECONDS)
 ```
 
-- Both hxml hard-code `-cp /home/vano/.haxe_lib/oimophysics/git/src` — an absolute path to a dev-machine checkout; builds fail anywhere else until this is fixed. `web.hxml` overrides it on the next line with a local `-cp D:/projects/haxe/OimoPhysics/src`; the stale Linux line should be deleted.
+- `linx.hxml` is broken (stale Linux path) — always use `win.hxml` for the HL client target.
+- Both `win.hxml` and `web.hxml` hard-code `-cp /home/vano/.haxe_lib/oimophysics/git/src` — an
+  absolute path to a dev-machine checkout; builds fail anywhere else until this is fixed.
+  `web.hxml` overrides it on the next line with a local `-cp D:/projects/haxe/OimoPhysics/src`;
+  the stale Linux line should be deleted from both hxml files.
 - Deps are dev-installed haxelibs: `heapsphysics` (provides `phys.*`), `oimophysics`, `heaps`, `format`.
 - Client build emits many `(WDeprecated) @:extern` warnings from oimophysics — harmless, not errors.
 
@@ -269,10 +273,10 @@ hl tools/gendb.hl                # writes client/res/db/data.cdb
 hl tools/gendb.hl -out <path>    # custom output path
 ```
 
-Idempotent: builds the `Gameplay` sheet (columns id/floorHalf/cubeSize/
-cubeSpawnInterval/gravityY, one `default` row), serializes with `db.save()`, then
-re-loads the written file and prints the values (round-trip self-check). After any
-schema change → re-run the tool AND rebuild both paks + both targets (web reads
+Idempotent: builds the `World` and `Hero` sheets (World columns: id/floorHalf/cubeSize/
+cubeSpawnInterval/gravityY; Hero columns: id/heroRadius/heroHalfHeight), serializes with
+`db.save()`, then re-loads the written file and prints the values (round-trip self-check).
+After any schema change → re-run the tool AND rebuild both paks + both targets (web reads
 `db/data.cdb` from the pak):
 
 ```sh
@@ -281,24 +285,101 @@ haxe -lib heaps --run hxd.fmt.pak.Build -res client/res -out bin/web/res
 haxe win.hxml && haxe web.hxml
 ```
 
+> **GenDb only builds World + Hero.** The Camera, Controller, and Bullet sheets
+> (see "Current cdb sheets" below) were added by hand-editing `data.cdb` directly.
+> If GenDb is re-run, it will overwrite the file — re-add those sheets afterward.
+
 Gotchas:
 - castle `Sheet.newLine()` crashes on an empty sheet (`lines[-1]`, `Sheet.hx:215`) —
   GenDb pushes directly into the public `sheet.lines` instead.
 - Column literals must use `typeStr : null` (NOT `""`): `Parser.save()` only fills
   `typeStr` when it is null, and `""` round-trips into "Unknown type" on load.
-- The client loader (`GameData.fromCdb`) falls back to `Config.hx` defaults on a
-  missing file/sheet/field, so a broken db never breaks startup (missing `res.pak`
-  still hangs, but that's the pak loader, not cdb).
+- `GameData.req()` / `GameData.reqB()` throw a **hard error** at startup when the
+  file, sheet, or field is missing — no silent fallback to `Config.hx` defaults.
+  This is intentional: missing cdb data = broken data = fail-fast.
 - hide's Data tab is not wired up yet (would need `cdb.databaseFile` project config
-  pointing at `res/db/data.cdb`); for now the file is authored by GenDb.
+  pointing at `res/db/data.cdb`); for now the file is authored by GenDb + manual edits.
 
 ## Architecture
 
-- `shared/src/shared/SimWorld.hx` is THE simulation, run identically by client (`client/src/extract/HeapsApp.hx`) and server (`server/src/serv/ServerApp.hx`). Gameplay rules (auto-spawn cubes, level geometry) go in SimWorld, not in client/server code.
-- Consumers hook in via `IPhysicsConsumer`: client attaches `phys.render.PhysRenderer`; server attaches a `StateLogger`. The server must never link heaps or define `-D heapsphysics_render` (that define gates all of `phys/render/*`, which needs h3d).
-- New body types: extend `meshForBody()` switch in HeapsApp (keyed by body name string like "floor"/"cube") AND spawn logic in SimWorld.
-- Tunables are inline constants in `shared/src/shared/Config.hx` (fixed 30 Hz tick, gravity, spawn interval).
-- Physics world is Y-up; Heaps camera defaults to Z-up, hence the explicit `camera.up.set(0,1,0)` in HeapsApp.
+### Core principle: shared simulation, client/server split
+
+`shared/src/shared/SimWorld.hx` is THE simulation — run identically by client
+(`client/src/extract/views/GamePlayView.hx`) and server (`server/src/serv/ServerApp.hx`).
+Gameplay rules (auto-spawn cubes, level geometry) live in SimWorld or shared systems, never
+in client/server code.
+
+Consumers hook in via `IPhysicsConsumer`: client attaches `phys.render.PhysRenderer` (with
+`sim.physCore` for interpolation); server attaches a `StateLogger`. The server must never
+link heaps or define `-D heapsphysics_render` (that define gates `phys/render/*`, which needs h3d).
+
+### Systems & EventBus
+
+All gameplay logic is split into isolated `System` subclasses (`shared/systems/System.hx`),
+held by a `Systems` container inside `SimWorld`. Systems communicate only through the
+`EventBus` (`shared/events/EventBus.hx`) — no direct system-to-system references.
+
+**Sim systems** (shared, run on client and server alike):
+- `HeroSystem` — per-player hero capsules; subscribes to `HeroMoveIntent`; applies velocity
+  easing, yaw, ground check, jump lock via `HeroState` typedef keyed by `playerId`
+- `BulletSystem` — subscribes to `BulletFired`; spawns `SphereGeometry` projectiles with
+  `setGravityScale(0)`, collision layer BULLET→WORLD; deferred removal (safe outside solver)
+
+**Client systems** (`client/src/extract/systems/`):
+- `PlayerControllerSystem` — composes `CameraController` (look) + `MovementController` (WASD);
+  publishes `HeroMoveIntent(Player.LOCAL, ...)` and `BulletFired` to the bus; ESC toggles
+  freeLook/cursor; `followRate = 150` filters 30Hz wobble without perceptible lag
+
+### Player identity
+
+`shared/Player.hx`: `Player.LOCAL = "local"` constant. `SimWorld.heroes: Map<String, PhysBody>`
+holds all hero bodies keyed by playerId. `sim.hero` is a convenience getter returning
+`heroes[LOCAL]`.
+
+### Collision layers (`shared/Collision.hx`)
+
+Structural constants, not cdb tunables — identical on client and server for determinism:
+- `HERO = 1`, `WORLD = 2`, `BULLET = 4`, `ALL = HERO|WORLD|BULLET`
+- Bullets (mask=WORLD) hit cubes/floor but not the shooter's hero
+- All world geometry uses `setGroup(WORLD).setMask(ALL)`
+
+### Body types
+
+Extend by adding a case in `GamePlayView.meshForBody()` (keyed by body name string) AND
+corresponding spawn logic in `SimWorld` or a system. Current body names: `"floor"`, `"cube"`,
+`"hero"`, `"bullet"`.
+
+### Tunables
+
+ALL gameplay tunables live in `client/res/db/data.cdb` (castleDB format — see
+"Game data" section). Code reads them via `GameData.req(sheet, field)` which throws a
+clear error at startup when a field is missing (fail-fast, no silent defaults).
+`shared/Config.hx` only holds fixed structural constants (`PHYSICS_HZ = 30`,
+`SERVER_RUN_SECONDS = 15`).
+
+### Physics
+
+- Fixed 30 Hz tick (`Config.PHYSICS_HZ`); rendering interpolated via `PhysCore.interpol`
+- Physics world is Y-up; Heaps camera defaults to Z-up — `camera.up.set(0,1,0)` in HeapsApp
+- `SimWorld.add(b)` is the mandatory spawn path for client mesh creation (`onSpawn` callback);
+  `phys.spawnBody()` without `sim.add()` never reaches the client view
+
+## Current cdb sheets
+
+`client/res/db/data.cdb` — five sheets, all with a single `"default"` row:
+
+| Sheet | Columns (typeStr) | Default values | Purpose |
+|---|---|---|---|
+| **World** | `id:0`, `floorHalf:4`, `cubeSize:4`, `cubeSpawnInterval:4`, `gravityY:4` | 10, 1, 2, -9.80665 | Level geometry, physics constants |
+| **Hero** | `id:0`, `heroRadius:4`, `heroHalfHeight:4`, `speed:4`, `jumpVelocity:4`, `groundProbe:4` | 0.4, 0.45, 6, 5.5, 0.12 | Capsule dimensions, movement |
+| **Camera** | `id:0`, `sensitivity:4`, `fov:4`, `maxPitch:4`, `lookSmooth:4`, `invertX:1`, `invertY:1`, `eyeHeight:4` | 0.002, 75, 1.5533, 25, true, false, 1.6 | FPS camera params |
+| **Controller** | `id:0`, `moveSmooth:4`, `stopSmooth:4`, `stopThreshold:4`, `fastMult:4`, `invertX:1`, `invertZ:1` | 12, 20, 0.05, 2, true, false | WASD input smoothing |
+| **Bullet** | `id:0`, `radius:4`, `speed:4`, `cooldown:4`, `lifetime:4` | 0.15, 25, 0.25, 10 | Projectile params |
+
+Type codes: `0=TId`, `1=TBool`, `4=TFloat`.
+
+**Important**: `GenDb.hx` only rebuilds **World + Hero**. Camera/Controller/Bullet were
+added manually — re-running GenDb overwrites the file and loses them.
 
 ## Misc
 
