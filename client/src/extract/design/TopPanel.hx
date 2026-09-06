@@ -43,6 +43,7 @@ class TopPanel extends Flow implements Object
 	static inline var IDLE_COLOR : Int = 0xFF737373;
 	static inline var ACTIVE_COLOR : Int = 0xFFBFBFBF;
 	static inline var HOVER_DURATION : Float = 0.15;
+	static inline var HOVER_SCALE : Float = 1.05;
 
 	public function new(?parent)
 	{
@@ -78,8 +79,16 @@ class TopPanel extends Flow implements Object
 			hit.cursor = Button;
 			menuTabs.getProperties(hit).isAbsolute = true;
 			hit.onClick = function(_) if (onTabSelected != null) onTabSelected(idx);
-			hit.onOver = function(_) tweenTabColor(idx, HOVER_COLOR);
-			hit.onOut = function(_) tweenTabColor(idx, tabTexts[idx].dom.hasClass("tab-active") ? ACTIVE_COLOR : IDLE_COLOR);
+			hit.onOver = function(_)
+			{
+				tweenTabColor(idx, HOVER_COLOR);
+				tweenTabScale(idx, HOVER_SCALE);
+			};
+			hit.onOut = function(_)
+			{
+				tweenTabColor(idx, tabTexts[idx].dom.hasClass("tab-active") ? ACTIVE_COLOR : IDLE_COLOR);
+				tweenTabScale(idx, 1.0);
+			};
 		}
 	}
 
@@ -91,6 +100,17 @@ class TopPanel extends Flow implements Object
 		var from = txt.color != null ? argbToInt(txt.color) : (txt.dom.hasClass("tab-active") ? ACTIVE_COLOR : IDLE_COLOR);
 		if (from == to) return;
 		animCtrl.add(new extract.utils.animations.ColorTween(txt, from, to, HOVER_DURATION, extract.utils.animations.Easing.quadOut));
+	}
+
+	function tweenTabScale(idx : Int, to : Float) : Void
+	{
+		var txt = tabTexts[idx];
+		var from = txt.scaleX;
+		if (from == to) return;
+		animCtrl.add(new extract.utils.animations.MultiVarTween(txt, [
+			{prop: "scaleX", from: from, to: to},
+			{prop: "scaleY", from: from, to: to}
+		], HOVER_DURATION, extract.utils.animations.Easing.quadOut));
 	}
 
 	static inline function argbToInt(c : h3d.Vector4) : Int
