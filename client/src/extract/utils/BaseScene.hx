@@ -6,6 +6,8 @@ import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import shared.GameData;
 import shared.IUpdate;
+import shared.events.EventBus;
+import shared.systems.Systems;
 
 /** Common root-scene scaffolding: 2D/domkit handles, game data, camera, theme light. */
 class BaseScene extends Scene3D implements IUpdate
@@ -14,13 +16,19 @@ class BaseScene extends Scene3D implements IUpdate
 	public var style(default, null) : Style;
 	/** Shared game numbers (cdb-overridable), available to every scene. */
 	public var gd(default, null) : GameData;
+	/** Client-side event bus (same instance as the app's). */
+	public var bus(default, null) : EventBus;
+	/** Presentation/input systems — advanced at the start of update(). */
+	public var systems(default, null) : Systems;
 
-	public function new(s2d : Scene2D, style : Style, gd : GameData, ?bgColor : Null<Int>)
+	public function new(s2d : Scene2D, style : Style, gd : GameData, ?bus : EventBus, ?bgColor : Null<Int>)
 	{
 		super();
 		this.s2d = s2d;
 		this.style = style;
 		this.gd = gd;
+		this.bus = bus != null ? bus : new EventBus();
+		this.systems = new Systems();
 		if (bgColor != null)
 			h3d.Engine.getCurrent().backgroundColor = bgColor;
 		setupCamera();
@@ -48,6 +56,7 @@ class BaseScene extends Scene3D implements IUpdate
 
 	public function update(dt : Float) : Void
 	{
-		style.sync(dt);
+		systems.update(dt); // presentation/input systems first...
+		style.sync(dt);     // ...then domkit picks up the new state
 	}
 }

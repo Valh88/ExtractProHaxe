@@ -38,8 +38,6 @@ class ServerApp
 			+ " heroR=" + gd.f("Hero", "heroRadius", 0.4)
 			+ " heroHH=" + gd.f("Hero", "heroHalfHeight", 0.45));
 
-		var sim = new SimWorld(gd);
-
 		// SERVER event bus (local delivery on flush, transport in subclass)
 		var bus = new ServerEventBus();
 		bus.subscribe(SearchStarted, function(e : SearchStarted)
@@ -47,18 +45,24 @@ class ServerApp
 			trace("SEARCH mode=" + e.mode + " (from client)");
 		});
 
+		var sim = new SimWorld(gd, bus);
+
 		// SERVER consumer: same interface as the client's renderer
 		var logger = new StateLogger();
 		sim.phys.addConsumer(logger);
 
 		sim.onSpawn = b -> trace("SPAWN " + b.name);
 
+		// server-side (non-sim) systems, advanced after the sim, before flush
+		var systems = new shared.systems.Systems();
+
 		var dt = 1 / 60.0;
 		var t = 0.0;
 		while (t < Config.SERVER_RUN_SECONDS)
 		{
-			sim.update(dt); // identical call to the client's
-			bus.flush();    // dispatch queued events at end of tick
+			sim.update(dt);     // identical call to the client's (advances sim systems)
+			systems.update(dt); // server app systems
+			bus.flush();        // dispatch queued events at end of tick
 			logger.dump();
 			Sys.sleep(dt);
 			t += dt;

@@ -10,6 +10,8 @@ import phys.core.PhysBody;
 
 import shared.GameData;
 import shared.IUpdate;
+import shared.events.EventBus;
+import shared.systems.Systems;
 
 class SimWorld implements IUpdate
 {
@@ -26,16 +28,25 @@ class SimWorld implements IUpdate
 	/** Game database (cdb) — all tunables are queried from it. */
 	public var gd(default, null) : GameData;
 
+	/** Event bus: simulation systems communicate only through it. */
+	public var bus(default, null) : EventBus;
+
+	/** Simulation systems — advanced inside update(), identically on client and server. */
+	public var systems(default, null) : Systems;
+
 	var spawnT : Float;
 	var spawnI : Int;
 
 	/**
 		@param gd game database; null -> empty (Config defaults used).
 		All tunables (gravity, floor, cubes, hero capsule) are read per-sheet.
+		@param bus app event bus; null -> local-only EventBus.
 	**/
-	public function new(?gd : GameData)
+	public function new(?gd : GameData, ?bus : EventBus)
 	{
 		this.gd = gd != null ? gd : new GameData();
+		this.bus = bus != null ? bus : new EventBus();
+		systems = new Systems();
 		var world = new GameWorld(new Vec3(0, gravityY(), 0));
 		world.phys.setPhysicsHz(Config.PHYSICS_HZ);
 		phys = world.phys;
@@ -82,6 +93,8 @@ class SimWorld implements IUpdate
 			var x = (spawnI % 3) * 1.2 - 1.2;
 			spawnCube(new Vec3(x, 6, 0));
 		}
+
+		systems.update(dt);
 	}
 
 	/** Spawn a dynamic cube at `pos`. Returns the body (already in world). */

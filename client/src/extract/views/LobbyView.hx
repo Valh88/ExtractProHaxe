@@ -20,14 +20,12 @@ class LobbyView extends BaseScene
 	var design : Lobbydesign;
 	var readyPanel : ReadyPanel;
 	var topPanel : TopPanel;
-	var bus : EventBus;
 	var subSwitcher : SubViewSwitcher<LobbyTab>;
 	var flyCam : phys.utils.CameraFly;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
-		super(s2d, style, gd);
-		this.bus = bus;
+		super(s2d, style, gd, bus);
 		flyCam = new phys.utils.CameraFly(camera);
 
 		design = new Lobbydesign();

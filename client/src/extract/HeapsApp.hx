@@ -36,10 +36,10 @@ class HeapsApp extends App
 			return switch (id)
 			{
 				case Lobby: new LobbyView(s2d, uiStyle, gd, eventBus);
-				case Gameplay: new GamePlayView(s2d, uiStyle, gd);
+				case Gameplay: new GamePlayView(s2d, uiStyle, gd, eventBus);
 			}
 		});
-		sceneManager.switchScene(GameScene.Lobby);
+		sceneManager.switchScene(GameScene.Gameplay);
 	}
 
 	override function update(dt : Float)

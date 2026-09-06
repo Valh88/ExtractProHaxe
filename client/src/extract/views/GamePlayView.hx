@@ -10,6 +10,7 @@ import phys.utils.CameraFly;
 
 import shared.SimWorld;
 import shared.GameData;
+import shared.events.EventBus;
 import extract.design.HudDesign;
 import extract.utils.BaseScene;
 
@@ -21,9 +22,9 @@ class GamePlayView extends BaseScene
 	var physRenderer : PhysRenderer;
 	var debugCam : CameraFly;
 
-	public function new(s2d : Scene2D, style : Style, gd : GameData)
+	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
-		super(s2d, style, gd, 0x0D0D0D);
+		super(s2d, style, gd, bus, 0x0D0D0D);
 
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
@@ -33,10 +34,10 @@ class GamePlayView extends BaseScene
 		// the web target has no hide support and uses the procedural level below)
 		var level = hxd.Res.load("levels/test.prefab").toPrefab();
 		level.load().make(this);
-		sim = new SimWorld(this.gd);
+		sim = new SimWorld(this.gd, bus);
 	#else
 		//procedural level on targets without hide (web)
-		sim = new SimWorld(this.gd);
+		sim = new SimWorld(this.gd, bus);
 	#end
 
 		// CLIENT consumer: maps each PhysBody to a mesh and interpolates it
