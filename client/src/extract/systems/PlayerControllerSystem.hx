@@ -75,9 +75,9 @@ class PlayerControllerSystem extends System
 		camCtrl.invertX = gd.reqB("Camera", "invertX");
 		camCtrl.invertY = gd.reqB("Camera", "invertY");
 		// FPS: eye snaps to the anchor (mesh is already interpolated by
-		// PhysRenderer) — no second smoothing pass, or the body visibly
-		// outruns the camera and jitters
-		camCtrl.followRate = 0;
+		// PhysRenderer) — a very high follow rate filters the 30 Hz
+		// contact/gravity micro-wobble without perceptible lag
+		camCtrl.followRate = 150;
 		moveCtrl.speed = gd.req("Hero", "speed");
 		moveCtrl.moveSmooth = gd.req("Controller", "moveSmooth");
 		moveCtrl.stopSmooth = gd.req("Controller", "stopSmooth");
