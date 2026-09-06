@@ -15,6 +15,7 @@ import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.systems.PlayerControllerSystem;
 import extract.utils.BaseScene;
+import extract.utils.CursorManager;
 
 class GamePlayView extends BaseScene
 {
@@ -83,6 +84,9 @@ class GamePlayView extends BaseScene
 		s2d.addChild(hud);
 		style.addObject(hud);
 		style.sync();
+
+		// hide cursor for FPS — future views (lobby/inventory) will call show()
+		CursorManager.get().hide();
 
 		// fly camera: WASD move, Q/E down/up, Shift fast, RMB drag to look
 		//systems.add(new DebugCameraSystem(bus, camera, 12)); // disabled: camera belongs to the hero now

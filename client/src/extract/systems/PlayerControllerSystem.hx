@@ -4,6 +4,7 @@ import h3d.Camera;
 import hxd.Key;
 
 import extract.utils.CameraController;
+import extract.utils.CursorManager;
 import extract.utils.MovementController;
 import shared.GameData;
 import shared.Player;
@@ -34,6 +35,9 @@ class PlayerControllerSystem extends System
 	public var moveCtrl(default, null) : MovementController;
 
 	var cam : Camera;
+	/** True when cursor is hidden — camera follows mouse without RMB. */
+	var freeLook : Bool = true;
+	var escWasDown : Bool = false;
 	var rmbDown : Bool = false;
 	var dragging : Bool = false;
 	var shootRequested : Bool = false;
@@ -113,8 +117,21 @@ class PlayerControllerSystem extends System
 
 	override public function update(dt : Float) : Void
 	{
+		// --- ESC toggle: cursor visible ↔ hidden + camera look on/off ---
+		var escDown = Key.isDown(Key.ESCAPE);
+		if (escDown && !escWasDown)
+		{
+			freeLook = !freeLook;
+			if (freeLook) CursorManager.get().hide();
+			else CursorManager.get().show();
+		}
+		escWasDown = escDown;
+
 		// --- look ---
-		if (rmbDown)
+		// freeLook (cursor hidden): camera follows mouse without RMB
+		// rmbDown: classic FPS drag-to-look
+		var looking = freeLook || rmbDown;
+		if (looking)
 		{
 			if (!dragging)
 			{
