@@ -72,7 +72,6 @@ class HeroSystem extends System
 		heroR = gd.req("Hero", "heroRadius");
 		heroHH = gd.req("Hero", "heroHalfHeight");
 		bus.subscribe(HeroMoveIntent, onIntent);
-		spawnHero(Player.LOCAL);
 	}
 
 	/** Get (or create) the movement state for a player. */

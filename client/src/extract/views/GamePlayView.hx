@@ -9,7 +9,9 @@ import phys.render.PhysRenderer;
 
 import shared.SimWorld;
 import shared.GameData;
+import shared.Player;
 import shared.events.EventBus;
+import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.systems.PlayerControllerSystem;
 import extract.utils.BaseScene;
@@ -64,6 +66,11 @@ class GamePlayView extends BaseScene
 		// draw the initial scene too (created before onSpawn was set)
 		for (b in sim.existingBodies())
 			sim.onSpawn(b);
+
+		// client explicitly spawns the local hero — the server does this
+		// only when a real client connects (with that client's id)
+		var heroSys : HeroSystem = cast sim.systems.get("Hero");
+		heroSys.spawnHero(Player.LOCAL);
 
 	#if hide
 		var prefabPhys = new shared.PrefabPhysics(sim.phys);
