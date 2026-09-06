@@ -40,9 +40,12 @@ class BulletFired
 	horizontal), eased magnitude 0..1 (smooth accel/decel), the desired
 	body yaw (camera yaw) and a one-shot jump request. Published only when
 	state changes; the sim (HeroSystem) applies it each tick.
+	`playerId` routes the intent to the right hero (local = "local"; in the
+	future each connected client passes its own id).
 **/
 class HeroMoveIntent
 {
+	public var playerId : String;
 	public var dirX : Float;
 	public var dirZ : Float;
 	public var yaw : Float;
@@ -50,8 +53,9 @@ class HeroMoveIntent
 	/** One-shot jump request (consumed by the sim on delivery). */
 	public var jump : Bool;
 
-	public function new(dirX : Float, dirZ : Float, yaw : Float, mag : Float, jump : Bool)
+	public function new(playerId : String, dirX : Float, dirZ : Float, yaw : Float, mag : Float, jump : Bool)
 	{
+		this.playerId = playerId;
 		this.dirX = dirX;
 		this.dirZ = dirZ;
 		this.yaw = yaw;

@@ -12,7 +12,7 @@ import shared.events.EventBus;
 	`bus.publish`), queries game data via `gd` (cdb) and its own internal
 	state. It never holds references to OTHER systems or views. Systems
 	attached to the simulation (`sim != null`) may read/mutate the world
-	directly (`sim.hero`, `sim.phys`) — they run inside SimWorld.update()
+	directly (`sim.heroes`, `sim.phys`) — they run inside SimWorld.update()
 	in fixed order, so determinism is preserved. Client-side presentation
 	systems (`sim == null`, e.g. BaseScene.systems) communicate only through
 	events and never touch the sim.

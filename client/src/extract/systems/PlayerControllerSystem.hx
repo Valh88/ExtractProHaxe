@@ -6,6 +6,7 @@ import hxd.Key;
 import extract.utils.CameraController;
 import extract.utils.MovementController;
 import shared.GameData;
+import shared.Player;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.events.GameEvents.BulletFired;
@@ -150,7 +151,7 @@ class PlayerControllerSystem extends System
 			pDirZ = d.z;
 			pYaw = yaw;
 			pMag = mag;
-			bus.publish(new HeroMoveIntent(d.x, d.z, yaw, mag, jump));
+			bus.publish(new HeroMoveIntent(Player.LOCAL, d.x, d.z, yaw, mag, jump));
 		}
 
 		// --- shoot (LMB one-shot): fire from the eye along the view dir,

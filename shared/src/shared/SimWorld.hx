@@ -25,8 +25,12 @@ class SimWorld implements IUpdate
 	/** Called when a body is spawned, so a consumer can attach visuals/logic. */
 	public var onSpawn : Null<PhysBody -> Void>;
 
-	/** Hero body (spawned by HeroSystem). */
-	public var hero(default, null) : PhysBody;
+	/** Player hero bodies keyed by playerId (spawned by HeroSystem). */
+	public var heroes(default, null) : Map<String, PhysBody>;
+
+	/** Convenience: the local player's hero body (or null). */
+	public var hero(get, never) : Null<PhysBody>;
+	inline function get_hero() : Null<PhysBody> return heroes.get(Player.LOCAL);
 
 	/** Game database (cdb) — all tunables are queried from it. */
 	public var gd(default, null) : GameData;
@@ -49,6 +53,7 @@ class SimWorld implements IUpdate
 	{
 		this.gd = gd != null ? gd : new GameData();
 		this.bus = bus != null ? bus : new EventBus();
+		heroes = new Map();
 		systems = new Systems();
 		var world = new GameWorld(new Vec3(0, gravityY(), 0));
 		world.phys.setPhysicsHz(Config.PHYSICS_HZ);
@@ -77,10 +82,10 @@ class SimWorld implements IUpdate
 			.setGroup(Collision.WORLD).setMask(Collision.ALL));
 	}
 
-	/** Called by systems (HeroSystem) that spawn the hero. */
-	public function setHero(b : PhysBody) : Void
+	/** Register a player hero body under `playerId`. Called by HeroSystem. */
+	public function setHero(playerId : String, b : PhysBody) : Void
 	{
-		hero = add(b);
+		heroes.set(playerId, add(b));
 	}
 
 	/**

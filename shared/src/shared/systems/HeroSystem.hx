@@ -4,44 +4,60 @@ import oimo.common.Vec3;
 import oimo.dynamics.rigidbody.RigidBodyType;
 import oimo.collision.geometry.CapsuleGeometry;
 
+import phys.core.PhysBody;
+
+import shared.Player;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.GameData;
 import shared.systems.System;
 
 /**
-	Simulation system owning the player hero. Spawns the hero capsule on
-	init; applies client movement intents (HeroMoveIntent) to the body each
-	tick — identically on client and server, so simulations stay in sync.
+	Simulation system owning ALL player heroes. Spawns a hero capsule per
+	player, applies each player's movement intents (HeroMoveIntent) to their
+	own body every tick — identically on client and server, so simulations
+	stay in sync.
+
+	Per-player movement state lives in `states`, keyed by playerId; the body
+	itself is registered in `sim.heroes`. The client emits HeroMoveIntent
+	with its own id (single-player prototype: Player.LOCAL). Extend by calling
+	spawnHero(id) for each connected remote player.
 
 	Sim system (sim != null): may mutate the world directly; runs inside
 	SimWorld.update() in fixed order on client and server alike.
 **/
+
+/** Movement input + jump lock state for one player. */
+typedef HeroState = {
+	var dirX : Float;
+	var dirZ : Float;
+	var yaw : Float;
+	var mag : Float;
+	/** True while the hero is airborne — steering disabled (request). */
+	var airborne : Bool;
+	/** Seconds after a jump during which ground contact is ignored (the
+		physics tick may not have stepped yet — without this the hero
+		re-grounds instantly and keeps air control). */
+	var airLock : Float;
+}
+
 class HeroSystem extends System
 {
 	static inline var SPAWN_MARGIN : Float = 0.01; // spawn slightly above floor
+	static inline var JUMP_AIR_LOCK : Float = 0.2;
 
-	// last received intent
-	var dirX : Float = 0;
-	var dirZ : Float = 0;
-	var yaw : Float = 0;
-	var mag : Float = 0;
 	/** Move speed, world units/sec (cdb "Hero"."speed"). */
 	var speed : Float;
 	/** Jump impulse, world units/sec (cdb "Hero"."jumpVelocity"). */
 	var jumpVel : Float;
 	/** Ground check: ray length below the feet (cdb "Hero"."groundProbe"). */
 	var groundProbe : Float;
-	/** True while the hero is airborne — steering disabled (request). */
-	var airborne : Bool = false;
-	/** Seconds after a jump during which ground contact is ignored (the
-		physics tick may not have stepped yet — without this the hero
-		re-grounds instantly and keeps air control). */
-	var airLock : Float = 0;
-	static inline var JUMP_AIR_LOCK : Float = 0.2;
 	// cached cdb numbers (ray/spawn math needs them every tick)
 	var heroR : Float;
 	var heroHH : Float;
+
+	/** Per-player hero state (input snapshot + jump lock), keyed by playerId. */
+	var states : Map<String, HeroState> = new Map();
 
 	public function new(bus : EventBus, sim : SimWorld, ?gd : GameData)
 	{
@@ -52,76 +68,105 @@ class HeroSystem extends System
 		heroR = gd.req("Hero", "heroRadius");
 		heroHH = gd.req("Hero", "heroHalfHeight");
 		bus.subscribe(HeroMoveIntent, onIntent);
-		spawnHero();
+		spawnHero(Player.LOCAL);
+	}
+
+	/** Get (or create) the movement state for a player. */
+	static function state(states : Map<String, HeroState>, playerId : String) : HeroState
+	{
+		var s = states.get(playerId);
+		if (s == null)
+		{
+			s = { dirX : 0, dirZ : 0, yaw : 0, mag : 0, airborne : false, airLock : 0 };
+			states.set(playerId, s);
+		}
+		return s;
 	}
 
 	function onIntent(e : HeroMoveIntent) : Void
 	{
-		dirX = e.dirX;
-		dirZ = e.dirZ;
-		yaw = e.yaw;
-		mag = e.mag;
-		if (e.jump) tryJump();
+		var s = state(states, e.playerId);
+		s.dirX = e.dirX;
+		s.dirZ = e.dirZ;
+		s.yaw = e.yaw;
+		s.mag = e.mag;
+		if (e.jump) tryJump(e.playerId, s);
 	}
 
-	/** Create the hero capsule resting on the floor at the origin. */
-	public function spawnHero() : Void
+	/**
+		Create a hero capsule resting on the floor at the origin and register
+		it under `playerId` (defaults to the local player). Called once per
+		connected player.
+	**/
+	public function spawnHero(?playerId : String) : Void
 	{
+		if (playerId == null) playerId = Player.LOCAL;
 		// capsule total height = 2*(hh + r); spawn so the bottom touches the floor.
 		// HERO layer; mask without BULLET: player's own bullets ignore them
 		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(0, heroR + heroHH + SPAWN_MARGIN, 0), "hero")
 			.addShape(new CapsuleGeometry(heroR, heroHH), null, null, 0.0, 0.6)
 			.setRotationFactor(0, 1, 0) // can't topple: pitch/roll locked, only yaw
 			.setGroup(Collision.HERO).setMask(Collision.WORLD);
-		sim.setHero(b);
+		sim.setHero(playerId, b);
+		// make sure the player has a movement state so update() runs for it
+		state(states, playerId);
 	}
 
-	/** Apply the latest movement intent to the hero body. */
+	/** Apply the latest movement intent of every player to their hero body. */
 	override public function update(dt : Float) : Void
 	{
-		if (sim.hero == null) return;
+		for (id in states.keys())
+		{
+			var body = sim.heroes.get(id);
+			if (body == null) continue; // state may outlive a respawn
+			apply(states.get(id), body, dt);
+		}
+	}
 
-		if (airLock > 0) airLock -= dt;
+	function apply(s : HeroState, body : PhysBody, dt : Float) : Void
+	{
+		if (s.airLock > 0) s.airLock -= dt;
 
-		var grounded = isGrounded();
-		if (grounded && airLock <= 0) airborne = false;
+		var grounded = isGrounded(body);
+		if (grounded && s.airLock <= 0) s.airborne = false;
 
 		// while airborne the hero is NOT steerable (request): keep the
 		// velocity from the jump/last ground frame untouched
-		if (airborne) return;
+		if (s.airborne) return;
 
 		// horizontal velocity from the intent, scaled by eased magnitude
 		// (0..1 — smooth accel/decel from the client's input smoothing);
 		// Y left to gravity/contacts
-		var vx = dirX * speed * mag;
-		var vz = dirZ * speed * mag;
-		var v = sim.hero.body.getLinearVelocity();
-		sim.hero.setLinearVelocity(vx, v.y, vz);
+		var vx = s.dirX * speed * s.mag;
+		var vz = s.dirZ * speed * s.mag;
+		var v = body.body.getLinearVelocity();
+		body.setLinearVelocity(vx, v.y, vz);
 
 		// face the camera yaw: rotation around Y, forward = -Z at yaw 0.
 		// Oimo Quat has no euler ctor — build the axis-angle quat directly.
-		var ha = yaw * 0.5;
-		sim.hero.body.setOrientation(new oimo.common.Quat(0, Math.sin(-ha), 0, Math.cos(ha)));
+		var ha = s.yaw * 0.5;
+		body.body.setOrientation(new oimo.common.Quat(0, Math.sin(-ha), 0, Math.cos(ha)));
 	}
 
 	/** One-shot jump: impulse up when standing on something. */
-	function tryJump() : Void
+	function tryJump(playerId : String, s : HeroState) : Void
 	{
-		if (sim.hero == null || airborne || airLock > 0 || !isGrounded()) return;
-		airborne = true;
-		airLock = JUMP_AIR_LOCK;
-		var v = sim.hero.body.getLinearVelocity();
-		sim.hero.setLinearVelocity(v.x, jumpVel, v.z);
+		var body = sim.heroes.get(playerId);
+		if (body == null || s.airborne || s.airLock > 0 || !isGrounded(body)) return;
+		s.airborne = true;
+		s.airLock = JUMP_AIR_LOCK;
+		var v = body.body.getLinearVelocity();
+		body.setLinearVelocity(v.x, jumpVel, v.z);
 	}
 
-	/** True when the capsule bottom is within `groundProbe` of a surface. */
-	function isGrounded() : Bool
+	/** True when `body`'s capsule bottom is within `groundProbe` of a surface. */
+	function isGrounded(body : PhysBody) : Bool
 	{
-		var p = sim.hero.getPosition();
+		var p = body.getPosition();
 		// from the center straight down, just past the capsule bottom
 		// (bottom = center - (r + hh)); a tiny extra avoids self-hit jitter
 		var hit = sim.phys.rayCast(p.x, p.y, p.z, p.x, p.y - heroR - heroHH - groundProbe, p.z);
 		// ignore a self-hit: the ray starts inside our own capsule
-		return hit != null && hit.body != sim.hero;
+		return hit != null && hit.body != body;
 	}
 }
