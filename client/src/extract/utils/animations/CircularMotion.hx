@@ -35,7 +35,7 @@ class CircularMotion extends AAnimation
 		super(target, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		var angle = startAngle + (endAngle - startAngle) * t;
 		target.x = cx + Math.cos(angle) * radius;

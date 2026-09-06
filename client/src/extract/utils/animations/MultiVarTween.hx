@@ -2,6 +2,8 @@ package extract.utils.animations;
 
 typedef VarTweenEntry = {
 	var prop : String;
+	/** Start value. If null, reads current value from target at start(). */
+	@:optional var from : Null<Float>;
 	var to : Float;
 };
 
@@ -10,9 +12,8 @@ typedef VarTweenEntry = {
 
 	Usage:
 	  new MultiVarTween(obj, [
-	    { prop: "x", to: 200 },
-	    { prop: "y", to: 100 },
-	    { prop: "alpha", to: 0.5 }
+	    { prop: "x", from: 0, to: 200 },
+	    { prop: "alpha", from: 0.0, to: 1.0 }
 	  ], 1.0, Easing.cubicOut).start();
 **/
 class MultiVarTween extends AAnimation
@@ -22,7 +23,7 @@ class MultiVarTween extends AAnimation
 
 	/**
 		@param target   h2d.Object to animate
-		@param entries  list of { prop, to } pairs
+		@param entries  list of { prop, from?(null=read target), to } pairs
 		@param duration seconds
 		@param easing   easing function (null → linear)
 	**/
@@ -38,18 +39,42 @@ class MultiVarTween extends AAnimation
 		fromValues = [];
 		for (e in entries)
 		{
-			var v = Reflect.getField(target, e.prop);
-			fromValues.push(Math.isNaN(v) ? 0 : v);
+			if (e.from != null)
+				fromValues.push(e.from);
+			else
+			{
+				var v : Float = switch e.prop
+				{
+					case "x": target.x;
+					case "y": target.y;
+					case "alpha": target.alpha;
+					case "scaleX": target.scaleX;
+					case "scaleY": target.scaleY;
+					case "rotation": target.rotation;
+					default: Reflect.field(target, e.prop);
+				};
+				fromValues.push(Math.isNaN(v) ? 0 : v);
+			}
 		}
 		return super.start();
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		for (i in 0...entries.length)
 		{
 			var e = entries[i];
-			Reflect.setField(target, e.prop, fromValues[i] + (e.to - fromValues[i]) * t);
+			var v = fromValues[i] + (e.to - fromValues[i]) * t;
+			switch e.prop
+			{
+				case "x": target.x = v;
+				case "y": target.y = v;
+				case "alpha": target.alpha = v;
+				case "scaleX": target.scaleX = v;
+				case "scaleY": target.scaleY = v;
+				case "rotation": target.rotation = v;
+				default: Reflect.setField(target, e.prop, v);
+			}
 		}
 	}
 }

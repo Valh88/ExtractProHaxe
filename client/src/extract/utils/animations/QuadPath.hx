@@ -30,7 +30,7 @@ class QuadPath extends AAnimation
 		super(target, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		if (totalSegments <= 0) return;
 

@@ -30,7 +30,7 @@ class LinearMotion extends AAnimation
 		super(target, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		target.x = x1 + (x2 - x1) * t;
 		target.y = y1 + (y2 - y1) * t;

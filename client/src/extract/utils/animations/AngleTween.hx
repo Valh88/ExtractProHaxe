@@ -33,7 +33,7 @@ class AngleTween extends AAnimation
 		return super.start();
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		target.rotation = lerpAngle(from, to, t);
 	}

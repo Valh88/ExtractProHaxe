@@ -39,7 +39,7 @@ class QuadMotion extends AAnimation
 		super(target, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		var u = 1.0 - t;
 		target.x = u * u * x0 + 2.0 * u * t * cx + t * t * x1;

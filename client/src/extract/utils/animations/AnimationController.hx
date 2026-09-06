@@ -17,10 +17,11 @@ class AnimationController
 
 	public function new() {}
 
-	/** Register an animation. Returns the animation for chaining. */
+	/** Register an animation and start it. Returns the animation for chaining. */
 	public function add(anim : AAnimation) : AAnimation
 	{
 		if (animations.indexOf(anim) < 0) animations.push(anim);
+		if (!anim.isRunning && !anim.isComplete) anim.start();
 		return anim;
 	}
 

@@ -32,7 +32,7 @@ class NumTween extends AAnimation
 		super(null, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		value = from + (to - from) * t;
 	}

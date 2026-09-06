@@ -41,13 +41,13 @@ class ColorTween extends AAnimation
 		super(target, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
-		var c : h3d.Vector4 = Reflect.field(target, "color");
+		var c : h3d.Vector4 = target.color;
 		if (c == null)
 		{
 			c = new h3d.Vector4();
-			Reflect.setField(target, "color", c);
+			target.color = c;
 		}
 		c.r = fromR + (toR - fromR) * t;
 		c.g = fromG + (toG - fromG) * t;

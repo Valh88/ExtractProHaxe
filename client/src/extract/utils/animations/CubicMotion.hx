@@ -44,7 +44,7 @@ class CubicMotion extends AAnimation
 		super(target, duration, easing);
 	}
 
-	override function apply(t : Float) : Void
+	function apply(t : Float) : Void
 	{
 		var u = 1.0 - t;
 		var tt = t * t;

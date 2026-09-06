@@ -64,6 +64,13 @@ abstract class AAnimation
 		this.easing = easing != null ? easing : Easing.linear;
 	}
 
+	/** Set initial delay in seconds. Returns `this` for chaining. */
+	public function setDelay(seconds : Float) : AAnimation
+	{
+		this.delay = seconds;
+		return this;
+	}
+
 	/** Start (or restart) the animation. Returns `this` for chaining. */
 	public function start() : AAnimation
 	{

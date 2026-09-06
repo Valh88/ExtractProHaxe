@@ -61,7 +61,7 @@ class BaseScene extends Scene3D implements IUpdate
 	public function update(dt : Float) : Void
 	{
 		systems.update(dt); // presentation/input systems first...
-		animCtrl.update(dt); // advance scene tweens
-		style.sync(dt);     // ...then domkit picks up the new state
+		style.sync(dt);     // domkit applies CSS properties
+		animCtrl.update(dt); // then animation overrides (alpha, y, etc.)
 	}
 }
