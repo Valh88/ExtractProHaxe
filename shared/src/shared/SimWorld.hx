@@ -12,7 +12,6 @@ import shared.GameData;
 import shared.IUpdate;
 import shared.events.EventBus;
 import shared.systems.Systems;
-
 class SimWorld implements IUpdate
 {
 
@@ -22,7 +21,7 @@ class SimWorld implements IUpdate
 	/** Called when a body is spawned, so a consumer can attach visuals/logic. */
 	public var onSpawn : Null<PhysBody -> Void>;
 
-	/** Hero body in the world (spawned in buildLevel). */
+	/** Hero body (spawned by HeroSystem). */
 	public var hero(default, null) : PhysBody;
 
 	/** Game database (cdb) — all tunables are queried from it. */
@@ -53,29 +52,28 @@ class SimWorld implements IUpdate
 		spawnT = 0;
 		spawnI = 0;
 		buildLevel();
+		// gameplay systems (sim == this: direct world access; gd for cdb queries)
+		systems.add(new shared.systems.HeroSystem(bus, this, gd));
 	}
 
 	// --- cdb accessors (Config defaults when the sheet/field is absent) ---
 
-	inline function gravityY() : Float return gd.f("World", "gravityY", Config.GRAVITY_Y);
-	inline function floorHalf() : Float return gd.f("World", "floorHalf", Config.FLOOR_HALF);
-	inline function cubeSize() : Float return gd.f("World", "cubeSize", Config.CUBE_SIZE);
-	inline function cubeSpawnInterval() : Float return gd.f("World", "cubeSpawnInterval", Config.CUBE_SPAWN_INTERVAL);
-	inline function heroRadius() : Float return gd.f("Hero", "heroRadius", 0.4);
-	inline function heroHalfHeight() : Float return gd.f("Hero", "heroHalfHeight", 0.45);
+	public inline function gravityY() : Float return gd.f("World", "gravityY", Config.GRAVITY_Y);
+	public inline function floorHalf() : Float return gd.f("World", "floorHalf", Config.FLOOR_HALF);
+	public inline function cubeSize() : Float return gd.f("World", "cubeSize", Config.CUBE_SIZE);
+	public inline function cubeSpawnInterval() : Float return gd.f("World", "cubeSpawnInterval", Config.CUBE_SPAWN_INTERVAL);
 
 	/** Static level geometry. Extend with walls/props as needed. */
 	function buildLevel() : Void
 	{
 		add(phys.spawnBody(RigidBodyType._STATIC, new Vec3(0, -0.5, 0), "floor")
 			.addBox(floorHalf(), 0.25, floorHalf()));
+	}
 
-		// hero prototype: dynamic capsule that can slide/push but never topples
-		// (angular factor (0,1,0) locks pitch/roll — only yaw spins are free)
-		var heroR = heroRadius();
-		hero = add(phys.spawnBody(RigidBodyType._DYNAMIC, new Vec3(0, heroR + 0.01, 0), "hero")
-			.addShape(new CapsuleGeometry(heroR, heroHalfHeight()), null, null, 0.0, 0.6)
-			.setRotationFactor(0, 1, 0));
+	/** Called by systems (HeroSystem) that spawn the hero. */
+	public function setHero(b : PhysBody) : Void
+	{
+		hero = add(b);
 	}
 
 	/**
