@@ -63,7 +63,10 @@ class PlayerControllerSystem extends System
 		camCtrl.eyeHeight = gd.f("Hero", "eyeHeight", 1.6) - (r + hh);
 		camCtrl.sensitivity = gd.f("Camera", "sensitivity", 0.005);
 		camCtrl.fov = gd.f("Camera", "fov", 75);
-		camCtrl.followRate = gd.f("Camera", "followRate", 18);
+		// FPS: eye snaps to the anchor (mesh is already interpolated by
+		// PhysRenderer) — no second smoothing pass, or the body visibly
+		// outruns the camera and jitters
+		camCtrl.followRate = 0;
 		camCtrl.invertX = true; // mouse right -> camera left (request)
 		moveCtrl.speed = gd.f("Hero", "speed", 6);
 		moveCtrl.invertX = true; // A<->D swapped (request)

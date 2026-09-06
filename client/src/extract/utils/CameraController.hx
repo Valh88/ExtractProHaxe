@@ -39,8 +39,9 @@ class CameraController implements IUpdate
 	public var lookSmooth : Float = 25;
 
 	// --- follow ---
-	/** Position follow rate per second (higher = snappier). 0 = snap instantly. */
-	public var followRate : Float = 18;
+	/** Position follow rate per second (higher = snappier). 0 = snap instantly
+		(recommended for FPV: the mesh anchor is already interpolated). */
+	public var followRate : Float = 0;
 	/** Field of view in degrees. */
 	public var fov : Float = 75;
 	/** Roll around the view axis, radians (drift/tilt effects). */
