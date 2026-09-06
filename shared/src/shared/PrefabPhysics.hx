@@ -207,6 +207,9 @@ class PrefabPhysics {
 		var name : Dynamic = Reflect.field(ctx.obj, "name");
 		var b = ctx.phys.spawnBody(RigidBodyType._STATIC, ctx.pos, name != null ? Std.string(name) : null);
 		b.addShape(new BoxGeometry(new Vec3(hx, hy, hz)), null, ctx.rot);
+		// prefab geometry is world: must share the WORLD layer, or bullets
+		// (mask = WORLD) fly straight through it
+		b.setGroup(Collision.WORLD).setMask(Collision.ALL);
 		ctx.spawned.push(b);
 		if (onSpawned != null) onSpawned(b, ctx.obj);
 	}
