@@ -57,20 +57,29 @@ class PlayerControllerSystem extends System
 	function set_mesh(m : Null<h3d.scene.Object>) : Null<h3d.scene.Object>
 	{
 		camCtrl.snap();
-		// cache cdb-driven numbers once per bind (they don't change between respawns)
-		var r = gd.f("Hero", "heroRadius", 0.4);
-		var hh = gd.f("Hero", "heroHalfHeight", 0.45);
-		camCtrl.eyeHeight = gd.f("Hero", "eyeHeight", 1.6) - (r + hh);
-		camCtrl.sensitivity = gd.f("Camera", "sensitivity", 0.005);
-		camCtrl.fov = gd.f("Camera", "fov", 75);
+		// cdb-driven tuning, read once per bind (they don't change between
+		// respawns); ALL data lives in the base — required reads, a missing
+		// field throws a clear error at startup
+		var r = gd.req("Hero", "heroRadius");
+		var hh = gd.req("Hero", "heroHalfHeight");
+		camCtrl.eyeHeight = gd.req("Camera", "eyeHeight") - (r + hh);
+		camCtrl.sensitivity = gd.req("Camera", "sensitivity");
+		camCtrl.fov = gd.req("Camera", "fov");
+		camCtrl.maxPitch = gd.req("Camera", "maxPitch");
+		camCtrl.lookSmooth = gd.req("Camera", "lookSmooth");
+		camCtrl.invertX = gd.reqB("Camera", "invertX");
+		camCtrl.invertY = gd.reqB("Camera", "invertY");
 		// FPS: eye snaps to the anchor (mesh is already interpolated by
 		// PhysRenderer) — no second smoothing pass, or the body visibly
 		// outruns the camera and jitters
 		camCtrl.followRate = 0;
-		camCtrl.invertX = true; // mouse right -> camera left (request)
-		moveCtrl.speed = gd.f("Hero", "speed", 6);
-		moveCtrl.invertX = true; // A<->D swapped (request)
-		moveCtrl.invertZ = false; // W/S normal (invertZ was the W-backward bug)
+		moveCtrl.speed = gd.req("Hero", "speed");
+		moveCtrl.moveSmooth = gd.req("Controller", "moveSmooth");
+		moveCtrl.stopSmooth = gd.req("Controller", "stopSmooth");
+		moveCtrl.stopThreshold = gd.req("Controller", "stopThreshold");
+		moveCtrl.fastMult = gd.req("Controller", "fastMult");
+		moveCtrl.invertX = gd.reqB("Controller", "invertX");
+		moveCtrl.invertZ = gd.reqB("Controller", "invertZ");
 		return mesh = m;
 	}
 

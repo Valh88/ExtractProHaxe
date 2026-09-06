@@ -23,20 +23,11 @@ class ServerApp
 		trace("== template server (headless) ==");
 
 		// same cdb as the client (path relative to the CWD the server runs from);
-		// missing file -> Config defaults, never a crash
-		var gd : GameData;
-		try
-		{
-			gd = GameData.fromCdb(sys.io.File.getContent("client/res/db/data.cdb"));
-		}
-		catch (e : Dynamic)
-		{
-			trace("CDB not found (" + e + ") — using Config defaults");
-			gd = new GameData();
-		}
+		// the base is the single source of truth — a missing/broken file is fatal
+		var gd = GameData.fromCdb(sys.io.File.getContent("client/res/db/data.cdb"));
 		trace("GAMEDATA db=" + (gd.db != null ? "loaded" : "null")
-			+ " heroR=" + gd.f("Hero", "heroRadius", 0.4)
-			+ " heroHH=" + gd.f("Hero", "heroHalfHeight", 0.45));
+			+ " heroR=" + gd.req("Hero", "heroRadius")
+			+ " heroHH=" + gd.req("Hero", "heroHalfHeight"));
 
 		// SERVER event bus (local delivery on flush, transport in subclass)
 		var bus = new ServerEventBus();

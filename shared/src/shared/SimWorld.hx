@@ -61,12 +61,12 @@ class SimWorld implements IUpdate
 		systems.add(new shared.systems.HeroSystem(bus, this, gd));
 	}
 
-	// --- cdb accessors (Config defaults when the sheet/field is absent) ---
+	// --- cdb accessors (all data lives in the base — required reads) ---
 
-	public inline function gravityY() : Float return gd.f("World", "gravityY", Config.GRAVITY_Y);
-	public inline function floorHalf() : Float return gd.f("World", "floorHalf", Config.FLOOR_HALF);
-	public inline function cubeSize() : Float return gd.f("World", "cubeSize", Config.CUBE_SIZE);
-	public inline function cubeSpawnInterval() : Float return gd.f("World", "cubeSpawnInterval", Config.CUBE_SPAWN_INTERVAL);
+	public inline function gravityY() : Float return gd.req("World", "gravityY");
+	public inline function floorHalf() : Float return gd.req("World", "floorHalf");
+	public inline function cubeSize() : Float return gd.req("World", "cubeSize");
+	public inline function cubeSpawnInterval() : Float return gd.req("World", "cubeSpawnInterval");
 
 	/** Static level geometry. Extend with walls/props as needed. */
 	function buildLevel() : Void

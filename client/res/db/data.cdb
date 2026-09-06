@@ -52,13 +52,125 @@
 				{
 					"name": "heroHalfHeight",
 					"typeStr": "4"
+				},
+				{
+					"name": "speed",
+					"typeStr": "4"
+				},
+				{
+					"name": "jumpVelocity",
+					"typeStr": "4"
+				},
+				{
+					"name": "groundProbe",
+					"typeStr": "4"
 				}
 			],
 			"lines": [
 				{
 					"heroHalfHeight": 0.45,
 					"heroRadius": 0.4,
-					"id": "default"
+					"id": "default",
+					"speed": 6,
+					"jumpVelocity": 5.5,
+					"groundProbe": 0.12
+				}
+			],
+			"separators": [],
+			"props": {}
+		},
+		{
+			"name": "Camera",
+			"columns": [
+				{
+					"name": "id",
+					"typeStr": "0"
+				},
+				{
+					"name": "sensitivity",
+					"typeStr": "4"
+				},
+				{
+					"name": "fov",
+					"typeStr": "4"
+				},
+				{
+					"name": "maxPitch",
+					"typeStr": "4"
+				},
+				{
+					"name": "lookSmooth",
+					"typeStr": "4"
+				},
+				{
+					"name": "invertX",
+					"typeStr": "1"
+				},
+				{
+					"name": "invertY",
+					"typeStr": "1"
+				},
+				{
+					"name": "eyeHeight",
+					"typeStr": "4"
+				}
+			],
+			"lines": [
+				{
+					"id": "default",
+					"sensitivity": 0.005,
+					"fov": 75,
+					"maxPitch": 1.5533,
+					"lookSmooth": 25,
+					"invertX": true,
+					"invertY": false,
+					"eyeHeight": 1.6
+				}
+			],
+			"separators": [],
+			"props": {}
+		},
+		{
+			"name": "Controller",
+			"columns": [
+				{
+					"name": "id",
+					"typeStr": "0"
+				},
+				{
+					"name": "moveSmooth",
+					"typeStr": "4"
+				},
+				{
+					"name": "stopSmooth",
+					"typeStr": "4"
+				},
+				{
+					"name": "stopThreshold",
+					"typeStr": "4"
+				},
+				{
+					"name": "fastMult",
+					"typeStr": "4"
+				},
+				{
+					"name": "invertX",
+					"typeStr": "1"
+				},
+				{
+					"name": "invertZ",
+					"typeStr": "1"
+				}
+			],
+			"lines": [
+				{
+					"id": "default",
+					"moveSmooth": 12,
+					"stopSmooth": 20,
+					"stopThreshold": 0.05,
+					"fastMult": 2,
+					"invertX": true,
+					"invertZ": false
 				}
 			],
 			"separators": [],

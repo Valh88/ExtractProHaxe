@@ -4,13 +4,12 @@ import cdb.Database;
 
 /**
 	Raw handle on the shared cdb database (`client/res/db/data.cdb`).
-	No mirrored fields: consumers query sheets directly — `f()` for a float
-	from the first line of a sheet, `line()` for the whole row, or `db` for
-	anything richer (multiple rows, other sheets, ids).
+	ALL game data lives in the base — accessors are REQUIRED reads and
+	throw a clear error when the db/sheet/field is missing (fail-fast at
+	startup instead of silently-wrong physics).
 
-	`db` is null when no file could be parsed — every accessor then falls
-	back to the caller-supplied default, so a missing/broken file never
-	crashes startup.
+	`req` for floats, `reqB` for bools, `line()` for whole rows, `db` for
+	anything richer (multiple rows, ids).
 **/
 class GameData
 {
@@ -46,12 +45,32 @@ class GameData
 		return lines.length > 0 ? lines[0] : null;
 	}
 
-	/** Float `field` from the first line of `sheet`, or `def`. */
-	public function f(sheet : String, field : String, def : Float) : Float
+	/** REQUIRED float: throws when db/sheet/field is missing or not numeric. */
+	public function req(sheet : String, field : String) : Float
 	{
 		var l = line(sheet);
-		if (l == null) return def;
-		var v : Dynamic = Reflect.field(l, field);
-		return v != null && Std.isOfType(v, Float) ? v : def;
+		if (l != null)
+		{
+			var v : Dynamic = Reflect.field(l, field);
+			if (v != null && Std.isOfType(v, Float)) return v;
+		}
+		return fail(sheet, field, "numeric");
+	}
+
+	/** REQUIRED bool: throws when db/sheet/field is missing or not boolean. */
+	public function reqB(sheet : String, field : String) : Bool
+	{
+		var l = line(sheet);
+		if (l != null)
+		{
+			var v : Dynamic = Reflect.field(l, field);
+			if (v != null && Std.isOfType(v, Bool)) return v;
+		}
+		return fail(sheet, field, "boolean");
+	}
+
+	static function fail(sheet : String, field : String, kind : String) : Dynamic
+	{
+		throw 'GameData: missing $kind field "$field" in sheet "$sheet" (data.cdb incomplete?)';
 	}
 }

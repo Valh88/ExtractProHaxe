@@ -46,11 +46,11 @@ class HeroSystem extends System
 	public function new(bus : EventBus, sim : SimWorld, ?gd : GameData)
 	{
 		super(bus, sim, gd, "Hero");
-		speed = gd.f("Hero", "speed", 6);
-		jumpVel = gd.f("Hero", "jumpVelocity", 5.5);
-		groundProbe = gd.f("Hero", "groundProbe", 0.12);
-		heroR = gd.f("Hero", "heroRadius", 0.4);
-		heroHH = gd.f("Hero", "heroHalfHeight", 0.45);
+		speed = gd.req("Hero", "speed");
+		jumpVel = gd.req("Hero", "jumpVelocity");
+		groundProbe = gd.req("Hero", "groundProbe");
+		heroR = gd.req("Hero", "heroRadius");
+		heroHH = gd.req("Hero", "heroHalfHeight");
 		bus.subscribe(HeroMoveIntent, onIntent);
 		spawnHero();
 	}
