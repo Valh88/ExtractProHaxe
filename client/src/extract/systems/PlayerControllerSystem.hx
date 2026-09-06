@@ -8,6 +8,7 @@ import extract.utils.MovementController;
 import shared.GameData;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
+import shared.events.GameEvents.BulletFired;
 import shared.systems.System;
 
 /**
@@ -34,6 +35,7 @@ class PlayerControllerSystem extends System
 	var cam : Camera;
 	var rmbDown : Bool = false;
 	var dragging : Bool = false;
+	var shootRequested : Bool = false;
 	var mx : Float = 0;
 	var my : Float = 0;
 	var lastMX : Float = 0;
@@ -43,6 +45,8 @@ class PlayerControllerSystem extends System
 	var pDirZ : Float = 0;
 	var pYaw : Float = 0;
 	var pMag : Float = 0;
+	/** Bullet spawn clearance along the fire direction (cached from cdb). */
+	var spawnAhead : Float = 0.6;
 
 	public function new(bus : EventBus, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
@@ -80,6 +84,9 @@ class PlayerControllerSystem extends System
 		moveCtrl.fastMult = gd.req("Controller", "fastMult");
 		moveCtrl.invertX = gd.reqB("Controller", "invertX");
 		moveCtrl.invertZ = gd.reqB("Controller", "invertZ");
+		// bullet spawn clearance: eye is inside the hero capsule, so the
+		// projectile must start beyond it along the fire direction
+		spawnAhead = gd.req("Hero", "heroRadius") + gd.req("Bullet", "radius") + 0.05;
 		return mesh = m;
 	}
 
@@ -97,6 +104,8 @@ class PlayerControllerSystem extends System
 				my = e.relY;
 			case ERelease if (e.button == 1):
 				rmbDown = false;
+			case EPush if (e.button == 0):
+				shootRequested = true; // LMB: one-shot fire (applied in update)
 			case _:
 		}
 	}
@@ -142,6 +151,28 @@ class PlayerControllerSystem extends System
 			pYaw = yaw;
 			pMag = mag;
 			bus.publish(new HeroMoveIntent(d.x, d.z, yaw, mag, jump));
+		}
+
+		// --- shoot (LMB one-shot): fire from the eye along the view dir,
+		// starting beyond the hero capsule so it doesn't hit the player ---
+		if (shootRequested)
+		{
+			shootRequested = false;
+			if (mesh != null)
+			{
+				var p = mesh.getAbsPos();
+				var eyeY = p.ty + camCtrl.eyeHeight;
+				// view forward from yaw/pitch (same basis as CameraController)
+				var cp = Math.cos(camCtrl.pitch);
+				var fx = -Math.sin(camCtrl.yaw) * cp;
+				var fy = Math.sin(camCtrl.pitch);
+				var fz = -Math.cos(camCtrl.yaw) * cp;
+				bus.publish(new BulletFired(
+					p.tx + fx * spawnAhead,
+					eyeY + fy * spawnAhead,
+					p.tz + fz * spawnAhead,
+					fx, fy, fz));
+			}
 		}
 
 		// --- camera follows the hero mesh anchor ---

@@ -1,5 +1,5 @@
 {
-	"compress": false,
+	"compress": true,
 	"customTypes": [],
 	"sheets": [
 		{
@@ -171,6 +171,37 @@
 					"fastMult": 2,
 					"invertX": true,
 					"invertZ": false
+				}
+			],
+			"separators": [],
+			"props": {}
+		},
+		{
+			"name": "Bullet",
+			"columns": [
+				{
+					"name": "id",
+					"typeStr": "0"
+				},
+				{
+					"name": "radius",
+					"typeStr": "4"
+				},
+				{
+					"name": "speed",
+					"typeStr": "4"
+				},
+				{
+					"name": "cooldown",
+					"typeStr": "4"
+				}
+			],
+			"lines": [
+				{
+					"id": "default",
+					"radius": 0.15,
+					"speed": 25,
+					"cooldown": 0.25
 				}
 			],
 			"separators": [],

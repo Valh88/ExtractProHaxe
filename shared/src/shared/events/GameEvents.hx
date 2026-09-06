@@ -12,6 +12,30 @@ class SearchStarted
 }
 
 /**
+	Client -> sim shooting intent: world-space spawn position (hero eye) and
+	normalized fire direction. The sim (BulletSystem) spawns the projectile.
+**/
+class BulletFired
+{
+	public var x : Float;
+	public var y : Float;
+	public var z : Float;
+	public var dirX : Float;
+	public var dirY : Float;
+	public var dirZ : Float;
+
+	public function new(x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float)
+	{
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		this.dirX = dirX;
+		this.dirY = dirY;
+		this.dirZ = dirZ;
+	}
+}
+
+/**
 	Client -> sim movement intent: world-space move direction (normalized
 	horizontal), eased magnitude 0..1 (smooth accel/decel), the desired
 	body yaw (camera yaw) and a one-shot jump request. Published only when

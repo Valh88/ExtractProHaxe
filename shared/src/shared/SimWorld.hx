@@ -59,6 +59,7 @@ class SimWorld implements IUpdate
 		buildLevel();
 		// gameplay systems (sim == this: direct world access; gd for cdb queries)
 		systems.add(new shared.systems.HeroSystem(bus, this, gd));
+		systems.add(new shared.systems.BulletSystem(bus, this, gd));
 	}
 
 	// --- cdb accessors (all data lives in the base — required reads) ---
@@ -114,7 +115,12 @@ class SimWorld implements IUpdate
 		return phys.getBodies();
 	}
 
-	function add(b : PhysBody) : PhysBody
+	/**
+		Register a body in the world and notify onSpawn (the client draws it).
+		Systems must spawn through this (with phys.createBody) — bodies added
+		via phys.spawnBody directly never reach the client's view.
+	**/
+	public function add(b : PhysBody) : PhysBody
 	{
 		phys.addBody(b);
 		if (onSpawn != null) onSpawn(b);

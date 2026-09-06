@@ -98,6 +98,10 @@ class GamePlayView extends BaseScene
 				var cap = new h3d.prim.Capsule(sizes.hx, sizes.hy * 2, 12, h3d.prim.Capsule.Axis.Y);
 				cap.addNormals();
 				cap;
+			case "bullet":
+				var s = new h3d.prim.Sphere(sizes.hx, 12, 8);
+				s.addNormals();
+				s;
 			default:
 				null;
 		}
@@ -122,6 +126,10 @@ class GamePlayView extends BaseScene
 				pbr.metalnessValue = 0.1;
 				pbr.roughnessValue = 0.5;
 				m.color.set(1, 0.55, 0.2, 1);
+			case "bullet": // bright yellow projectile
+				pbr.metalnessValue = 0.2;
+				pbr.roughnessValue = 0.4;
+				m.color.set(1, 0.95, 0.2, 1);
 		}
 		m.mainPass.addShader(pbr);
 		return new h3d.scene.Mesh(prim, m);
