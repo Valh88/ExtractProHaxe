@@ -30,6 +30,9 @@ class LobbyView extends BaseScene
 		// debug fly camera as a presentation system (WASD/QE/Shift/RMB)
 		systems.add(new DebugCameraSystem(bus, camera));
 
+		// share scene animCtrl with design components (TopPanel hover tweens)
+		TopPanel.animCtrl = animCtrl;
+
 		design = new Lobbydesign();
 		attachUI(design);
 		readyPanel = design.getReadyPanel();

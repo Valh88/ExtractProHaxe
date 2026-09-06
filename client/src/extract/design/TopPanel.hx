@@ -36,6 +36,13 @@ class TopPanel extends Flow implements Object
 
 	// tab text order matches click zone indices
 	var tabTexts : Array<h2d.Text>;
+	/** Set by the scene BEFORE design creation — shared scene animCtrl. */
+	public static var animCtrl : extract.utils.animations.AnimationController;
+
+	static inline var HOVER_COLOR : Int = 0xFFFFFFFF;
+	static inline var IDLE_COLOR : Int = 0xFF737373;
+	static inline var ACTIVE_COLOR : Int = 0xFFBFBFBF;
+	static inline var HOVER_DURATION : Float = 0.15;
 
 	public function new(?parent)
 	{
@@ -65,17 +72,35 @@ class TopPanel extends Flow implements Object
 		var zones = [ { x : 0, w : 75 }, { x : 75, w : 126 }, { x : 201, w : 98 }, { x : 299, w : 100 } ];
 		for (i in 0...zones.length)
 		{
-			// fresh local per iteration: closures capture the loop var by reference,
-			// without the copy every zone would fire with the LAST index
 			var idx = i;
 			var hit = new Interactive(zones[i].w, 30, menuTabs);
 			hit.setPosition(zones[i].x, 0);
 			hit.cursor = Button;
-			// raw Interactive added to a Flow participates in its layout —
-			// mark absolute (same as CSS position:absolute) to keep manual x/y
 			menuTabs.getProperties(hit).isAbsolute = true;
 			hit.onClick = function(_) if (onTabSelected != null) onTabSelected(idx);
+			hit.onOver = function(_) tweenTabColor(idx, HOVER_COLOR);
+			hit.onOut = function(_) tweenTabColor(idx, tabTexts[idx].dom.hasClass("tab-active") ? ACTIVE_COLOR : IDLE_COLOR);
 		}
+	}
+
+	function tweenTabColor(idx : Int, to : Int) : Void
+	{
+		var txt = tabTexts[idx];
+		animCtrl.cancelByTarget(txt);
+		// color is null until first ColorTween sets it — use CSS class default
+		var from = txt.color != null ? argbToInt(txt.color) : (txt.dom.hasClass("tab-active") ? ACTIVE_COLOR : IDLE_COLOR);
+		if (from == to) return;
+		animCtrl.add(new extract.utils.animations.ColorTween(txt, from, to, HOVER_DURATION, extract.utils.animations.Easing.quadOut));
+	}
+
+	static inline function argbToInt(c : h3d.Vector4) : Int
+	{
+		if (c == null) return 0xFFFFFFFF;
+		var r = Std.int(Math.min(c.r * 255, 255));
+		var g = Std.int(Math.min(c.g * 255, 255));
+		var b = Std.int(Math.min(c.b * 255, 255));
+		var a = Std.int(Math.min(c.a * 255, 255));
+		return (a << 24) | (r << 16) | (g << 8) | b;
 	}
 
 	/** Highlight the selected tab (moves tab-active / tab-idle classes). */

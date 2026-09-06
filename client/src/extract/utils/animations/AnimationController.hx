@@ -31,6 +31,21 @@ class AnimationController
 		animations.remove(anim);
 	}
 
+	/** Cancel all animations targeting the given object (stops + removes). */
+	public function cancelByTarget(obj : h2d.Object) : Void
+	{
+		var i = animations.length - 1;
+		while (i >= 0)
+		{
+			if (animations[i].target == obj)
+			{
+				animations[i].stop();
+				animations.splice(i, 1);
+			}
+			i--;
+		}
+	}
+
 	/** Remove all animations. */
 	public function clear() : Void
 	{

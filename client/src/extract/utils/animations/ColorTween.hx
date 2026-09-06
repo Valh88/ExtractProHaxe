@@ -43,11 +43,12 @@ class ColorTween extends AAnimation
 
 	function apply(t : Float) : Void
 	{
-		var c : h3d.Vector4 = target.color;
+		var d : h2d.Drawable = cast target;
+		var c : h3d.Vector4 = d.color;
 		if (c == null)
 		{
 			c = new h3d.Vector4();
-			target.color = c;
+			d.color = c;
 		}
 		c.r = fromR + (toR - fromR) * t;
 		c.g = fromG + (toG - fromG) * t;
