@@ -28,7 +28,7 @@ class GamePlayView extends BaseScene
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
 		super(s2d, style, gd, bus, 0x0D0D0D);
-
+		setupCamera();
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 

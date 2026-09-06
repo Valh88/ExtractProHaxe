@@ -38,6 +38,7 @@ class LobbyView extends BaseScene
 		readyPanel = design.getReadyPanel();
 		topPanel = design.getTopPanel();
 		topPanel.onTabSelected = onTabSelected;
+		topPanel.initUnderlines();
 
 		subSwitcher = new SubViewSwitcher<LobbyTab>(createSubView, attachSubView,
 			function(tab : LobbyTab) topPanel.setActiveTab(Type.enumIndex(tab)));

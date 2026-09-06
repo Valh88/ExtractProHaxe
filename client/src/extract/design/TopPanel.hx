@@ -36,6 +36,8 @@ class TopPanel extends Flow implements Object
 
 	// tab text order matches click zone indices
 	var tabTexts : Array<h2d.Text>;
+	var tabUnderlines : Array<h2d.Graphics>;
+	var activeTabIdx : Int = 0;
 	/** Set by the scene BEFORE design creation — shared scene animCtrl. */
 	public static var animCtrl : extract.utils.animations.AnimationController;
 
@@ -44,6 +46,10 @@ class TopPanel extends Flow implements Object
 	static inline var ACTIVE_COLOR : Int = 0xFFBFBFBF;
 	static inline var HOVER_DURATION : Float = 0.15;
 	static inline var HOVER_SCALE : Float = 1.05;
+	static inline var UNDERLINE_COLOR : Int = 0xCC3333;
+	static inline var UNDERLINE_HEIGHT : Float = 4.0;
+	static inline var UNDERLINE_Y_PAD : Float = 4.0;
+	static inline var UNDERLINE_DURATION : Float = 0.25;
 
 	public function new(?parent)
 	{
@@ -65,6 +71,33 @@ class TopPanel extends Flow implements Object
 
 		tabTexts = [tabPlay, tabInv, tabHero, tabMkt];
 		addTabHitboxes();
+	}
+
+	/** Call after scene is on stage and fonts are loaded (textWidth > 0). */
+	public function initUnderlines() : Void
+	{
+		if (tabUnderlines != null) return;
+		createUnderlines();
+		setActiveTab(0);
+	}
+
+	function createUnderlines() : Void
+	{
+		tabUnderlines = [];
+		for (i in 0...tabTexts.length)
+		{
+			var txt = tabTexts[i];
+			var w = txt.textWidth;
+			var halfW = w * 0.5;
+			var g = new Graphics();
+			g.beginFill(UNDERLINE_COLOR);
+			g.drawRoundedRect(-halfW, 0, w, UNDERLINE_HEIGHT, 1);
+			g.endFill();
+			g.setPosition(halfW, txt.textHeight + UNDERLINE_Y_PAD);
+			g.scaleX = 0;
+			txt.addChild(g);
+			tabUnderlines.push(g);
+		}
 	}
 
 	/** Invisible click zones over the tab texts (design coords). */
@@ -123,7 +156,7 @@ class TopPanel extends Flow implements Object
 		return (a << 24) | (r << 16) | (g << 8) | b;
 	}
 
-	/** Highlight the selected tab (moves tab-active / tab-idle classes). */
+	/** Highlight the selected tab (moves tab-active / tab-idle classes + underline animation). */
 	public function setActiveTab(i : Int) : Void
 	{
 		for (t in 0...tabTexts.length)
@@ -134,6 +167,24 @@ class TopPanel extends Flow implements Object
 			txt.dom.removeClass("tab-idle");
 			txt.dom.addClass(active ? "tab-active" : "tab-idle");
 		}
+		// animate underlines
+		if (activeTabIdx != i)
+		{
+			// collapse old underline
+			tweenUnderline(activeTabIdx, 0);
+		}
+		activeTabIdx = i;
+		// expand new underline
+		tweenUnderline(i, 1);
+	}
+
+	function tweenUnderline(idx : Int, to : Float) : Void
+	{
+		var g = tabUnderlines[idx];
+		animCtrl.cancelByTarget(g);
+		var from = g.scaleX;
+		if (from == to) return;
+		animCtrl.add(new extract.utils.animations.VarTween(g, "scaleX", from, to, UNDERLINE_DURATION, extract.utils.animations.Easing.cubicOut));
 	}
 
 	function drawSlot(parent : Flow, fill : Int, border : Int)
