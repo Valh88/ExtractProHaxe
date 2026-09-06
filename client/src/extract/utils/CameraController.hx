@@ -33,6 +33,8 @@ class CameraController implements IUpdate
 	public var maxPitch : Float = 1.5533;
 	/** Invert vertical look. */
 	public var invertY : Bool = false;
+	/** Invert horizontal look (mouse right -> camera left). */
+	public var invertX : Bool = false;
 	/** Look inertia while dragging: response rate per second (higher = tighter). */
 	public var lookSmooth : Float = 25;
 
@@ -74,7 +76,7 @@ class CameraController implements IUpdate
 	**/
 	public function addLook(dx : Float, dy : Float) : Void
 	{
-		yaw -= dx * sensitivity * sensitivityMult;
+		yaw += (invertX ? dx : -dx) * sensitivity * sensitivityMult;
 		pitch += (invertY ? dy : -dy) * sensitivity * sensitivityMult;
 		if (pitch > maxPitch) pitch = maxPitch;
 		if (pitch < -maxPitch) pitch = -maxPitch;

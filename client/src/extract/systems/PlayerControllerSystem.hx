@@ -63,6 +63,7 @@ class PlayerControllerSystem extends System
 		camCtrl.sensitivity = gd.f("Camera", "sensitivity", 0.005);
 		camCtrl.fov = gd.f("Camera", "fov", 75);
 		camCtrl.followRate = gd.f("Camera", "followRate", 18);
+		camCtrl.invertX = true; // mouse right -> camera left (request)
 		moveCtrl.speed = gd.f("Hero", "speed", 6);
 		return mesh = m;
 	}
