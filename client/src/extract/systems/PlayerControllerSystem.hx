@@ -42,6 +42,7 @@ class PlayerControllerSystem extends System
 	var pDirX : Float = 0;
 	var pDirZ : Float = 0;
 	var pYaw : Float = 0;
+	var pMag : Float = 0;
 
 	public function new(bus : EventBus, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
@@ -65,6 +66,8 @@ class PlayerControllerSystem extends System
 		camCtrl.followRate = gd.f("Camera", "followRate", 18);
 		camCtrl.invertX = true; // mouse right -> camera left (request)
 		moveCtrl.speed = gd.f("Hero", "speed", 6);
+		moveCtrl.invertX = true; // A<->D swapped (request)
+		moveCtrl.invertZ = true; // W<->S swapped (request)
 		return mesh = m;
 	}
 
@@ -118,12 +121,14 @@ class PlayerControllerSystem extends System
 		// --- publish intent on change ---
 		var d = moveCtrl.dirWorld();
 		var yaw = camCtrl.yaw;
-		if (d.x != pDirX || d.z != pDirZ || yaw != pYaw)
+		var mag = moveCtrl.magnitude();
+		if (d.x != pDirX || d.z != pDirZ || yaw != pYaw || mag != pMag)
 		{
 			pDirX = d.x;
 			pDirZ = d.z;
 			pYaw = yaw;
-			bus.publish(new HeroMoveIntent(d.x, d.z, yaw));
+			pMag = mag;
+			bus.publish(new HeroMoveIntent(d.x, d.z, yaw, mag));
 		}
 
 		// --- camera follows the hero mesh anchor ---

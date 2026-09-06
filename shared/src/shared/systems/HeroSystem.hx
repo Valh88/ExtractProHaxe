@@ -25,6 +25,7 @@ class HeroSystem extends System
 	var dirX : Float = 0;
 	var dirZ : Float = 0;
 	var yaw : Float = 0;
+	var mag : Float = 0;
 	/** Move speed, world units/sec (cdb "Hero"."speed"). */
 	var speed : Float;
 
@@ -41,6 +42,7 @@ class HeroSystem extends System
 		dirX = e.dirX;
 		dirZ = e.dirZ;
 		yaw = e.yaw;
+		mag = e.mag;
 	}
 
 	/** Create the hero capsule resting on the floor at the origin. */
@@ -59,9 +61,11 @@ class HeroSystem extends System
 	{
 		if (sim.hero == null) return;
 
-		// horizontal velocity from the intent (Y left to gravity/contacts)
-		var vx = dirX * speed;
-		var vz = dirZ * speed;
+		// horizontal velocity from the intent, scaled by eased magnitude
+		// (0..1 — smooth accel/decel from the client's input smoothing);
+		// Y left to gravity/contacts
+		var vx = dirX * speed * mag;
+		var vz = dirZ * speed * mag;
 		var v = sim.hero.body.getLinearVelocity();
 		sim.hero.setLinearVelocity(vx, v.y, vz);
 

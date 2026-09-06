@@ -19,8 +19,16 @@ class MovementController implements IUpdate
 	public var speed : Float = 6;
 	/** Speed multiplier while Shift is held. */
 	public var fastMult : Float = 2;
-	/** Movement inertia: response rate per second (~6 floaty, ~15 tight). */
+	/** Invert horizontal input (A<->D). */
+	public var invertX : Bool = false;
+	/** Invert vertical input (W<->S). */
+	public var invertZ : Bool = false;
+	/** Movement inertia while accelerating: response rate per second. */
 	public var moveSmooth : Float = 12;
+	/** Deceleration rate when no input (higher = quicker stop). */
+	public var stopSmooth : Float = 20;
+	/** Below this speed (units/sec) the movement snaps to a full stop. */
+	public var stopThreshold : Float = 0.05;
 
 	/** Set by the owner when a jump key is pressed; consumed (reset) by the sim. */
 	public var jumpRequested(default, null) : Bool = false;
@@ -55,6 +63,8 @@ class MovementController implements IUpdate
 		if (Key.isDown(Key.S)) iz -= 1;
 		if (Key.isDown(Key.D)) ix += 1;
 		if (Key.isDown(Key.A)) ix -= 1;
+		if (invertX) ix = -ix;
+		if (invertZ) iz = -iz;
 
 		// rotate local input to world by yaw (forward = -Z at yaw 0)
 		var sy = Math.sin(lastYaw);
@@ -65,9 +75,15 @@ class MovementController implements IUpdate
 		var len = Math.sqrt(wx * wx + wz * wz);
 		if (len > 1e-6) { wx /= len; wz /= len; wx *= sp; wz *= sp; }
 
-		var k = 1 - Math.exp(-moveSmooth * dt);
+		var k = 1 - Math.exp(-(len > 1e-6 ? moveSmooth : stopSmooth) * dt);
 		vel.x += (wx - vel.x) * k;
 		vel.z += (wz - vel.z) * k;
+		// dead-snap to full stop below the threshold (kills micro-drift)
+		if (len <= 1e-6 && vel.x * vel.x + vel.z * vel.z < stopThreshold * stopThreshold)
+		{
+			vel.x = 0;
+			vel.z = 0;
+		}
 	}
 
 	/** Remember the yaw the input was rotated by (call before update). */
@@ -94,6 +110,13 @@ class MovementController implements IUpdate
 		var l = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
 		if (l < 1e-4) return { x : 0.0, z : 0.0 };
 		return { x : vel.x / l, z : vel.z / l };
+	}
+
+	/** Eased move magnitude 0..1 (relative to base speed) — scales the intent. */
+	public function magnitude() : Float
+	{
+		var l = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+		return l < 1e-4 ? 0 : l / speed;
 	}
 
 	/** Current smoothed speed magnitude (world units/sec). */
