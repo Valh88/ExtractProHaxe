@@ -30,6 +30,8 @@ class GamePlayView extends BaseScene
 		super(s2d, style, gd, bus, 0x0D0D0D);
 // project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
+		// distance fog blends the world edge into the background (PBR renderer only)
+		this.renderer.effects.push(new extract.gfx.DistanceFog());
 
 	#if hide
 		// level authored in Hide's scene editor, loaded as a prefab (HL only —
