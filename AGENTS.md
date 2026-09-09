@@ -381,6 +381,43 @@ Type codes: `0=TId`, `1=TBool`, `4=TFloat`.
 **Important**: `GenDb.hx` only rebuilds **World + Hero**. Camera/Controller/Bullet were
 added manually — re-running GenDb overwrites the file and loses them.
 
+## Rigged character models (FBX import gotchas)
+
+Game-rip/sketchfab FBX characters (e.g. `WXBFESKTTRF6UPB2DELL0KE3F_Rigged`) import into
+Heaps looking **long / thin / flat / lying on a side**. Three independent causes — the first two
+are exporter bugs in the files themselves, the third is scale:
+
+1. **Broken inverse-bind matrices (the "skeleton stretches the model" case).** The FBX cluster
+   `Transform` matrices don't match the joint hierarchy, so in the converted HMD
+   `transPos * bindWorld != identity` (checked in `tools` probes: palettes had ~120-unit
+   translations and near-zero rotation rows). Result: the mesh deforms into a long thin figure.
+   **Fix** (`GamePlayView.fixSkinBind`, runtime, no heaps edits): recompute each joint's
+   `transPos` as the exact inverse of its bind world matrix — `inverse(defMatChain * skinDefaultWorld)`,
+   where `defMatChain` is the bind-pose world (recursive over `h3d.anim.Skin.Joint.parent`) and
+   `skinDefaultWorld` is the product of `h3d.scene.Object.defaultTransform` from the model root
+   down to the skin. With that, the bind palette is identity and the mesh keeps its shape.
+
+2. **Baked 90° rotation on the mesh node.** The `LoadedModel` FBX node carries a `q=(0.7071,0,0)`
+   rotation, so the character imports **lying down**. Heaps applies it via the skin's
+   `defaultTransform`. **Fix**: counter-rotate the model object (`model.rotate(...)`) until it
+   stands; sign/axis depends on the file — `rotate(0,0,Math.PI/2)` stood this one up. Check for
+   upside-down/back-facing and flip the sign.
+
+3. **Native size ≠ game units.** These models are ~3.75 world units tall (the hero capsule is
+   1.7). **Fix**: `model.setScale(0.45)` ≈ hero height.
+
+Diagnosis tool: `h3d.prim.ModelCache` + `fixSkinBind` are in `GamePlayView.hx`; a headless probe
+(`tools` or temp) that runs `hxd.fmt.fbx.Parser` → `HMDOut.toHMD` → `hxd.fmt.hmd.Writer/Reader`
+round-trip and prints per-joint `transPos * bindWorld` palettes shows immediately whether a model
+needs the bind fix.
+
+> **`deepCopyMaterial` heaps patch (required to load ANY hmd model under PBR).** `hxd/fmt/hmd/Library.hx`
+> `deepCopyMaterial` crashes with `Null access` in `h3d.mat.PbrMaterial.resetProps` when `props`
+> is assigned before the cloned material's `mainPass` exists (the `@:bypassAccessor` does not
+> bypass the overridden `set_props` here). Applied fix: move `m.props = src.props;` to the END of
+> `deepCopyMaterial`, after the passes are cloned. Same class of local patch as the `hmd`/domkit
+> ones above — **wiped on heaps update**, re-apply after `haxelib update heaps`.
+
 ## Misc
 
 - Root `js_imports.txt` / `js_externs.txt` / `js_exports.txt` are reference dumps of the Oimo JS API (from oimophysics's JS export); not part of any build, gitignored.
