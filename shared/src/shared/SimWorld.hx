@@ -13,6 +13,7 @@ import shared.GameData;
 import shared.IUpdate;
 import shared.events.EventBus;
 import shared.systems.Systems;
+
 class SimWorld implements IUpdate
 {
 
