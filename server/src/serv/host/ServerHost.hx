@@ -6,8 +6,8 @@ import sys.thread.Condition;
 import shared.Config;
 import shared.GameData;
 import shared.IUpdate;
-import serv.room.DemoRoom;
-import serv.room.Room;
+import serv.room.RoomManager;
+import serv.room.RoomState;
 
 /**
 	Global server host: owns a FixedThreadPool and schedules server-side
@@ -21,7 +21,7 @@ import serv.room.Room;
 	Every pooled component implements `shared.IUpdate` (`update(dt)`), so
 	rooms AND arbitrary server parts (matchmaking, lobby managers, ...) share
 	one scheduling contract:
-	- rooms are registered via spawn()/remove() (typed Room API),
+	- rooms are managed by a dedicated RoomManager (spawn/remove/lookup),
 	- other server parts via addService()/removeService() (any IUpdate).
 
 	Guarantees:
@@ -35,8 +35,8 @@ import serv.room.Room;
 **/
 class ServerHost
 {
-	/** Rooms keyed by id (typed room API). Mutated on the manager thread. */
-	public var rooms(default, null) : Map<String, Room>;
+	/** Room registry + lifecycle (spawn/remove/lookup). */
+	public var roomManager(default, null) : RoomManager;
 
 	/** Other pooled server parts (any IUpdate) keyed by name. */
 	public var services(default, null) : Map<String, IUpdate>;
@@ -45,8 +45,6 @@ class ServerHost
 	public var workers(default, null) : Int;
 
 	var pool : FixedThreadPool;
-	var gd : GameData;
-	var nextRoomId : Int = 0;
 
 	/** Round barrier: `pending` counts ticks still running in the pool; the
 		manager waits on this condition until it reaches 0. */
@@ -56,46 +54,17 @@ class ServerHost
 
 	public function new(gd : GameData, ?workers : Int)
 	{
-		this.gd = gd;
 		// HashLink's Sys has no cpuCount(); default to a small fixed pool.
 		this.workers = workers != null ? workers : Config.POOL_WORKERS;
-		this.rooms = new Map();
+		this.roomManager = new RoomManager(gd);
 		this.services = new Map();
 		this.pool = new FixedThreadPool(this.workers);
 		this.round = new Condition();
 		this.pending = 0;
 		this.running = false;
-	}
-
-	/**
-		Create a room by kind and register it. Only one `demo` kind for now —
-		future lobby/map kinds come with their matching Room subclasses.
-		Manager thread only (between rounds).
-	**/
-	public function spawn(kind : String, ?id : String) : Null<Room>
-	{
-		if (id == null) id = kind + "-" + (nextRoomId++);
-		if (rooms.exists(id)) return null;
-
-		var room : Room = switch (kind)
-		{
-			case "demo": new DemoRoom(id, gd);
-			default: throw 'ServerHost: unknown room kind "$kind"';
-		}
-		rooms.set(id, room);
-		trace('SPAWN room "' + id + '" kind=' + kind + ' workers=' + workers);
-		return room;
-	}
-
-	/** Remove and close a room. Manager thread only. */
-	public function remove(id : String) : Bool
-	{
-		var room = rooms.get(id);
-		if (room == null) return false;
-		room.close();
-		rooms.remove(id);
-		trace('REMOVE room "' + id + '"');
-		return true;
+		// the room manager itself is a pooled server component (IUpdate): its
+		// update(dt) ticks in the pool alongside rooms/services
+		services.set("roomManager", roomManager);
 	}
 
 	/** Register any other server part that should tick in the pool. */
@@ -108,15 +77,6 @@ class ServerHost
 	public function removeService(name : String) : Bool
 	{
 		return services.remove(name);
-	}
-
-	/** All active (non-closed) rooms, insertion order preserved. */
-	public function activeRooms() : Array<Room>
-	{
-		var out : Array<Room> = [];
-		for (r in rooms)
-			if (r.state != serv.room.RoomState.Closed) out.push(r);
-		return out;
 	}
 
 	/**
@@ -154,7 +114,7 @@ class ServerHost
 			endRound(); // barrier: wait until every component finished this tick
 			if (round % 60 == 0)
 				trace('ROUND ' + round + ' t=' + Math.round((now - start) * 10) / 10
-					+ 's comps=' + comps.length + ' rooms=' + activeRooms().length
+					+ 's comps=' + comps.length + ' rooms=' + roomManager.active().length
 					+ ' services=' + Lambda.count(services));
 			Sys.sleep(0.001); // avoid hammering the manager thread when idle
 		}
@@ -166,8 +126,7 @@ class ServerHost
 	{
 		running = false;
 		if (pool.isShutdown) return;
-		for (id in rooms.keys()) rooms.get(id).close();
-		rooms.clear();
+		roomManager.clear();
 		services.clear();
 		pool.shutdown();
 		trace("ServerHost shutdown");
@@ -179,9 +138,8 @@ class ServerHost
 	function components() : Array<{ name : String, updater : IUpdate, onError : Null<Dynamic -> Void> }>
 	{
 		var out : Array<{ name : String, updater : IUpdate, onError : Null<Dynamic -> Void> }> = [];
-		for (r in rooms)
-			if (r.state != serv.room.RoomState.Closed)
-				out.push({ name : r.id, updater : r, onError : function(_) r.state = serv.room.RoomState.Closed });
+		for (r in roomManager.active())
+			out.push({ name : r.id, updater : r, onError : function(_) r.state = RoomState.Closed });
 		for (k in services.keys())
 			out.push({ name : k, updater : services.get(k), onError : function(_) services.remove(k) });
 		return out;

@@ -1,6 +1,7 @@
 package serv.room;
 
 import shared.GameData;
+import serv.systems.DemoLogSystem;
 
 /**
 	Concrete room using the current SimWorld gameplay unchanged (floor, auto

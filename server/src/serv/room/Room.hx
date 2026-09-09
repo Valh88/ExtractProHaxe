@@ -40,8 +40,9 @@ class Room implements IUpdate
 	/** Connected players (empty stub for now — roster/transport come later). */
 	public var roster(default, null) : Map<String, Dynamic>;
 
-	/** The world this room drives (own SimWorld instance). */
-	public var world(default, null) : SimWorld;
+	/** The world this room drives (own SimWorld instance); null for worldless
+		rooms such as lobbies (players just sit in a menu — no physics). */
+	public var world(default, null) : Null<SimWorld>;
 
 	/** Shared bus of this room — created here and injected into the world. */
 	public var bus(default, null) : ServerEventBus;
@@ -58,7 +59,7 @@ class Room implements IUpdate
 	/** Number of pool ticks performed on this room. */
 	public var tickCount(default, null) : Int = 0;
 
-	public function new(id : String, kind : String, gd : GameData)
+	public function new(id : String, kind : String, gd : GameData, ?withWorld : Bool = true)
 	{
 		this.id = id;
 		this.kind = kind;
@@ -67,7 +68,8 @@ class Room implements IUpdate
 		this.roomSystems = new Systems();
 		// a room creates its own bus and hands it to the world -> one shared bus
 		this.bus = new ServerEventBus();
-		this.world = createWorld(gd, bus);
+		if (withWorld)
+			this.world = createWorld(gd, bus);
 	}
 
 	/**
@@ -82,15 +84,16 @@ class Room implements IUpdate
 
 	/**
 		Advance the room by `dt` (real elapsed time of one host round, ~1/60s).
-		The world (SimWorld) drives a FIXED simulation step (Config.PHYSICS_HZ =
-		30 Hz) — PhysCore has its OWN fixed-timestep accumulator, so we pass it
-		the real `dt` and it steps exactly 30 times per second, matching the
-		client's physics tick rate. The room controls the world's stepping.
 
-		Order: sim systems of the world first, then the server-only room logic —
-		same layering as the client's `sim.update(dt); ...; view.systems.update(dt)`.
-		Room logic runs only when the world actually advanced (tickCount() > 0),
-		so it stays aligned to the sim's 30 Hz cadence.
+		World rooms: the world (SimWorld) drives a FIXED simulation step
+		(Config.PHYSICS_HZ = 30 Hz) — PhysCore has its OWN fixed-timestep
+		accumulator, so we pass it the real `dt` and it steps exactly 30 times
+		per second, matching the client's physics tick rate. Room logic runs
+		only when the world actually advanced (tickCount() > 0), staying
+		aligned to the sim's 30 Hz cadence.
+
+		Worldless rooms (lobbies): no physics — only the server-only room
+		logic ticks, once per host round.
 	**/
 	public function tick(dt : Float) : Void
 	{
@@ -98,10 +101,18 @@ class Room implements IUpdate
 		time += dt;
 		tickCount++;
 
-		var before = world.phys.tickCount();
-		world.update(dt); // sim systems of the world (PhysCore fixed 30 Hz)
+		var w = world;
+		if (w == null)
+		{
+			// worldless room: room logic ticks every host round
+			roomSystems.update(dt);
+			return;
+		}
+
+		var before = w.phys.tickCount();
+		w.update(dt); // sim systems of the world (PhysCore fixed 30 Hz)
 		if (logger != null) logger.dump(dt); // world physics log, ~once per second
-		if (world.phys.tickCount() > before)
+		if (w.phys.tickCount() > before)
 			roomSystems.update(dt); // server-only room logic, aligned to sim ticks
 	}
 
@@ -122,17 +133,4 @@ class Room implements IUpdate
 	{
 		return state = v;
 	}
-}
-
-/** Server-side lifecycle of a room. */
-enum RoomState
-{
-	/** Lobby: waiting for players / matchmaking. */
-	Waiting;
-	/** Active gameplay. */
-	InGame;
-	/** Finished; being torn down. */
-	Ended;
-	/** Closed by the host; no longer ticking. */
-	Closed;
 }

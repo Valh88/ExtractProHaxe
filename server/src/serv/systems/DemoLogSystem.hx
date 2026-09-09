@@ -1,4 +1,4 @@
-package serv.room;
+package serv.systems;
 
 import shared.systems.System;
 import shared.events.EventBus;
