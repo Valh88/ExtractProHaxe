@@ -11,3 +11,4 @@
 --main Main
 
 -hl bin/server/serv.hl
+#haxelib run formatter -s src  
