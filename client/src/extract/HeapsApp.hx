@@ -39,7 +39,7 @@ class HeapsApp extends App
 				case Gameplay: new GamePlayView(s2d, uiStyle, gd, eventBus);
 			}
 		});
-		sceneManager.switchScene(GameScene.Gameplay);
+		sceneManager.switchScene(GameScene.Lobby);
 	}
 
 	override function update(dt : Float)
@@ -51,12 +51,12 @@ class HeapsApp extends App
 
 	override function loadAssets(done) 
 	{
-#if sys
+	#if sys
         hxd.Res.initLocal();
         done();
-#else
+    #else
         new hxd.fmt.pak.Loader(s2d, done);
-#end
+    #end
 	}
 
 	public static function app()

@@ -46,10 +46,13 @@ class Systems implements IUpdate
 		if (s == null) return;
 		map.remove(name);
 		list.remove(s);
+		s.dispose();
 	}
 
 	public function clear() : Void
 	{
+		for (s in list)
+			s.dispose();
 		list.resize(0);
 		map = new Map();
 	}

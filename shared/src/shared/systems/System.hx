@@ -52,4 +52,11 @@ class System implements IUpdate
 
 	/** Per-frame/tick update; override in concrete systems. */
 	public function update(dt : Float) : Void {}
+
+	/**
+		Release owned resources (sockets, subscriptions, timers). Called by the
+		container on remove()/clear(). Empty by default — override in systems
+		that hold external resources.
+	**/
+	public function dispose() : Void {}
 }

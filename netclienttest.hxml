@@ -1,0 +1,8 @@
+-cp client/src
+-cp shared/src
+-cp tools
+-lib hxrnl
+-D dce=no
+--macro include("shared.net")
+-main NetClientTest
+-hl bin/clienttest.hl

@@ -64,4 +64,16 @@ class BaseScene extends Scene3D implements IUpdate
 		style.sync(dt);     // domkit applies CSS properties
 		animCtrl.update(dt); // then animation overrides (alpha, y, etc.)
 	}
+
+	/**
+		Release scene-owned resources (systems hold sockets/subscriptions and
+		release them via System.dispose()). Called by the SceneManager when the
+		scene is switched away.
+	**/
+	override public function dispose() : Void
+	{
+		systems.clear();
+		animCtrl.clear();
+		super.dispose();
+	}
 }

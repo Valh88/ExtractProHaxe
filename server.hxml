@@ -9,6 +9,11 @@
 -lib castle
 -lib hxrnl
 
+# rnl.net model classes are resolved BY NAME over the wire (Type.resolveClass),
+# so keep them out of DCE dead-code elimination on both ends.
+-D dce=no
+--macro include("shared.net")
+
 --main Main
 
 -hl bin/server/serv.hl

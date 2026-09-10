@@ -40,6 +40,19 @@ class SceneManager<K : EnumValue>
 	public function switchScene(id : K) : Void
 	{
 		if (current == id) return;
+
+		// dispose + drop the previously active scene so its owned resources
+		// (network sockets held by presentation systems, tweens) are released
+		if (current != null)
+		{
+			var prev = scenes.get(current);
+			if (prev != null)
+			{
+				prev.dispose();
+				scenes.remove(current);
+			}
+		}
+
 		var scene = scenes.get(id);
 		if (scene == null)
 		{

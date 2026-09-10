@@ -2,7 +2,6 @@ package serv.room;
 
 import shared.GameData;
 import shared.IUpdate;
-import shared.LobbyRoom;
 
 /**
 	Room registry + lifecycle. Owns the room kind -> class mapping (spawn
