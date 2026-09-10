@@ -89,10 +89,13 @@ class LobbyRoom extends Room
 		return true;
 	}
 
-	/** Handle a join RPC from a client (peer identity is best-effort for now). */
+	/** Handle a join RPC from a client. Uses the invoking peer id (patched
+		`__rpcCaller`) so a disconnect can clean up the right player. */
 	function handleJoin(name : String) : Void
 	{
+		var peerId = netSys != null && netSys.net != null ? netSys.net.__rpcCaller : -1;
 		var pid = "p" + (nextPlayerId++);
+		if (peerId >= 0) playerByPeer.set(peerId, pid);
 		join(pid, name);
 	}
 
