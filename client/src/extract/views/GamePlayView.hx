@@ -55,7 +55,7 @@ class GamePlayView extends BaseScene
 
 		// rigged hero character model (holds hero + future weapons/attachments)
 		//playerModel = new PlayerModel();
-		this.addChild(playerModel);
+		//this.addChild(playerModel);
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
