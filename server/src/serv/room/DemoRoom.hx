@@ -20,7 +20,7 @@ class DemoRoom extends Room
 		// world physics log: the room attaches its own logger to the world
 		// (dump is called by Room.tick each tick)
 		logger = new StateLogger();
-		world.phys.addConsumer(logger);
+		//world.phys.addConsumer(logger);
 		// server-only logic layer of this room (mirror of client view systems)
 		roomSystems.add(new DemoLogSystem(bus));
 	}

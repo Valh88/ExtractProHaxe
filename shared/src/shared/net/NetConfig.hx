@@ -12,4 +12,8 @@ class NetConfig
 	/** How many update/service rounds the server pumps before a client
 		times out of the lobby (spike only, generous). */
 	public static inline var CONNECT_MAX_ROUNDS : Int = 4000;
+
+	/** Client-side connect timeout: if no lobby mirror arrives within this
+		many seconds, the socket is dropped and onConnectTimeout fires. */
+	public static inline var CONNECT_TIMEOUT_SECONDS : Float = 5.0;
 }

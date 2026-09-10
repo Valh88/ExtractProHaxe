@@ -93,7 +93,7 @@ class ServerHost
 		var round = 0;
 		var start = Sys.time();
 		var prev = start;
-		var endAt = start + seconds;
+		var endAt = start + 500;
 		while (running && Sys.time() < endAt)
 		{
 			var now = Sys.time();
@@ -112,10 +112,10 @@ class ServerHost
 			for (c in comps)
 				submitTick(c.name, c.updater, dt, c.onError);
 			endRound(); // barrier: wait until every component finished this tick
-			if (round % 60 == 0)
-				trace('ROUND ' + round + ' t=' + Math.round((now - start) * 10) / 10
-					+ 's comps=' + comps.length + ' rooms=' + roomManager.active().length
-					+ ' services=' + Lambda.count(services));
+			//if (round % 60 == 0)
+				//trace('ROUND ' + round + ' t=' + Math.round((now - start) * 10) / 10
+				//	+ 's comps=' + comps.length + ' rooms=' + roomManager.active().length
+				//	+ ' services=' + Lambda.count(services));
 			Sys.sleep(0.001); // avoid hammering the manager thread when idle
 		}
 		shutdown();

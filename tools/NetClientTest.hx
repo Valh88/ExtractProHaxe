@@ -17,8 +17,8 @@ class NetClientTest
 				for (p in players)
 					trace('  - ' + p.id + ' "' + p.name + '" ready=' + p.ready);
 		};
-		// pump for ~3s so the RNL handshake, FULLSYNC mirror, join and roster reply land
-		for (i in 0...1500)
+		// pump for ~6.5s so the connect timeout (5s) can fire if the server is down
+		for (i in 0...3200)
 		{
 			net.update(0);
 			if (net.connected && !joined) { joined = true; net.join(); }

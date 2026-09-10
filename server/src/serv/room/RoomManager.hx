@@ -27,9 +27,9 @@ class RoomManager implements IUpdate
 		rooms = new Map();
 
 		var lobby : LobbyRoom = cast spawn("lobby");
-		lobby.join("player-1", "Alice");
-		lobby.join("player-2", "Bob");
-		lobby.setReady("player-1", true);
+		//lobby.join("player-1", "Alice");
+		//lobby.join("player-2", "Bob");
+		//lobby.setReady("player-1", true);
 
 		spawn("demo");
 	}

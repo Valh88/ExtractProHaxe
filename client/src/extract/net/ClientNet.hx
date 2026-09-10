@@ -43,10 +43,17 @@ class ClientNet
 	/** True once the mirror has appeared (server FULLSYNC arrived). */
 	public var connected(default, null) : Bool = false;
 
+	/** True once the connect attempt timed out (server unreachable). */
+	public var connectTimedOut(default, null) : Bool = false;
+
+	/** Wall-clock timestamp of the socket creation (for the connect timeout). */
+	var connectStart : Float = 0;
+
 	public function new(?name : String)
 	{
 		NetRegistry.init(); // register CLID classes before any deserialization
 		playerName = name != null ? name : "Client-" + Std.random(9000);
+		connectStart = haxe.Timer.stamp();
 		socket = new SocketHost();
 		socket.channelTypes = [ChannelType.ReliableOrdered, ChannelType.UnreliableOrdered];
 		var addr = Address.parse(NetConfig.LOBBY_HOST);
@@ -63,10 +70,25 @@ class ClientNet
 		if (socket == null) return;
 		socket.update(0);
 
+		if (connectTimedOut) return;
+
 		if (!connected)
 		{
 			var m = findMirror();
-			if (m == null) return;
+			if (m == null)
+			{
+				// server unreachable: no FULLSYNC mirror within the timeout
+				if (haxe.Timer.stamp() - connectStart > NetConfig.CONNECT_TIMEOUT_SECONDS)
+				{
+					connectTimedOut = true;
+					trace('CLIENT connect TIMEOUT: no server at '
+						+ NetConfig.LOBBY_HOST + ':' + NetConfig.LOBBY_PORT
+						+ ' within ' + NetConfig.CONNECT_TIMEOUT_SECONDS + 's — dropping socket');
+					socket.dispose();
+					socket = null;
+				}
+				return;
+			}
 			connected = true;
 			mirror = m;
 			// hook the roster callback (received via @:rpc(clients) broadcast)
@@ -112,6 +134,7 @@ class ClientNet
 		}
 		mirror = null;
 		connected = false;
+		connectTimedOut = false;
 	}
 }
 #end
