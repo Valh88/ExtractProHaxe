@@ -13,7 +13,7 @@ import shared.Player;
 import shared.events.EventBus;
 import shared.systems.HeroSystem;
 import extract.design.HudDesign;
-import extract.models.PlayerModel;
+//import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
@@ -25,14 +25,12 @@ class GamePlayView extends BaseScene
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
 	var player : PlayerControllerSystem;
-	var playerModel : PlayerModel;
+	//var playerModel : PlayerModel;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
 		super(s2d, style, gd, bus, 0x0D0D0D);
-// project-wide screen-space AO (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
-		// distance fog blends the world edge into the background (PBR renderer only)
 		this.renderer.effects.push(new extract.gfx.DistanceFog());
 
 	#if hide

@@ -81,7 +81,7 @@ class PlayerControllerSystem extends System
 		// FPS: eye snaps to the anchor (mesh is already interpolated by
 		// PhysRenderer) — a very high follow rate filters the 30 Hz
 		// contact/gravity micro-wobble without perceptible lag
-		camCtrl.followRate = 150;
+		camCtrl.followRate = 0;
 		moveCtrl.speed = gd.req("Hero", "speed");
 		moveCtrl.moveSmooth = gd.req("Controller", "moveSmooth");
 		moveCtrl.stopSmooth = gd.req("Controller", "stopSmooth");
