@@ -25,6 +25,136 @@ hl bin/server/serv.hl     # runs ~15s then exits (Config.SERVER_RUN_SECONDS)
 - Deps are dev-installed haxelibs: `heapsphysics` (provides `phys.*`), `oimophysics`, `heaps`, `format`.
 - Client build emits many `(WDeprecated) @:extern` warnings from oimophysics — harmless, not errors.
 
+## Networking — hx_rnl (RNL) + RPC layer
+
+Multiplayer prototype: **HL-only** (UDP/RNL). The web target has no UDP — all networking
+lives under `#if sys` and `web.hxml` is untouched. `-lib hxrnl` is in `win.hxml` and
+`server.hxml` (dev haxelib at `D:/projects/pascal/rnl/hx_rnl/`; `haxelib path hxrnl` adds
+`-L .../ndll/` for the HL `.hdll`).
+
+### Runtime files (required to RUN a `.hl`)
+
+`hl client.hl`/`serv.hl` fails with `FATAL ERROR : Failed to load library rnl.hdll` unless the
+native libs are findable. Copy BOTH from `D:/projects/pascal/rnl/hx_rnl/ndll/win64/`:
+
+- `rnl.hdll` — **must be the `win64/` build**; the `ndll/HL64/rnl.hdll` does NOT load on this
+  machine (spike-verified). 
+- `RNL.dll`
+
+Place them next to the `.hl` (project convention): `bin/client/` and `bin/server/` (HL also
+finds them next to `hl.exe`; next-to-`.hl` is preferred here, matching the `cd bin/client`
+run pattern). They are gitignored with `bin/`, so **re-copy after a clean checkout**.
+
+### Build targets & run
+
+```sh
+haxe server.hxml            # bin/server/serv.hl (headless, ~15s then exits)
+# from repo root (data.cdb path is client/res/db/data.cdb vs cwd), HL_PATH for rnl.hdll:
+$env:HL_PATH="bin/server"; hl bin/server/serv.hl
+
+haxe win.hxml               # bin/client/client.hl (GUI, starts in Lobby)
+# run from its own folder (res.pak convention), or root; rnl.hdll+RNL.dll in bin/client
+
+# headless client test (no GUI):
+haxe netclienttest.hxml     # -main NetClientTest -hl bin/clienttest.hl
+$env:HL_PATH="bin/client"; hl bin/clienttest.hl
+```
+
+### Architecture — per-room socket, socket lives in a System
+
+- **Server**: a room/lobby owns its RNL socket through a `System` in `roomSystems`. 
+  `LobbyRoom` creates `serv/systems/NetRoomSystem` (owns `SocketHost` + shared `LobbyNet`
+  facade, polls `socket.update(0)` in `update()`, disposed by `roomSystems.clear()` in
+  `Room.close()`). Future game rooms (`MapRoom`) reuse the same system with different RPC
+  handlers. Each room = its own UDP socket; the room ticks its own `service()` loop.
+- **Client**: a scene owns its socket through a presentation `System` in `BaseScene.systems`.
+  `LobbyView` adds `extract/systems/LobbyNetSystem` (owns `ClientNet` = one active `SocketHost`,
+  connect to lobby, one-shot join/ready, roster trace). On `#if !sys` (web) it is a no-op stub.
+- **No upper-level socket**: `HeapsApp` holds no `ClientNet`. Sockets live only in scene/room
+  systems. `SceneManager.switchScene` calls `dispose()` on the previous scene (and drops it from
+  the cache) → `BaseScene.dispose()` → `systems.clear()` releases the socket. Lobby→game later:
+  lobby scene disposed (socket dropped), game scene creates its own socket on the room port.
+- **System/Systems lifecycle**: `shared/systems/System.hx` gained `dispose()`, `Systems.clear()`
+  and `removeByName()` call it. `BaseScene.dispose()` overrides `h3d.scene.Scene.dispose()`
+  (`systems.clear()` + `animCtrl.clear()` + `super.dispose()`).
+
+### Wire model — shared vs payload (`__isServer` decides RPC execution)
+
+`rnl.net.NetworkSerializable` objects replicate (`@:s` dirty deltas, ADD/FULLSYNC/REMOVE) and
+carry `@:rpc`. `rnl.net.Serializable` is a payload embedded inline in args/fields (no netId).
+
+| Class | Shared? | Owner / `__isServer` | Purpose |
+|---|---|---|---|
+| `shared/net/LobbyNet.hx` | ✅ `NetworkSerializable` | **server** creates + `add()`s it | `@:rpc(server)` join/setReady/announce, `@:rpc(clients)` rosterChanged. 1 per lobby |
+| `shared/net/PlayerInfo.hx` | ❌ `Serializable` | — | payload inside `rosterChanged(Array<PlayerInfo>)` |
+| future `GameNet`/`HeroObject` | ✅ | server-owned | game room RPC + coordinates replicating DOWN via `__syncChannel=1` |
+
+`__isServer` is set by the host: `add()` on server → `true`; receiving a mirror → accepting
+side's role. **`@:rpc(server)` only executes where `__isServer==true`**, so server-RPCs require
+server-owned objects. Coordinates of players are server-owned too (anti-cheat): server simulates,
+writes `@:s x/y/z` into `HeroObject`, clients read the mirror; clients never own a `HeroObject`
+for positions.
+
+**LobbyNet client pattern** (don't create it client-side): the server owns it; the client
+receives it as a mirror via FULLSYNC (`Type.resolveClass("shared.net.LobbyNet")` + instance) and
+calls `mirror.join(name)`/`mirror.setReady(v)` (stubs → server) and receives `rosterChanged`
+through the `onRoster` hook wired at mirror-up. Creating `LobbyNet` on the client would make it
+client-owned → server wouldn't run its `@:rpc(server)` bodies (wrong `__isServer`) and you'd get
+two facades. Client-owned objects are for per-player things later (e.g. a client's own weapon),
+not for the lobby facade.
+
+### rnl.net Registry CLID — must be seeded on BOTH ends (`NetRegistry`)
+
+`rnl.net.Registry` fills lazily on `getCLID`. A peer that only RECEIVES a value-carrying
+`Serializable` (e.g. `PlayerInfo` inside `rosterChanged`) never calls `getCLID` for it, so
+`Registry.getClassName(clid)` returns null → deserialization crash
+`Null access .bytes` in `LobbyNet.__rpcDispatch` (`rnl/net/Macros.hx`). Fix: 
+`shared/net/NetRegistry.hx` (`init()` calls `Registry.getCLID` for `PlayerInfo` + `LobbyNet`),
+invoked in `ClientNet.new()` and `NetRoomSystem.new()`.
+
+### hxml — models must survive DCE
+
+`server.hxml` has `-D dce=no` + `--macro include("shared.net")`; `win.hxml` already uses
+`-D dce=no`. ADD/FULLSYNC carry the class PATH string and the receiver does
+`Type.resolveClass` — a DCE'd model class yields `ADD unknown class` and no RPC. Same classes
+must compile on both ends (they live in `shared/`).
+
+### Module naming gotcha
+
+Haxe resolves a module by FILE name, not class name. `import shared.net.PlayerInfo` needs
+`shared/net/PlayerInfo.hx` (it was `NetMessages.hx` first → `Type not found: shared.net.PlayerInfo`).
+Keep one top-level class per file matching its name.
+
+### `__rpcCaller` — hx_rnl patch (persistent, wiped on haxelib update)
+
+Server RPC bodies can't see WHO invoked a `@:rpc` from the stock API. Applied patch in the
+dev-checkout `D:/projects/pascal/rnl/hx_rnl/source/`:
+
+- `rnl/net/NetworkSerializable.hx`: added `public var __rpcCaller:Int = -1;`
+- `rnl/net/NetworkHost.hx` `receiveCall()`: set `obj.__rpcCaller = from.id;` before
+  `obj.__receiveCall(image)` and reset to `-1` immediately after (RPC bodies run synchronously).
+
+Server handlers read `netSys.net.__rpcCaller`. Used by `LobbyRoom.handleJoin` to map
+`peerId → playerId`, so `onPeerDisconnect` can `leave()` the right player and broadcast the
+updated roster to the others.
+
+> **Wiped on hx_rnl update** (`haxelib update hxrnl` / `git pull` in the hx_rnl checkout) — same
+> class of local patch as the heaps ones. Verify: `haxe server.hxml`; if `__rpcCaller` is missing,
+> re-apply the two edits above.
+
+### Connect timeout
+
+`ClientNet` uses `haxe.Timer.stamp()` (wall clock, dt-independent): if no lobby mirror arrives
+within `NetConfig.CONNECT_TIMEOUT_SECONDS` (5s) it traces
+`CLIENT connect TIMEOUT: no server at 127.0.0.1:26260 within 5s — dropping socket`, disposes the
+socket, sets `connectTimedOut`. No crash/hang; client keeps running offline.
+
+### Current scope
+
+Lobby prototype only (join/ready/roster, console traces). Game room (`MapRoom`), port pool
+`1790..1990`, `gameStart` handoff, `HeroObject` coordinate replication — planned next. `LobbyRoom`
+still auto-joins two demo players (`player-1`/`player-2`) in `ServerApp.main` — visible in roster.
+
 ## Web target: resource (pak) loading
 
 Web/JS has **no synchronous filesystem**, so `hxd.Res.initPak()` (which calls `sys.io.File.read` → `File.read not implemented`) must NEVER be called from `main()`. The black screen on first web runs was exactly this: `Main.main()` called `hxd.Res.initPak()`, threw on JS, and `HeapsApp.app()` never started (canvas stayed 300x150).
