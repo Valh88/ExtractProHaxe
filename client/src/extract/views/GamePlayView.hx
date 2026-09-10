@@ -13,7 +13,7 @@ import shared.Player;
 import shared.events.EventBus;
 import shared.systems.HeroSystem;
 import extract.design.HudDesign;
-//import extract.models.PlayerModel;
+import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
@@ -25,7 +25,7 @@ class GamePlayView extends BaseScene
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
 	var player : PlayerControllerSystem;
-	//var playerModel : PlayerModel;
+	var playerModel : PlayerModel;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
@@ -52,8 +52,8 @@ class GamePlayView extends BaseScene
 		sim.phys.addConsumer(physRenderer);
 
 		// rigged hero character model (holds hero + future weapons/attachments)
-		//playerModel = new PlayerModel();
-		//this.addChild(playerModel);
+		playerModel = new PlayerModel();
+		this.addChild(playerModel);
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn

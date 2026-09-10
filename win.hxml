@@ -14,6 +14,8 @@
 -lib hlsdl
 -lib hlopenal
 -lib domkit
+-lib hxrnl
+
 -cp C:/Users/simpl/scoop/apps/haxe/current/lib/hide/git
 -D hide
 -D dce=no

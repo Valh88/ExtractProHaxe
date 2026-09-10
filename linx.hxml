@@ -12,6 +12,8 @@
 -lib hlopenal
 -lib domkit
 -D domkit
+-lib hxrnl
+
 # -lib hldx
 # -D dx12
 # output

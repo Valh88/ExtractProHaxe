@@ -3,7 +3,6 @@ package serv;
 import shared.Config;
 import shared.GameData;
 import serv.host.ServerHost;
-import serv.room.LobbyRoom;
 import serv.room.Room;
 
 /**
@@ -27,17 +26,6 @@ class ServerApp
 
 		// global room manager: spawn rooms, they tick in a thread pool
 		var host = new ServerHost(gd);
-
-		// stub without networking: one demo room (current SimWorld gameplay).
-		// The demo room attaches its own world physics logger internally.
-		host.roomManager.spawn("demo");
-
-		// worldless lobby room (players in a menu) — join/ready skeleton.
-		// Later the network/master server would drive these calls.
-		var lobby : LobbyRoom = cast host.roomManager.spawn("lobby");
-		lobby.join("player-1", "Alice");
-		lobby.join("player-2", "Bob");
-		lobby.setReady("player-1", true);
 
 		// pump tick rounds in the pool for the configured runtime, then exit
 		host.run(Config.SERVER_RUN_SECONDS);
