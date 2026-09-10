@@ -24,6 +24,8 @@ class GamePlayView extends BaseScene
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
 	var player : PlayerControllerSystem;
+	var modelCache : h3d.prim.ModelCache;
+	var heroModel : h3d.scene.Object;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
@@ -51,6 +53,18 @@ class GamePlayView extends BaseScene
 		physRenderer = new PhysRenderer(sim.physCore);
 		sim.phys.addConsumer(physRenderer);
 
+		// rigged character model (FBX converted to HMD at load), loaded via
+		// h3d.prim.ModelCache — the standard Heaps way (loads textures automatically)
+		modelCache = new h3d.prim.ModelCache();
+		var heroRes = hxd.Res.load("models/hero/hero.fbx").toModel();
+		heroModel = modelCache.loadModel(heroRes);
+		heroModel.rotate(-Math.PI/2,0,0);
+		var runAnim = modelCache.loadAnimation(heroRes, "root|Running");
+		if (runAnim != null)
+			heroModel.playAnimation(runAnim);
+		heroModel.scale(0.006); // ~1.7u hero from a ~2.37u model
+		this.addChild(heroModel);
+
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
 		player = new PlayerControllerSystem(bus, camera, null, this.gd);
@@ -62,7 +76,12 @@ class GamePlayView extends BaseScene
 			{
 				this.addChild(mesh);
 				physRenderer.bind(b, mesh);
-				if (b.name == "hero") player.mesh = mesh;
+				if (b.name == "hero")
+				{
+					player.mesh = mesh;
+					// make the rigged character follow the hero body
+					//heroModel.follow = mesh;
+				}
 			}
 		};
 		// draw the initial scene too (created before onSpawn was set)
