@@ -101,9 +101,15 @@ class LobbyRoom extends Room
 
 	function handleSetReady(v : Bool) : Void
 	{
-		// prototype: toggle ready on every joined player (no per-peer mapping)
-		for (pid in players.keys())
-			setReady(pid, v);
+		// map the invoking peer to its player and toggle only that one
+		var peerId = netSys != null && netSys.net != null ? netSys.net.__rpcCaller : -1;
+		var pid = peerId >= 0 ? playerByPeer.get(peerId) : null;
+		if (pid == null)
+		{
+			trace('LOBBY "' + id + '" setReady ignored: no player for peer ' + peerId);
+			return;
+		}
+		setReady(pid, v);
 	}
 
 	/** Push the current roster to all connected clients via @:rpc(clients). */
