@@ -10,8 +10,72 @@
 
 1. **Репликация отдельна от логики.** Системы (HeroSystem, BulletSystem) не знают о сети. ReplicationSystem только копирует данные между `SimWorld` и `NetworkSerializable`.
 2. **EventBus = единая точка коммуникации.** Все ивенты идут через шину. Серверная шина публикует локально + broadcast. Клиентская — локально + send to server.
-3. **Системы независимы.** `PlayerControllerSystem` публикует `HeroMoveIntent` в шину. `HeroSystem` подписывается. Транспорт — дело шины (ClientEventBus / ServerEventBus).
+3. **Системы независимы.** `PlayerControllerSystem` публикует `HeroMoveIntent` в шину. `HeroSystem` подписывается. Транспорт — дело шины (ClientTransportSystem / ServerTransportSystem).
 4. **Не всё реплицируем.** Физика кубов и пуль детерминистическая (обе стороны spawn'ят одинаково). Реплицируем только то, что невозможно детерминистически дублировать.
+5. **Два контейнера — это нормально.** `SimWorld.playerData` = source of truth (системы читают/пишут). `WorldState` = транспортный буфер для сети (@:s dirty deltas). Дублирование = цена за независимость систем от rnl.
+
+---
+
+## Архитектура данных: три уровня
+
+```
+Level 1: Config (статика)        GameData (cdb)         → настройки, константы
+Level 2: Runtime (динамика)      SimWorld               → физика, тела, playerData
+Level 3: Transport (сеть)        WorldState (@:s)       → копия для dirty deltas
+```
+
+### Source of truth: SimWorld
+
+```
+SimWorld
+├── heroes: Map<String, PhysBody>              — физические тела (позиция, velocity)
+├── playerData: Map<String, PlayerGameData>    — игровые данные (HP, оружие, инвентарь)
+├── systems: Systems                           — логика (HeroSystem, BulletSystem)
+└── bus: EventBus                              — коммуникация
+```
+
+`PlayerGameData` — чистые игровые данные (TODO: добавить в SimWorld):
+```haxe
+typedef PlayerGameData = {
+    var hp : Float;
+    var maxHp : Float;
+    var weaponId : Int;
+    var ammo : Int;
+    var score : Int;
+}
+```
+
+### Транспортный контейнер: WorldState
+
+```
+WorldState (NetworkSerializable, @:s поля)
+├── heroes: Array<HeroState>    — копия позиций + HP для сети
+└── bullets: Array<BulletState> — копия пуль для сети (TODO)
+```
+
+**WorldState НЕ хранит данные** — это буфер для @:s dirty deltas.
+Data flow:
+```
+SimWorld.playerData[pid].hp = 75    ← source of truth (системы читают/пишут)
+         ↓ ReplicationSystem.syncFromSim()
+WorldState.heroes[i].hp = 75        ← копия для сети (только транспорт)
+         ↓ flush() → rnl dirty delta
+Mirror.heroes[i].hp = 75            ← копия на клиенте (read-only)
+         ↓ ReplicationSystem.applyToSim()
+SimWorld.playerData[pid].hp = 75    ← синхронизация на клиенте
+```
+
+### Почему два контейнера (а не один)
+
+rnl `@:s` поля генерируют **свои** backing fields. Нельзя сделать их ссылку
+на `SimWorld.playerData`. Дублирование **неизбежно** — это constraint библиотеки.
+
+Trade-off:
+- **Дублирование** = цена за независимость систем от сети
+- **Системы не знают о rnl** → можно тестировать симуляцию без сети
+- **ReplicationSystem** — единственный bridge между мирами
+
+Аналогия: `memcpy()` из буфера в буфер. Один для CPU (SimWorld), другой для NIC (WorldState).
 
 ---
 
@@ -51,10 +115,14 @@
 ## Архитектура: три слоя
 
 ```
-Layer 1: EventBus (shared)         — типизированная шина, publish/subscribe/flush
-Layer 2: Transport (client/server) — ClientEventBus / ServerEventBus
-Layer 3: NetworkFacade (shared)    — WorldState + GameNet (@:rpc, @:s)
+Layer 1: EventBus (shared)             — чистая pub/sub шина, без знаний о транспорте
+Layer 2: TransportSystems (client/server) — подписчики шины, forwarding через GameNet
+Layer 3: NetworkFacade (shared)        — WorldState + GameNet (@:rpc, @:s)
 ```
+
+**Принцип:** шина ничего не знает о транспорте. Транспорт = система-подписчик,
+как `HeroSystem` или `BulletSystem`. Добавление нового ивента = подписка в
+`TransportSystem`, без изменений шины.
 
 ---
 
@@ -65,32 +133,37 @@ Layer 3: NetworkFacade (shared)    — WorldState + GameNet (@:rpc, @:s)
 ```
 PlayerControllerSystem
   → bus.publish(HeroMoveIntent("local", ...))
-  → ClientEventBus.publish()
-    → подписан на HeroMoveIntent
-    → mirror.sendPosition(playerId, x, y, z, yaw)
+  → ClientTransportSystem.onHeroMove()    [подписчик шины]
+    → gameNet.heroInput(playerId, dirX, dirZ, yaw, mag, jump)
     → RNL: CALL → сервер
 
 Сервер:
   NetRoomSystem.update() → socket.update(0) → receive CALL
-  → GameNet.sendPosition__im() → onPosition hook
-  → ServerEventBus.publish(HeroMoveIntent(...))
-  → HeroSystem.onIntent()
+  → GameNet.heroInput__im() → onHeroInput hook
+  → bus.publish(HeroMoveIntent(...))      [локальная доставка]
+  → HeroSystem.onIntent()                 [пишет в SimWorld.heroes]
 ```
 
-### Сервер → Клиент (state)
+### Сервер → Клиент (state): два параллельных канала
 
 ```
-SimWorld.update() → HeroSystem.apply() → body.position updated
-  → ReplicationSystem.tick()
-    → читает sim.heroes → пишет в worldState.heroes [@:s dirty]
-    → flush() → dirty deltas → клиент
+A) @:s dirty delta (автоматически, 30 Hz):
+   SimWorld.playerData[pid].hp = 75       ← source of truth
+   ↓ ReplicationSystem.syncFromSim()
+   WorldState.heroes[i].hp = 75           ← копия для сети
+   ↓ flush() → dirty delta
+   Mirror.heroes[i].hp = 75               ← клиент получает
 
-Клиент:
-  RoomNetSystem.update() → socket.update(0) → receive SYNC
-  → worldState.heroes обновляется (mirror)
-  → ReplicationSystem.tick()
-    → читает mirror → применяет к remote heroes
+B) @:rpc event (one-shot, мгновенно):
+   ServerTransportSystem.onPlayerDamaged()
+     → gameNet.playerDamaged(playerId, damage, hp)
+     → @:rpc(clients) → клиент получает событие
+     → показать damage number, HUD update
 ```
+
+**Зачем оба канала:**
+- `@:s` delta — авторитетное HP (source of truth), задержка до 33ms
+- `@:rpc` event — мгновенный фидбек (damage number, HUD flash)
 
 ---
 
@@ -118,23 +191,25 @@ shared/
     └── BulletSystem.hx              — есть (без изменений)
 
 server/
-├── events/
-│   └── ServerEventBus.hx            — Transport: publish → broadcast (@:rpc)
+├── systems/
+│   ├── NetRoomSystem.hx             — добавить GameNet в socket
+│   └── ServerTransportSystem.hx     — NEW: подписчик шины → broadcast через GameNet
 ├── room/
-│   ├── Room.hx                      — создать WorldState + GameNet, socket.add()
+│   ├── Room.hx                      — создать WorldState + GameNet
 │   ├── LobbyRoom.hx                 — без изменений
 │   └── DemoRoom.hx                  — wire GameNet handlers
-└── systems/
-    └── NetRoomSystem.hx             — добавить GameNet в socket
+└── events/
+    └── ServerEventBus.hx            — чистая шина (без изменений)
 
 client/
-├── events/
-│   └── ClientEventBus.hx            — Transport: publish → mirror.sendPosition()
 ├── systems/
 │   ├── RoomNetSystem.hx             — findMirror(WorldState + GameNet), wire transport
-│   └── PlayerControllerSystem.hx    — есть (без изменений)
-└── views/
-    └── GamePlayView.hx              — создать ReplicationSystem
+│   ├── PlayerControllerSystem.hx    — есть (без изменений)
+│   └── ClientTransportSystem.hx     — NEW: подписчик шины → input через GameNet
+├── views/
+│   └── GamePlayView.hx              — создать ReplicationSystem
+└── events/
+    └── ClientEventBus.hx            — чистая шина (без изменений)
 ```
 
 ---
@@ -290,8 +365,21 @@ import shared.net.WorldState;
 import shared.net.HeroState;
 import shared.systems.System;
 
-/** Отдельный слой: копирует данные между SimWorld и NetworkSerializable.
-    Не знает про логику, RPC, или транспорт. */
+/**
+    Отдельный слой: копирует данные между SimWorld и NetworkSerializable.
+    Не знает про логику, RPC, или транспорт.
+
+    WorldState — транспортный контейнер, НЕ хранилище данных.
+    Source of truth = SimWorld (playerData, heroes).
+    WorldState — временный буфер для @:s dirty deltas.
+
+    Контейнер (Systems) вызывает update(dt) автоматически:
+    - Сервер: roomSystems (после world.update())
+    - Клиент: BaseScene.systems (каждый кадр)
+
+    isServer определяет направление копирования:
+    - true:  SimWorld → WorldState (копия для сети)
+    - false: WorldState → SimWorld (применение от сервера) */
 class ReplicationSystem extends System {
     var worldState : WorldState;
     var isServer : Bool;
@@ -307,99 +395,127 @@ class ReplicationSystem extends System {
         else applyToSim();
     }
 
-    /** Сервер: мир → network (dirty deltas auto-replicate). */
+    /** Сервер: SimWorld → WorldState (копия для сети). */
     function syncFromSim() {
         var arr : Array<HeroState> = [];
         for (id in sim.heroes.keys()) {
             var body = sim.heroes.get(id);
+            var data = sim.playerData.get(id);
             var hs = new HeroState();
             hs.playerId = id;
             hs.x = body.getPos().x;
             hs.y = body.getPos().y;
             hs.z = body.getPos().z;
             hs.yaw = 0; // TODO: извлечь yaw из body
+            if (data != null) hs.hp = data.hp; // копия HP
             arr.push(hs);
         }
         worldState.heroes = arr; // переприсваивание → dirty bit
     }
 
-    /** Клиент: network → мир (только remote игроки). */
+    /** Клиент: WorldState → SimWorld (remote players). */
     function applyToSim() {
+        if (worldState == null) return; // mirror ещё не arrived
         for (hs in worldState.heroes) {
             if (hs.playerId == Player.LOCAL) continue;
             var body = sim.heroes.get(hs.playerId);
             if (body != null) {
                 body.setPosition(hs.x, hs.y, hs.z);
-                // TODO:.apply rotation from hs.yaw
+                // TODO: apply rotation from hs.yaw
             }
+            var data = sim.playerData.get(hs.playerId);
+            if (data != null) data.hp = hs.hp; // синхронизация HP
         }
     }
 }
 ```
 
-### client/events/ClientEventBus.hx — Transport
+### client/systems/ClientTransportSystem.hx — Transport (подписчик шины)
 
 ```haxe
-package extract.events;
+package extract.systems;
 
+import shared.GameData;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.events.GameEvents.BulletFired;
 import shared.net.GameNet;
+import shared.systems.System;
 
-/** Client bus: local delivery + send input to server via GameNet. */
-class ClientEventBus extends EventBus {
-    public var gameNet : Null<GameNet> = null;
+/** Клиентская транспортная система: подписывается на шину и forwarding input
+    на сервер через GameNet RPC. Шина ничего не знает о транспорте. */
+class ClientTransportSystem extends System {
+    var gameNet : Null<GameNet>;
 
-    override function publish<T>(event : T) {
-        super.publish(event);
+    public function new(bus, gd, gameNet) {
+        super(bus, null, gd, "ClientTransport");
+        this.gameNet = gameNet;
+        bus.subscribe(HeroMoveIntent, onHeroMove);
+        bus.subscribe(BulletFired, onBulletFire);
+    }
 
-        // Transport: forward input to server
-        if (Std.isOfType(event, HeroMoveIntent)) {
-            var e : HeroMoveIntent = cast event;
-            if (gameNet != null)
-                gameNet.heroInput(e.playerId, e.dirX, e.dirZ, e.yaw, e.mag, e.jump);
-        }
-        if (Std.isOfType(event, BulletFired)) {
-            var e : BulletFired = cast event;
-            if (gameNet != null)
-                gameNet.fireBullet("_", e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
-        }
+    function onHeroMove(e : HeroMoveIntent) {
+        if (gameNet != null)
+            gameNet.heroInput(e.playerId, e.dirX, e.dirZ, e.yaw, e.mag, e.jump);
+    }
+
+    function onBulletFire(e : BulletFired) {
+        if (gameNet != null)
+            gameNet.fireBullet("_", e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+    }
+
+    override function dispose() {
+        bus.unsubscribe(HeroMoveIntent, onHeroMove);
+        bus.unsubscribe(BulletFired, onBulletFire);
+        gameNet = null;
+        super.dispose();
     }
 }
 ```
 
-### server/events/ServerEventBus.hx — Broadcast
+### server/systems/ServerTransportSystem.hx — Broadcast (подписчик шины)
 
 ```haxe
-package serv.events;
+package serv.systems;
 
+import shared.GameData;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.events.GameEvents.BulletFired;
 import shared.net.GameNet;
+import shared.systems.System;
 
-/** Server bus: local delivery + broadcast to clients via GameNet. */
-class ServerEventBus extends EventBus {
-    public var gameNet : Null<GameNet> = null;
+/** Серверная транспортная система: подписывается на шину и broadcast
+    one-shot события клиентам через GameNet RPC. Позиции героев
+    реплицируются через @:s dirty delta (ReplicationSystem), не через шину. */
+class ServerTransportSystem extends System {
+    var gameNet : Null<GameNet>;
 
-    override function publish<T>(event : T) {
-        super.publish(event);
+    public function new(bus, gd, gameNet) {
+        super(bus, null, gd, "ServerTransport");
+        this.gameNet = gameNet;
+        bus.subscribe(BulletFired, onBulletFire);
+        // TODO: subscribe to new events as needed
+    }
 
-        // Broadcast: forward to clients
-        if (Std.isOfType(event, HeroMoveIntent)) {
-            var e : HeroMoveIntent = cast event;
-            if (gameNet != null)
-                gameNet.heroUpdate(e.playerId, 0, 0, 0, 0); // TODO: реальные позиции
-        }
-        if (Std.isOfType(event, BulletFired)) {
-            var e : BulletFired = cast event;
-            if (gameNet != null)
-                gameNet.bulletSpawn(e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
-        }
+    function onBulletFire(e : BulletFired) {
+        if (gameNet != null)
+            gameNet.bulletSpawn(e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+    }
+
+    override function dispose() {
+        bus.unsubscribe(BulletFired, onBulletFire);
+        gameNet = null;
+        super.dispose();
     }
 }
 ```
+
+**Почему это правильно:**
+- `EventBus` — чистая pub/sub шина, **без знаний** о GameNet, ивентах, или транспорте
+- `TransportSystem` — обычный подписчик, как `HeroSystem` или `BulletSystem`
+- Добавление нового ивента = подписка в `TransportSystem`, без изменений шины
+- `dispose()` отписывается от шины — нет утечек
 
 ### server/room/Room.hx — измнения
 
@@ -415,27 +531,36 @@ netSys.socket.add(worldState);
 gameNet = new GameNet();
 netSys.socket.add(gameNet);
 
-// Wire transport:
-cast(bus, ServerEventBus).gameNet = gameNet;
+// Wire transport + replication systems (room-level):
+roomSystems.add(new ServerTransportSystem(bus, gd, gameNet));
+roomSystems.add(new ReplicationSystem(bus, world, worldState, true));
+//                                                     ^^^^^ isServer
 
-// В tick(), после world.update():
-replication.tick(); // sync heroes → worldState
+// tick() уже вызывает roomSystems.update(dt) после world.update()
+// — ReplicationSystem.tick() автоматически синхронизирует heroes → worldState
 ```
 
-### client/systems/RoomNetSystem.hx — измнения
+### client/views/GamePlayView.hx — измнения
 
 ```haxe
-// В onConnected:
-var worldStateMirror = clientNet.findMirror(WorldState);
-var gameNetMirror = clientNet.findMirror(GameNet);
+// В конструкторе (после создания sim и systems):
+var worldStateMirror = roomNet.clientNet.findMirror(WorldState);
+var gameNetMirror = roomNet.clientNet.findMirror(GameNet);
 
-// Wire transport:
-cast(bus, ClientEventBus).gameNet = gameNetMirror;
+// Wire transport system (подписчик шины, в BaseScene.systems):
+systems.add(new ClientTransportSystem(bus, gd, gameNetMirror));
+
+// Wire replication system (sync mirror → sim, в BaseScene.systems):
+systems.add(new ReplicationSystem(bus, sim, worldStateMirror, false));
+//                                                        ^^^^^ isServer
 
 // Wire GameNet client handlers:
 gameNetMirror.onHeroUpdate = onHeroUpdate;
 gameNetMirror.onBulletSpawn = onBulletSpawn;
 // ...
+
+// systems.update() уже вызывается в super.update()
+// — ReplicationSystem.tick() автоматически применяет позиции remote heroes
 ```
 
 ---
@@ -474,8 +599,8 @@ gameNetMirror.onBulletSpawn = onBulletSpawn;
 - WorldState (NetworkSerializable, @:s поля) ❌
 - HeroState / BulletState (Serializable) ❌
 - ReplicationSystem (sync мир ↔ сеть) ❌
-- ClientEventBus transport (publish → @:rpc) ❌
-- ServerEventBus transport (publish → broadcast) ❌
+- ClientTransportSystem (подписчик шины → input через GameNet) ❌
+- ServerTransportSystem (подписчик шины → broadcast через GameNet) ❌
 - Room.hx: создание WorldState + GameNet ❌
 - RoomNetSystem: findMirror(WorldState + GameNet) ❌
 
@@ -583,8 +708,8 @@ gameNetMirror.onBulletSpawn = onBulletSpawn;
 - [ ] Phase 2: NetworkSerializable (WorldState)
 - [ ] Phase 3: GameNet расширение (heroInput, bulletSpawn, ...)
 - [ ] Phase 4: ReplicationSystem
-- [ ] Phase 5: ClientEventBus transport
-- [ ] Phase 6: ServerEventBus transport
+- [ ] Phase 5: ClientTransportSystem (подписчик шины → GameNet)
+- [ ] Phase 6: ServerTransportSystem (подписчик шины → GameNet broadcast)
 - [ ] Phase 7: Room.hx (создание WorldState + GameNet)
 - [ ] Phase 8: RoomNetSystem (mirror discovery)
 - [ ] Phase 9: GamePlayView (подключение)
