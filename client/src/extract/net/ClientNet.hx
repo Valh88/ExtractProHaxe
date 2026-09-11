@@ -58,6 +58,9 @@ class ClientNet
 		mirror via `findMirror<T>()`. */
 	public var onConnected : Null<SocketHost -> Void> = null;
 
+	/** Fired when the server drops the peer (remote disconnect). */
+	public var onPeerDisconnect : Null<Int -> Void> = null;
+
 	/** True once a mirror has appeared (FULLSYNC arrived). */
 	public var connected(default, null) : Bool = false;
 
@@ -83,7 +86,10 @@ class ClientNet
 		trace('CLIENT connecting to ' + NetConfig.LOBBY_HOST + ':' + this.connectPort);
 		socket.connect(addr);
 		socket.onPeerConnect = peerId -> trace('CLIENT peer connected id=' + peerId);
-		socket.onPeerDisconnect = peerId -> trace('CLIENT peer disconnected id=' + peerId);
+		socket.onPeerDisconnect = peerId -> {
+			trace('CLIENT peer disconnected id=' + peerId);
+			if (onPeerDisconnect != null) onPeerDisconnect(peerId);
+		};
 	}
 
 	/** Poll the RNL socket and detect mirror arrival. */

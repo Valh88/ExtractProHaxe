@@ -48,6 +48,7 @@ class RoomNetSystem extends System
 		super(bus, null, gd, "RoomNet");
 		clientNet = new ClientNet(null, port);
 		clientNet.onConnected = onConnected;
+		clientNet.onPeerDisconnect = onPeerDisconnect;
 	}
 
 	/** Called once when the server mirror appears. */
@@ -59,8 +60,18 @@ class RoomNetSystem extends System
 			trace('CLIENT room: no LobbyNet mirror found');
 			return;
 		}
-		trace('CLIENT room: mirror up');
+		trace('CLIENT room: connected, mirror up');
 		mirror.onRoster = onRoster;
+		mirror.onAnnounce = onAnnounce;
+	}
+
+	/** Called when the server drops the peer (remote disconnect). */
+	function onPeerDisconnect(peerId : Int) : Void
+	{
+		trace('CLIENT room: peer ' + peerId + ' disconnected');
+		mirror = null;
+		joined = false;
+		readySent = false;
 	}
 
 	override public function update(dt : Float) : Void
@@ -94,8 +105,15 @@ class RoomNetSystem extends System
 				trace('  - ' + p.id + ' "' + p.name + '" ready=' + p.ready);
 	}
 
+	/** Fired by the transport when the server broadcasts an announce. */
+	public function onAnnounce(text : String) : Void
+	{
+		trace('CLIENT announce: ' + text);
+	}
+
 	override public function dispose() : Void
 	{
+		trace('CLIENT room: disposing');
 		if (clientNet != null)
 		{
 			clientNet.dispose();
