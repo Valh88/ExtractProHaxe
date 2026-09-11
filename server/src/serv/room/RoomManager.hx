@@ -2,6 +2,7 @@ package serv.room;
 
 import shared.GameData;
 import shared.IUpdate;
+import shared.net.NetConfig;
 
 /**
 	Room registry + lifecycle. Owns the room kind -> class mapping (spawn
@@ -20,6 +21,7 @@ class RoomManager implements IUpdate
 
 	var gd : GameData;
 	var nextRoomId : Int = 0;
+	var nextPort : Int = NetConfig.GAME_PORT_START;
 
 	public function new(gd : GameData)
 	{
@@ -53,20 +55,29 @@ class RoomManager implements IUpdate
 		Create a room by kind and register it. Kinds: `demo` (world + physics),
 		`lobby` (worldless, players in a menu). Future kinds get their matching
 		Room subclasses here. Manager thread only (between rounds).
+
+		Port distribution: lobby gets LOBBY_PORT (fixed), game rooms get
+		ports from the GAME_PORT_START..GAME_PORT_END pool (auto-incremented).
 	**/
 	public function spawn(kind : String, ?id : String) : Null<Room>
 	{
 		if (id == null) id = kind + "-" + (nextRoomId++);
 		if (rooms.exists(id)) return null;
 
+		var port : Int = switch (kind)
+		{
+			case "lobby": NetConfig.LOBBY_PORT;
+			default: nextPort++;
+		}
+
 		var room : Room = switch (kind)
 		{
-			case "demo": new DemoRoom(id, gd);
-			case "lobby": new LobbyRoom(id, gd);
+			case "demo": new DemoRoom(id, gd, port);
+			case "lobby": new LobbyRoom(id, gd, port);
 			default: throw 'RoomManager: unknown room kind "$kind"';
 		}
 		rooms.set(id, room);
-		trace('SPAWN room "' + id + '" kind=' + kind);
+		trace('SPAWN room "' + id + '" kind=' + kind + ' port=' + port);
 		return room;
 	}
 

@@ -14,9 +14,9 @@ import serv.systems.DemoLogSystem;
 **/
 class DemoRoom extends Room
 {
-	public function new(id : String, gd : GameData)
+	public function new(id : String, gd : GameData, port : Int)
 	{
-		super(id, "demo", gd);
+		super(id, "demo", gd, port);
 		// world physics log: the room attaches its own logger to the world
 		// (dump is called by Room.tick each tick)
 		logger = new StateLogger();

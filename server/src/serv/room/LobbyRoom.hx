@@ -1,30 +1,25 @@
 package serv.room;
 
 import shared.GameData;
-import shared.net.NetConfig;
 import shared.net.PlayerInfo;
 
 import serv.systems.LobbyStateSystem;
-import serv.systems.NetRoomSystem;
 
 /**
 	Lobby room — the room WITHOUT a world: players just sit in a menu/ready-up
 	screen, so there is no physics to step. It inherits the shared Room
-	lifecycle (state, bus, roomSystems) but is created with `withWorld=false`,
-	so `world` stays null and `tick` only drives the room's own logic.
+	lifecycle (state, bus, roomSystems, netSys) but is created with
+	`withWorld=false`, so `world` stays null and `tick` only drives the
+	room's own logic.
 
-	Networking (prototype): a `NetRoomSystem` in `roomSystems` owns this
-	lobby's RNL `SocketHost` (its own UDP socket) and shared `LobbyNet` facade.
-	The system polls the socket each tick and routes incoming `@:rpc` calls
-	(join/setReady) to the handlers wired below.
+	Networking: the socket (NetRoomSystem) is created by the base Room.
+	This subclass only wires lobby-specific RPC handlers (join/ready) and
+	manages the player roster.
 **/
 class LobbyRoom extends Room
 {
 	/** Players sitting in this lobby keyed by player id. */
 	public var players(default, null) : Map<String, LobbyPlayer>;
-
-	/** The lobby's networking system (owns the socket + net facade). */
-	public var netSys(default, null) : Null<NetRoomSystem>;
 
 	/** peerId (local RNL id) -> playerId, populated on join. */
 	var playerByPeer : Map<Int, String> = new Map();
@@ -32,14 +27,12 @@ class LobbyRoom extends Room
 	/** Counter to generate stable ids for auto-joined players. */
 	var nextPlayerId : Int = 1;
 
-	public function new(id : String, gd : GameData, ?port : Int)
+	public function new(id : String, gd : GameData, port : Int)
 	{
-		super(id, "lobby", gd, false); // worldless: no SimWorld, no physics
+		super(id, "lobby", gd, port, false); // worldless: no SimWorld, no physics
 		players = new Map();
 
-		// --- networking (prototype): the socket lives in a room system ---
-		var p = port != null ? port : NetConfig.LOBBY_PORT;
-		netSys = new NetRoomSystem(bus, gd, p);
+		// wire lobby-specific RPC handlers on the inherited socket
 		netSys.onJoin = name -> handleJoin(name);
 		netSys.onSetReady = v -> handleSetReady(v);
 		netSys.onAnnounce = text -> trace('LOBBY "' + id + '" announce: ' + text);
@@ -49,7 +42,6 @@ class LobbyRoom extends Room
 			var drop = playerByPeer.get(peerId);
 			if (drop != null) leave(drop);
 		};
-		roomSystems.add(netSys);
 
 		roomSystems.add(new LobbyStateSystem(bus, this));
 	}
@@ -126,4 +118,3 @@ class LobbyRoom extends Room
 		netSys.broadcastRoster(arr);
 	}
 }
-

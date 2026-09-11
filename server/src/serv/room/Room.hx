@@ -6,6 +6,7 @@ import shared.IUpdate;
 import shared.events.EventBus;
 import shared.systems.Systems;
 import serv.events.ServerEventBus;
+import serv.systems.NetRoomSystem;
 
 /**
 	Server-side room (lobby / map / ...) container. Follows the client's
@@ -18,6 +19,9 @@ import serv.events.ServerEventBus;
 	  run inside `world.update` and mirrorable to the client).
 	- TO THE ROOM   -> `roomSystems.add(...)` (server-only logic: match lifecycle,
 	  timeouts, future snapshots / transport draining).
+
+	Every room owns a `NetRoomSystem` (its own UDP socket via `netSys`).
+	Lobby-specific handlers (join/ready) are wired by the subclass.
 
 	Threading contract: a room is mutated ONLY by pool tasks (see ServerHost),
 	strictly sequentially — never two ticks of the same room at once.
@@ -50,6 +54,9 @@ class Room implements IUpdate
 	/** Server-only logic layer (mirror of a client view's systems). */
 	public var roomSystems(default, null) : Systems;
 
+	/** The room's networking system (owns the RNL socket + net facade). */
+	public var netSys(default, null) : Null<NetRoomSystem>;
+
 	/** World physics logger (set by the room itself; dumped each tick). */
 	public var logger : Null<StateLogger> = null;
 
@@ -59,7 +66,7 @@ class Room implements IUpdate
 	/** Number of pool ticks performed on this room. */
 	public var tickCount(default, null) : Int = 0;
 
-	public function new(id : String, kind : String, gd : GameData, ?withWorld : Bool = true)
+	public function new(id : String, kind : String, gd : GameData, port : Int, ?withWorld : Bool = true)
 	{
 		this.id = id;
 		this.kind = kind;
@@ -68,6 +75,9 @@ class Room implements IUpdate
 		this.roomSystems = new Systems();
 		// a room creates its own bus and hands it to the world -> one shared bus
 		this.bus = new ServerEventBus();
+		// networking: every room owns a socket (its own UDP port)
+		this.netSys = new NetRoomSystem(bus, gd, port);
+		roomSystems.add(this.netSys);
 		if (withWorld)
 			this.world = createWorld(gd, bus);
 	}
@@ -127,6 +137,7 @@ class Room implements IUpdate
 	{
 		state = Closed;
 		roomSystems.clear();
+		netSys = null;
 	}
 
 	function set_state(v : RoomState) : RoomState
