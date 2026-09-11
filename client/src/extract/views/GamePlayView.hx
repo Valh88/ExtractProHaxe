@@ -15,6 +15,7 @@ import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
+import extract.systems.RoomNetSystem;
 
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
@@ -60,6 +61,9 @@ class GamePlayView extends BaseScene
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
 		player = new PlayerControllerSystem(bus, camera, null, this.gd);
 		systems.add(player);
+
+		// game-play networking stub (HL only; port = demo room's port on the server)
+		systems.add(new RoomNetSystem(bus, gd, 1790));
 
 
 		sim.onSpawn = b ->

@@ -30,7 +30,7 @@ class ClientNet
 	/** Display name chosen for this client. */
 	public var playerName(default, null) : String;
 
-	public function new(?name : String)
+	public function new(?name : String, ?port : Int)
 	{
 		playerName = name != null ? name : "Client-" + Std.random(9000);
 	}
@@ -67,16 +67,20 @@ class ClientNet
 	/** Wall-clock timestamp of the socket creation (for the connect timeout). */
 	var connectStart : Float = 0;
 
-	public function new(?name : String)
+	/** The port this client connected to (for timeout messages). */
+	var connectPort : Int = 0;
+
+	public function new(?name : String, ?port : Int)
 	{
 		NetRegistry.init();
 		playerName = name != null ? name : "Client-" + Std.random(9000);
+		this.connectPort = port != null ? port : NetConfig.LOBBY_PORT;
 		connectStart = haxe.Timer.stamp();
 		socket = new SocketHost();
 		socket.channelTypes = [ChannelType.ReliableOrdered, ChannelType.UnreliableOrdered];
 		var addr = Address.parse(NetConfig.LOBBY_HOST);
-		addr.port = NetConfig.LOBBY_PORT;
-		trace('CLIENT connecting to ' + NetConfig.LOBBY_HOST + ':' + NetConfig.LOBBY_PORT);
+		addr.port = this.connectPort;
+		trace('CLIENT connecting to ' + NetConfig.LOBBY_HOST + ':' + this.connectPort);
 		socket.connect(addr);
 		socket.onPeerConnect = peerId -> trace('CLIENT peer connected id=' + peerId);
 		socket.onPeerDisconnect = peerId -> trace('CLIENT peer disconnected id=' + peerId);
@@ -100,7 +104,7 @@ class ClientNet
 				{
 					connectTimedOut = true;
 					trace('CLIENT connect TIMEOUT: no server at '
-						+ NetConfig.LOBBY_HOST + ':' + NetConfig.LOBBY_PORT
+						+ NetConfig.LOBBY_HOST + ':' + this.connectPort
 						+ ' within ' + NetConfig.CONNECT_TIMEOUT_SECONDS + 's — dropping socket');
 					socket.dispose();
 					socket = null;

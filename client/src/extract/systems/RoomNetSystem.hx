@@ -8,7 +8,7 @@ import shared.systems.System;
 /** Web stub: no UDP/RNL, so the networking system is a no-op. */
 class RoomNetSystem extends System
 {
-	public function new(bus : EventBus, ?gd : GameData) super(bus, null, gd, "RoomNet");
+	public function new(bus : EventBus, ?gd : GameData, ?port : Int) super(bus, null, gd, "RoomNet");
 }
 #else
 import extract.net.ClientNet;
@@ -43,10 +43,10 @@ class RoomNetSystem extends System
 	var joined : Bool = false;
 	var readySent : Bool = false;
 
-	public function new(bus : EventBus, ?gd : GameData)
+	public function new(bus : EventBus, ?gd : GameData, ?port : Int)
 	{
 		super(bus, null, gd, "RoomNet");
-		clientNet = new ClientNet();
+		clientNet = new ClientNet(null, port);
 		clientNet.onConnected = onConnected;
 	}
 

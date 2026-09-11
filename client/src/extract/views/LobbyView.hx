@@ -16,6 +16,7 @@ import extract.views.lobby.HeroesSubView;
 import shared.events.EventBus;
 import shared.events.GameEvents.SearchStarted;
 import shared.GameData;
+import shared.net.NetConfig;
 
 class LobbyView extends BaseScene
 {
@@ -32,7 +33,7 @@ class LobbyView extends BaseScene
 		systems.add(new DebugCameraSystem(bus, camera));
 
 		// lobby networking: owns the lobby socket, pumps it, join/ready handshake
-		systems.add(new RoomNetSystem(bus, gd));
+		systems.add(new RoomNetSystem(bus, gd, NetConfig.LOBBY_PORT));
 
 		// share scene animCtrl with design components (TopPanel hover tweens)
 		TopPanel.animCtrl = animCtrl;
