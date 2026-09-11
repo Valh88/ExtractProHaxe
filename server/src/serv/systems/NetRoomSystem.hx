@@ -12,7 +12,7 @@ import rnl.Enums.ChannelType;
 
 /**
 	Server-side networking system: owns the RNL socket of ONE room/lobby and
-	its shared net facade. Mirrors the client's LobbyNetSystem — the socket
+	its shared net facade. 	Mirrors the client's RoomNetSystem — the socket
 	lifecycle belongs to this system, and the room releases it via
 	`roomSystems.clear()` (System.dispose).
 

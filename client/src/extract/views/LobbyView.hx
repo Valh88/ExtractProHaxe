@@ -4,7 +4,7 @@ import extract.utils.BaseScene;
 import extract.utils.SubView;
 import extract.utils.SubViewSwitcher;
 import extract.systems.DebugCameraSystem;
-import extract.systems.LobbyNetSystem;
+import extract.systems.RoomNetSystem;
 import h2d.Scene as Scene2D;
 import h2d.domkit.Style;
 import extract.design.Lobbydesign;
@@ -32,7 +32,7 @@ class LobbyView extends BaseScene
 		systems.add(new DebugCameraSystem(bus, camera));
 
 		// lobby networking: owns the lobby socket, pumps it, join/ready handshake
-		systems.add(new LobbyNetSystem(bus, gd));
+		systems.add(new RoomNetSystem(bus, gd));
 
 		// share scene animCtrl with design components (TopPanel hover tweens)
 		TopPanel.animCtrl = animCtrl;

@@ -25,5 +25,6 @@ class NetRegistry
 		done = true;
 		Registry.getCLID(Type.getClassName(PlayerInfo));
 		Registry.getCLID(Type.getClassName(LobbyNet));
+		Registry.getCLID(Type.getClassName(GameNet));
 	}
 }

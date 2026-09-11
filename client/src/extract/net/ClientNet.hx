@@ -1,46 +1,64 @@
 package extract.net;
 
-import shared.net.LobbyNet;
+import rnl.net.NetworkSerializable;
 import shared.net.NetConfig;
 import shared.net.NetRegistry;
-import shared.net.PlayerInfo;
 
 import rnl.net.SocketHost;
 import rnl.Address;
 import rnl.Enums.ChannelType;
 
 /**
-	Client-side networking (HL only, `#if sys`). Owns the ONE active RNL
-	socket of the current scene (lobby socket for the lobby prototype) and
-	drives `@:rpc` join/ready + roster mirroring. Console traces only.
+	Client-side networking (HL only, `#if sys`). General-purpose socket
+	transport: connects to a server, polls the socket, tracks mirror arrival,
+	and exposes a generic `findMirror<T>()` for consumers.
 
-	Ownership: created by a presentation System (e.g. LobbyNetSystem) that
-	owns its lifecycle — the system calls dispose() when the scene is left.
-	The web target has no UDP/RNL — this class is never compiled there.
+	Ownership: created by a presentation System (e.g. RoomNetSystem) that
+	owns its lifecycle — the system calls dispose() when the scene is left. The web target has no UDP/RNL — this class is
+	never compiled there.
+
+	Usage:
+		var cn = new ClientNet("Alice");
+		cn.onConnected = socket -> {
+			var lobby = cn.findMirror(LobbyNet);
+			lobby.join("Alice");
+		};
 **/
 #if !sys
 class ClientNet
 {
-	public function new() {}
+	/** Display name chosen for this client. */
+	public var playerName(default, null) : String;
+
+	public function new(?name : String)
+	{
+		playerName = name != null ? name : "Client-" + Std.random(9000);
+	}
+
 	public function update(dt : Float) : Void {}
 	public function dispose() : Void {}
+
+	/** Generic mirror search — returns null on the web stub. */
+	public function findMirror<T:NetworkSerializable>(cls : Class<T>) : Null<T>
+	{
+		return null;
+	}
 }
 #else
 class ClientNet
 {
-	/** The single active socket host (lobby socket for the prototype). */
+	/** The single active socket host of the current scene. */
 	public var socket(default, null) : Null<SocketHost>;
 
-	/** Mirror of the server's shared LobbyNet (once FULLSYNC arrives). */
-	var mirror : Null<LobbyNet>;
-
 	/** Display name chosen for this client. */
-	var playerName : String;
+	public var playerName(default, null) : String;
 
-	/** Roster hook — fired when the server broadcasts a fresh roster. */
-	public var onRoster : Null<Array<PlayerInfo> -> Void> = null;
+	/** Fired once when the first mirror appears (server FULLSYNC arrived).
+		The callback receives the socket so the consumer can find its typed
+		mirror via `findMirror<T>()`. */
+	public var onConnected : Null<SocketHost -> Void> = null;
 
-	/** True once the mirror has appeared (server FULLSYNC arrived). */
+	/** True once a mirror has appeared (FULLSYNC arrived). */
 	public var connected(default, null) : Bool = false;
 
 	/** True once the connect attempt timed out (server unreachable). */
@@ -51,7 +69,7 @@ class ClientNet
 
 	public function new(?name : String)
 	{
-		NetRegistry.init(); // register CLID classes before any deserialization
+		NetRegistry.init();
 		playerName = name != null ? name : "Client-" + Std.random(9000);
 		connectStart = haxe.Timer.stamp();
 		socket = new SocketHost();
@@ -64,7 +82,7 @@ class ClientNet
 		socket.onPeerDisconnect = peerId -> trace('CLIENT peer disconnected id=' + peerId);
 	}
 
-	/** Poll the RNL socket and track the mirror's arrival. */
+	/** Poll the RNL socket and detect mirror arrival. */
 	public function update(dt : Float) : Void
 	{
 		if (socket == null) return;
@@ -74,10 +92,10 @@ class ClientNet
 
 		if (!connected)
 		{
-			var m = findMirror();
-			if (m == null)
+			// any NetworkSerializable mirror means the server is ready
+			var objCount = Lambda.count(socket.objects);
+			if (objCount == 0)
 			{
-				// server unreachable: no FULLSYNC mirror within the timeout
 				if (haxe.Timer.stamp() - connectStart > NetConfig.CONNECT_TIMEOUT_SECONDS)
 				{
 					connectTimedOut = true;
@@ -90,37 +108,19 @@ class ClientNet
 				return;
 			}
 			connected = true;
-			mirror = m;
-			// hook the roster callback (received via @:rpc(clients) broadcast)
-			m.onRoster = players -> { if (onRoster != null) onRoster(players); };
-			trace('CLIENT connected to lobby (mirror up)');
+			trace('CLIENT connected (mirror up, ' + objCount + ' object(s))');
+			if (onConnected != null) onConnected(socket);
 		}
 	}
 
-	/** Send join(name) to the server (fires once the mirror is up). */
-	public function join() : Void
-	{
-		if (mirror == null) return;
-		trace('CLIENT join("' + playerName + '")');
-		mirror.join(playerName);
-	}
-
-	/** Send ready(true) to the server. */
-	public function ready() : Void
-	{
-		if (mirror == null) return;
-		trace('CLIENT ready(true)');
-		mirror.setReady(true);
-	}
-
-	/** Find the mirrored LobbyNet in the socket's object registry. */
-	function findMirror() : Null<LobbyNet>
+	/** Find a mirrored NetworkSerializable by class in the socket's registry. */
+	public function findMirror<T:NetworkSerializable>(cls : Class<T>) : Null<T>
 	{
 		if (socket == null) return null;
 		for (o in socket.objects)
 		{
-			var n = Std.downcast(o, LobbyNet);
-			if (n != null) return n;
+			var m = Std.downcast(o, cls);
+			if (m != null) return m;
 		}
 		return null;
 	}
@@ -132,7 +132,6 @@ class ClientNet
 			socket.dispose();
 			socket = null;
 		}
-		mirror = null;
 		connected = false;
 		connectTimedOut = false;
 	}

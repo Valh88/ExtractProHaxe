@@ -15,6 +15,7 @@ import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
+
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
 
@@ -59,6 +60,8 @@ class GamePlayView extends BaseScene
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
 		player = new PlayerControllerSystem(bus, camera, null, this.gd);
 		systems.add(player);
+
+
 		sim.onSpawn = b ->
 		{
 			var mesh = meshForBody(b);
