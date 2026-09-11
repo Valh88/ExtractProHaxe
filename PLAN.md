@@ -2,7 +2,13 @@
 
 ## Цель
 
-Спроектировать расширяемую сетевую репликацию состояния мира. Мир = физика + логика + игровые сущности (герои, пули, кубы, HP, оружие, инвентарь). Репликация = отдельный слой, который **читает** из мира и **пишет** в сеть.
+Спроектировать расширяемую сетевую репликацию состояния мира.
+Мир = физика + логика + игровые сущности (герои, пули, кубы, HP, оружие, инвентарь).
+Репликация = отдельный слой, который **читает** из мира и **пишет** в сеть.
+
+**В рамках этого плана:** data sync (SimWorld ↔ WorldState ↔ Mirror), transport (EventBus → GameNet), replication (dirty deltas + @:rpc).
+
+**Не в рамках:** lag compensation, client prediction, jitter buffer — это game layer, поверх rnl и replication.
 
 ---
 
@@ -76,6 +82,41 @@ Trade-off:
 - **ReplicationSystem** — единственный bridge между мирами
 
 Аналогия: `memcpy()` из буфера в буфер. Один для CPU (SimWorld), другой для NIC (WorldState).
+
+---
+
+## rnl vs Game Layer: что где
+
+### rnl (транспорт + сериализация)
+
+- UDP/RNL сокеты
+- `@:s` dirty deltas (reliable/unreliable)
+- `@:rpc` вызовы (server/clients/all)
+- Reliable/unreliable каналы
+- Peer management, timeout
+- Serialization/deserialization
+- **НЕ знает про:** ping, lag, prediction, interpolation
+
+### Game Layer (поверх rnl)
+
+| Механизм | Что делает | Где живёт | Статус |
+|---|---|---|---|
+| **Client prediction** | Клиент применяет input локально, не дожидаясь сервера | `HeroSystem` (shared) | ✅ Уже есть |
+| **Server reconciliation** | Клиент пересчитывает когда сервер прислал авторитетное состояние | `ReplicationSystem` | ❌ TODO |
+| **Interpolation** | Плавное движение между полученными состояниями | `PhysRenderer` (shared) | ✅ Уже есть (`PhysCore.interpol`) |
+| **Lag compensation** | Сервер "отматывает" время чтобы попасть туда где был клиент | `DamageSystem` (будущий) | ❌ TODO |
+| **Jitter buffer** | Буферизация входящих пакетов для стабильности | `ReplicationSystem` | ❌ TODO |
+| **Tick sync** | Синхронизация часов client/server | `NetConfig` + timestamp | ❌ TODO |
+
+### Уже есть в проекте
+
+```
+PhysCore.interpol       — альфа между 30 Hz тиками (interpolation)
+PhysRenderer            — интерполирует mesh'ы (уже работает!)
+HeroSystem              — клиент применяет input локально (prediction!)
+```
+
+rnl здесь ни при чём — это чисто game layer.
 
 ---
 
