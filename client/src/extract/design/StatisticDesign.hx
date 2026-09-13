@@ -14,14 +14,6 @@ class StatisticDesign extends Flow implements Object
 			<text id="pingValue" class="stat-value" x="50" y="22"/>
 		</statistic-design>;
 
-	public var fpsValueText(get, never) : String;
-	public var pingValueText(get, never) : String;
-
-	var fpsCaption : h2d.Text;
-	var fpsValue : h2d.Text;
-	var pingCaption : h2d.Text;
-	var pingValue : h2d.Text;
-
 	public function new(?parent)
 	{
 		super(parent);
@@ -33,23 +25,11 @@ class StatisticDesign extends Flow implements Object
 		pingValue.text = "0";
 	}
 
-	function get_fpsValueText() : String
-	{
-		return fpsValue.text;
-	}
-
-	function get_pingValueText() : String
-	{
-		return pingValue.text;
-	}
-
-	/** Update displayed FPS value (call from system). */
 	public function setFps(v : Int) : Void
 	{
 		fpsValue.text = Std.string(v);
 	}
 
-	/** Update displayed ping value in ms (call from system). */
 	public function setPing(v : Int) : Void
 	{
 		pingValue.text = Std.string(v);

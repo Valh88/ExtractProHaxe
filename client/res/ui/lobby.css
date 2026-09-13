@@ -60,6 +60,6 @@
 .crosshair { position:absolute; width:0; height:0; }
 /* --- StatisticDesign --- */
 .statistic-root { position:absolute; width:160; height:50; }
-.stat-caption { position:absolute; color:#CCCCCC; font: font/oswald_medium_22.fnt; font-size:14; }
-.stat-value { position:absolute; color:#CCCCCC; font: font/oswald_medium_22.fnt; font-size:14; }
+.stat-caption { position:absolute; color:#CCCCCC; font: font/oswald_regular_14.fnt; font-size:14; }
+.stat-value { position:absolute; color:#CCCCCC; font: font/oswald_regular_14.fnt; font-size:14; }
 .heroes-view { position:absolute; width:1920; height:1080; }
