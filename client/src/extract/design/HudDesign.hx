@@ -54,6 +54,11 @@ class HudDesign extends Flow implements Object
 		addRoundedChild(stanceIndicator, 58, 58, 8, 0x0F0F0F, 0xE0D080);
 	}
 
+	public function update(dt : Float) : Void
+	{
+		if (crosshair != null) crosshair.update(dt);
+	}
+
 	function addRoundedChild(parent : Flow, w : Int, h : Int, r : Int, fill : Int, border : Int)
 	{
 		// one baked tile: opaque border rim + semi-transparent fill inside,
