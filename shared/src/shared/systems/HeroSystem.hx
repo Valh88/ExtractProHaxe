@@ -121,6 +121,13 @@ class HeroSystem extends System
 		if (simulated) state(states, playerId);
 	}
 
+	/** Despawn a player hero (server: disconnect; client: mirror removed). */
+	public function removeHero(playerId : String) : Void
+	{
+		states.remove(playerId);
+		sim.removeHero(playerId);
+	}
+
 	/** Apply the latest movement intent of every player to their hero body. */
 	override public function update(dt : Float) : Void
 	{

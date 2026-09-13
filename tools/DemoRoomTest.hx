@@ -78,8 +78,10 @@ class DemoRoomTest
 					};
 				}
 				var objs = net.findObjects(HeroObject);
+				var here : Map<String, Bool> = new Map();
 				for (o in objs)
 				{
+					here.set(o.playerId, true);
 					if (o.name == name) ownPid = o.playerId; // find our own id
 					if (!seen.exists(o.playerId))
 					{
@@ -91,6 +93,15 @@ class DemoRoomTest
 							+ ' pos=' + Std.int(o.posX * 100) / 100 + ',' + Std.int(o.posY * 100) / 100 + ',' + Std.int(o.posZ * 100) / 100
 							+ ' yaw=' + Std.int(o.yaw * 100) / 100
 							+ ' hp=' + o.hp);
+				}
+				// a previously-seen HeroObject mirror gone == server removed it
+				// (owner disconnected) — GamePlayView despawns the puppet on it.
+				var gone : Array<String> = [];
+				for (pid in seen.keys()) if (!here.exists(pid)) gone.push(pid);
+				for (pid in gone)
+				{
+					seen.remove(pid);
+					trace('HEROOBJ left ' + pid + ' (mirror REMOVE)');
 				}
 			}
 			Sys.sleep(0.01);

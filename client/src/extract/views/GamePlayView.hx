@@ -236,8 +236,11 @@ class GamePlayView extends BaseScene
 		// so at ADD time each client can tell that object of its own apart
 		// from remotes — no playerJoined race, no wrongly-spawned own body.
 		var myName = roomNet.clientNet.playerName;
-		for (o in roomNet.clientNet.findObjects(HeroObject))
+		var mirrors = roomNet.clientNet.findObjects(HeroObject);
+		var present : Map<String, Bool> = new Map();
+		for (o in mirrors)
 		{
+			present.set(o.playerId, true);
 			if (ownPid == null && o.name != null && o.name != "" && o.name == myName)
 			{
 				ownPid = o.playerId;
@@ -252,6 +255,20 @@ class GamePlayView extends BaseScene
 			var heroSys : HeroSystem = cast sim.systems.get("Hero");
 			heroSys.spawnHero(o.playerId, false); // remote: mirror puppet, no state
 			trace('CLIENT remote hero spawned: ' + o.playerId);
+		}
+
+		// server removed the HeroObject (owner disconnected) -> the mirror is
+		// gone; release the local puppet body+mesh for every hero we spawned.
+		var heroSys : HeroSystem = cast sim.systems.get("Hero");
+		var pids : Array<String> = [];
+		for (pid in sim.heroes.keys()) pids.push(pid);
+		for (pid in pids)
+		{
+			if (pid == Player.LOCAL || pid == ownPid) continue; // own hero stays
+			if (present.exists(pid)) continue;
+			sim.heroEnts.remove(pid);
+			if (heroSys != null) heroSys.removeHero(pid);
+			trace('CLIENT remote hero left: ' + pid);
 		}
 	}
 

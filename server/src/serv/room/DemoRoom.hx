@@ -111,7 +111,7 @@ class DemoRoom extends Room
 		gameNet.playerJoined(pid, name);
 	}
 
-	/** Peer gone: release its HeroObject + hero body (REMOVE flows to clients). */
+	/** Peer gone: release its HeroObject (REMOVE flows to clients) + hero body. */
 	function leave(peerId : Int, pid : String) : Void
 	{
 		var obj = world.heroEnts.get(pid);
@@ -120,6 +120,8 @@ class DemoRoom extends Room
 			world.heroEnts.remove(pid);
 			netSys.socket.remove(obj);
 		}
+		var heroSys : HeroSystem = cast world.systems.get("Hero");
+		if (heroSys != null) heroSys.removeHero(pid);
 		playerByPeer.remove(peerId);
 		netSys.net.announce('playerLeft:' + pid);
 		trace('GAME "' + id + '" released "' + pid + '"');

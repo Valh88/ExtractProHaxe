@@ -113,6 +113,16 @@ class SimWorld implements IUpdate
 		add(b);
 	}
 
+	/** Despawn a player hero body (server: peer disconnect; client: mirror
+		removed). Releases the physics body; world consumers unbind the mesh. */
+	public function removeHero(playerId : String) : Void
+	{
+		var b = heroes.get(playerId);
+		if (b == null) return;
+		heroes.remove(playerId);
+		phys.removeBody(b);
+	}
+
 	/**
 		Advance the simulation and run gameplay rules (auto-spawn).
 		The SAME call is made by client and server every frame/tick.
