@@ -18,6 +18,7 @@ class SettingsKeybind extends Flow implements Object
 	{
 		super(parent);
 		initComponent();
+		getProperties(boxWrap).isAbsolute = true;
 	}
 
 	public function setLabel(t : String) : Void { label.text = t; }

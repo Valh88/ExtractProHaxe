@@ -11,23 +11,24 @@ class SettingsSlider extends Flow implements Object
 		<settings-slider class="settings-slider">
 			<text id="label" class="settings-slider-label" x="0" y="0"/>
 			<flow id="trackWrap" class="settings-slider-track" x="310" y="13"/>
-			<flow id="knobWrap" class="settings-slider-knob" x="310" y="6"/>
 			<text id="valueText" class="settings-slider-value" x="460" y="0"/>
 		</settings-slider>;
 
 	public var onChange : Null<Float -> Void>;
 
-	static inline var TRACK_W : Int = 190;
+	static inline var TRACK_W : Int = 130;
 	static inline var TRACK_H : Int = 14;
-	static inline var KNOB_R : Int = 14;
+	static inline var KNOB_R : Int = 10;
 
 	var normalized : Float = 1.0;
 	var fillGfx : Graphics;
+	var knobGfx : Graphics;
 
 	public function new(?parent)
 	{
 		super(parent);
 		initComponent();
+		getProperties(trackWrap).isAbsolute = true;
 		valueText.text = "100%";
 
 		var trackBg = new Graphics();
@@ -38,19 +39,22 @@ class SettingsSlider extends Flow implements Object
 		trackBg.drawRoundedRect(0, 0, TRACK_W, TRACK_H, 7);
 		trackBg.lineStyle(0);
 		trackWrap.addChild(trackBg);
+		trackWrap.getProperties(trackBg).isAbsolute = true;
 
 		fillGfx = new Graphics();
 		trackWrap.addChild(fillGfx);
+		trackWrap.getProperties(fillGfx).isAbsolute = true;
 
-		var knobGfx = new Graphics();
+		knobGfx = new Graphics();
 		knobGfx.beginFill(0xE0D080);
 		knobGfx.drawCircle(KNOB_R, KNOB_R, KNOB_R);
 		knobGfx.endFill();
-		knobWrap.addChild(knobGfx);
+		addChild(knobGfx);
+		getProperties(knobGfx).isAbsolute = true;
 
 		trackWrap.enableInteractive = true;
 		trackWrap.interactive.cursor = Button;
-		trackWrap.interactive.onClick = function(e) {
+		trackWrap.interactive.onClick = function(e : hxd.Event) {
 			setNormalized(Math.max(0, Math.min(1, e.relX / TRACK_W)));
 			if (onChange != null) onChange(normalized);
 		};
@@ -71,7 +75,8 @@ class SettingsSlider extends Flow implements Object
 		fillGfx.drawRoundedRect(0, 0, fillW, TRACK_H, 7);
 		fillGfx.endFill();
 
-		knobWrap.x = 310 + Std.int(normalized * TRACK_W) - KNOB_R;
+		knobGfx.x = 310 + normalized * TRACK_W - KNOB_R;
+		knobGfx.y = 11;
 	}
 
 	public function getNormalized() : Float { return normalized; }

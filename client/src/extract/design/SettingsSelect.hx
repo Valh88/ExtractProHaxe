@@ -23,6 +23,7 @@ class SettingsSelect extends Flow implements Object
 	{
 		super(parent);
 		initComponent();
+		getProperties(boxWrap).isAbsolute = true;
 
 		options = [];
 
