@@ -43,6 +43,12 @@ class ClientNet
 	{
 		return null;
 	}
+
+	/** All mirrored objects of `cls` — empty array on the web stub. */
+	public function findObjects<T:NetworkSerializable>(cls : Class<T>) : Array<T>
+	{
+		return [];
+	}
 }
 #else
 class ClientNet
@@ -133,6 +139,19 @@ class ClientNet
 			if (m != null) return m;
 		}
 		return null;
+	}
+
+	/** All mirrored NetworkSerializable instances of `cls` (empty on web). */
+	public function findObjects<T:NetworkSerializable>(cls : Class<T>) : Array<T>
+	{
+		if (socket == null) return [];
+		var out : Array<T> = [];
+		for (o in socket.objects)
+		{
+			var m = Std.downcast(o, cls);
+			if (m != null) out.push(m);
+		}
+		return out;
 	}
 
 	public function dispose() : Void

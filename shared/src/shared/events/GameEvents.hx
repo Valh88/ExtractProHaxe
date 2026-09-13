@@ -14,9 +14,12 @@ class SearchStarted
 /**
 	Client -> sim shooting intent: world-space spawn position (hero eye) and
 	normalized fire direction. The sim (BulletSystem) spawns the projectile.
+	`ownerId` names the shooter (own spawn is skipped on its client when the
+	server broadcasts the same bullet back).
 **/
 class BulletFired
 {
+	public var ownerId : String;
 	public var x : Float;
 	public var y : Float;
 	public var z : Float;
@@ -24,8 +27,9 @@ class BulletFired
 	public var dirY : Float;
 	public var dirZ : Float;
 
-	public function new(x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float)
+	public function new(ownerId : String, x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float)
 	{
+		this.ownerId = ownerId;
 		this.x = x;
 		this.y = y;
 		this.z = z;

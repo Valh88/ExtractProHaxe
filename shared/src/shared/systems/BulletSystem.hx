@@ -51,16 +51,27 @@ class BulletSystem extends System
 	{
 		if (cd > 0) return; // rate limit
 		cd = cooldown;
+		spawnBullet(e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+	}
 
+	/**
+		Create a bullet at `pos` flying along the (normalized) direction and
+		add it to the world. No cooldown — used both by onFire and for REMOTE
+		spawns arriving via GameNet.bulletSpawn (a remote client calls this
+		DIRECTLY, bypassing the bus so the event is not echoed back to the
+		server).
+	**/
+	public function spawnBullet(x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float) : Void
+	{
 		// create (not spawn: must go through sim.add so the client view
 		// gets onSpawn and draws the mesh) then add via the sim.
 		// BULLET layer, WORLD mask: hits floor/cubes, ignores the HERO
 		// (player's own bullet never collides with themself)
-		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(e.x, e.y, e.z), "bullet")
+		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(x, y, z), "bullet")
 			.addSphere(radius, null, 0.0, 0.5)
 			.setGravityScale(0) // straight-flying projectile: no gravity
 			.setGroup(Collision.BULLET).setMask(Collision.WORLD)
-			.setLinearVelocity(e.dirX * speed, e.dirY * speed, e.dirZ * speed);
+			.setLinearVelocity(dirX * speed, dirY * speed, dirZ * speed);
 		sim.add(b);
 		alive.push({ b : b, t : lifetime });
 		// first contact with anything: queue for destruction — removing a

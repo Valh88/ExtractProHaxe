@@ -14,6 +14,7 @@ class RoomNetSystem extends System
 import extract.net.ClientNet;
 import shared.GameData;
 import shared.events.EventBus;
+import shared.net.GameNet;
 import shared.net.LobbyNet;
 import shared.net.PlayerInfo;
 import shared.systems.System;
@@ -40,6 +41,14 @@ class RoomNetSystem extends System
 	/** Typed mirror of the server's LobbyNet (set once connected). */
 	var mirror : Null<LobbyNet>;
 
+	/** Typed mirror of the server's GameNet (set once connected). */
+	public var gameNet(default, null) : Null<GameNet>;
+
+	/** Delegated to GamePlayView via the GameNet mirror (wire before connect). */
+	public var onPlayerJoined : Null<String -> String -> Void> = null;
+	public var onDamage : Null<String -> Float -> Void> = null;
+	public var onBulletSpawn : Null<String -> Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
+
 	var joined : Bool = false;
 	var readySent : Bool = false;
 
@@ -58,11 +67,26 @@ class RoomNetSystem extends System
 		if (mirror == null)
 		{
 			trace('CLIENT room: no LobbyNet mirror found');
-			return;
 		}
-		trace('CLIENT room: connected, mirror up');
-		mirror.onRoster = onRoster;
-		mirror.onAnnounce = onAnnounce;
+		else
+		{
+			trace('CLIENT room: connected, mirror up');
+			mirror.onRoster = onRoster;
+			mirror.onAnnounce = onAnnounce;
+		}
+		// wire the game RPC facade as early as possible so broadcast events
+		// (playerJoined, bulletSpawn, damage) are never dropped
+		gameNet = clientNet.findMirror(GameNet);
+		if (gameNet == null)
+		{
+			trace('CLIENT room: no GameNet mirror found');
+		}
+		else
+		{
+			gameNet.onPlayerJoined = onPlayerJoined;
+			gameNet.onBulletSpawn = onBulletSpawn;
+			gameNet.onDamage = onDamage;
+		}
 	}
 
 	/** Called when the server drops the peer (remote disconnect). */
@@ -70,6 +94,7 @@ class RoomNetSystem extends System
 	{
 		trace('CLIENT room: peer ' + peerId + ' disconnected');
 		mirror = null;
+		gameNet = null;
 		joined = false;
 		readySent = false;
 	}
@@ -120,6 +145,7 @@ class RoomNetSystem extends System
 			clientNet = null;
 		}
 		mirror = null;
+		gameNet = null;
 		super.dispose();
 	}
 }

@@ -6,25 +6,36 @@ import rnl.net.NetworkSerializable;
 	Shared game-play RPC facade. One instance is `add`ed on the server (its
 	owner, per game room) and mirrored to every connected client.
 
-	Server -> clients: hero position updates, bullet spawns.
-	Clients -> server: position reports, fire requests.
+	Events ONLY — continuous state (positions, HP) lives in per-entity
+	`HeroObject` (`@:s` fields), not here. GameNet carries one-shot events:
+
+	Clients -> server: input intents (`heroInput`), fire requests.
+	Server -> clients: bullet spawns, damage feedback (instant UI).
 
 	@:rpc(server) methods run only on the server (__isServer == true);
 	@:rpc(clients) methods run on all connected clients.
 **/
 class GameNet extends NetworkSerializable
 {
-	/** Server handler: a player reported their position. */
-	public var onPosition : Null<String -> Float -> Float -> Float -> Float -> Void> = null;
+	/** Server handler: a player's movement input intent. The playerId is NOT
+	passed by the client — the server resolves it from the RPC caller
+	(`__rpcCaller` -> peer -> playerByPeer) so it can never spoof another
+	player's id. */
+	public var onHeroInput : Null<Float -> Float -> Float -> Float -> Bool -> Void> = null;
 
-	/** Server handler: a player fired a bullet. */
-	public var onFire : Null<String -> Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
+	/** Server handler: a player fired a bullet. PlayerId resolved server-side. */
+	public var onFire : Null<Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
 
-	/** Client handler: received a hero position update. */
-	public var onHeroUpdate : Null<String -> Float -> Float -> Float -> Float -> Void> = null;
+	/** Client handler: received a bullet spawn. `ownerId` = the shooter —
+		its own client spawned it locally via BulletFired already and skips. */
+	public var onBulletSpawn : Null<String -> Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
 
-	/** Client handler: received a bullet spawn. */
-	public var onBulletSpawn : Null<Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
+	/** Client handler: a player joined this game room (server-assigned id).
+		Each client finds its OWN id by matching `name` (prototype convention). */
+	public var onPlayerJoined : Null<String -> String -> Void> = null;
+
+	/** Client handler: received a damage feedback (instant UI). */
+	public var onDamage : Null<String -> Float -> Void> = null;
 
 	public function new()
 	{
@@ -33,33 +44,45 @@ class GameNet extends NetworkSerializable
 
 	// --- Client -> server RPCs ---
 
-	/** Client -> server: local hero position + yaw (sent each sim tick). */
+	/** Client -> server: input intent (prediction runs locally, server
+		simulates the authoritative position into the player's HeroObject).
+		No playerId arg: the server resolves the caller's id from __rpcCaller. */
 	@:rpc(server)
-	public function sendPosition(playerId : String, x : Float, y : Float, z : Float, yaw : Float) : Void
+	public function heroInput(dirX : Float, dirZ : Float, yaw : Float, mag : Float, jump : Bool) : Void
 	{
-		if (onPosition != null) onPosition(playerId, x, y, z, yaw);
+		if (onHeroInput != null) onHeroInput(dirX, dirZ, yaw, mag, jump);
 	}
 
-	/** Client -> server: fire a bullet from position in direction. */
+	/** Client -> server: fire a bullet from position in direction.
+		No playerId arg: the server resolves the caller's id from __rpcCaller. */
 	@:rpc(server)
-	public function fireBullet(playerId : String, x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float) : Void
+	public function fireBullet(x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float) : Void
 	{
-		if (onFire != null) onFire(playerId, x, y, z, dirX, dirY, dirZ);
+		if (onFire != null) onFire(x, y, z, dirX, dirY, dirZ);
 	}
 
 	// --- Server -> client RPCs ---
 
-	/** Server -> clients: a hero moved to a new position. */
+	/** Server -> clients: a bullet was spawned (owner spawned it locally; the
+		others spawn it deterministically from this origin). */
 	@:rpc(clients)
-	public function heroUpdate(playerId : String, x : Float, y : Float, z : Float, yaw : Float) : Void
+	public function bulletSpawn(ownerId : String, x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float) : Void
 	{
-		if (onHeroUpdate != null) onHeroUpdate(playerId, x, y, z, yaw);
+		if (onBulletSpawn != null) onBulletSpawn(ownerId, x, y, z, dirX, dirY, dirZ);
 	}
 
-	/** Server -> clients: a bullet was spawned. */
+	/** Server -> clients: a player joined this game room (server-assigned id). */
 	@:rpc(clients)
-	public function bulletSpawn(x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float) : Void
+	public function playerJoined(playerId : String, name : String) : Void
 	{
-		if (onBulletSpawn != null) onBulletSpawn(x, y, z, dirX, dirY, dirZ);
+		if (onPlayerJoined != null) onPlayerJoined(playerId, name);
+	}
+
+	/** Server -> clients: a player took damage (instant UI feedback; the
+		authoritative HP arrives via the HeroObject `@:s` delta). */
+	@:rpc(clients)
+	public function damage(playerId : String, amount : Float) : Void
+	{
+		if (onDamage != null) onDamage(playerId, amount);
 	}
 }

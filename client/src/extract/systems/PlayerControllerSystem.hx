@@ -185,7 +185,7 @@ class PlayerControllerSystem extends System
 				var fx = -Math.sin(camCtrl.yaw) * cp;
 				var fy = Math.sin(camCtrl.pitch);
 				var fz = -Math.cos(camCtrl.yaw) * cp;
-				bus.publish(new BulletFired(
+				bus.publish(new BulletFired(Player.LOCAL,
 					p.tx + fx * spawnAhead,
 					eyeY + fy * spawnAhead,
 					p.tz + fz * spawnAhead,

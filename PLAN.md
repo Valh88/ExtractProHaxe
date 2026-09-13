@@ -1,87 +1,39 @@
-# PLAN.md — Система репликации для ExtractPro
+# PLAN.md — Система репликации для ExtractPro (Pattern A)
 
 ## Цель
 
-Спроектировать расширяемую сетевую репликацию состояния мира.
-Мир = физика + логика + игровые сущности (герои, пули, кубы, HP, оружие, инвентарь).
-Репликация = отдельный слой, который **читает** из мира и **пишет** в сеть.
+Спроектировать расширяемую сетевую репликацию игровых сущностей.
+Мир = физика + логика + сущности (герои, пули, кубы, HP, оружие, инвентарь).
+Репликация = **per-entity объекты**: игровая сущность, которой нужна
+репликация, сама является `NetworkSerializable` со своими `@:s` полями.
 
-**В рамках этого плана:** data sync (SimWorld ↔ WorldState ↔ Mirror), transport (EventBus → GameNet), replication (dirty deltas + @:rpc).
+**В рамках этого плана:** per-entity state sync (HeroObject → mirror),
+transport (EventBus → GameNet), one-shot events (@:rpc + payload),
+mirror discovery, SyncBridge (единственная копия — позиция из Oimo).
 
-**Не в рамках:** lag compensation, client prediction, jitter buffer — это game layer, поверх rnl и replication.
+**Не в рамках:** lag compensation, jitter buffer, tick sync — это game layer,
+поверх rnl и replication.
 
 ---
 
 ## Принципы
 
-1. **Репликация отдельна от логики.** Системы (HeroSystem, BulletSystem) не знают о сети. ReplicationSystem только копирует данные между `SimWorld` и `NetworkSerializable`.
-2. **EventBus = единая точка коммуникации.** Все ивенты идут через шину. Серверная шина публикует локально + broadcast. Клиентская — локально + send to server.
-3. **Системы независимы.** `PlayerControllerSystem` публикует `HeroMoveIntent` в шину. `HeroSystem` подписывается. Транспорт — дело шины (ClientTransportSystem / ServerTransportSystem).
-4. **Не всё реплицируем.** Физика кубов и пуль детерминистическая (обе стороны spawn'ят одинаково). Реплицируем только то, что невозможно детерминистически дублировать.
-5. **Два контейнера — это нормально.** `SimWorld.playerData` = source of truth (системы читают/пишут). `WorldState` = транспортный буфер для сети (@:s dirty deltas). Дублирование = цена за независимость систем от rnl.
-
----
-
-## Архитектура данных: три уровня
-
-```
-Level 1: Config (статика)        GameData (cdb)         → настройки, константы
-Level 2: Runtime (динамика)      SimWorld               → физика, тела, playerData
-Level 3: Transport (сеть)        WorldState (@:s)       → копия для dirty deltas
-```
-
-### Source of truth: SimWorld
-
-```
-SimWorld
-├── heroes: Map<String, PhysBody>              — физические тела (позиция, velocity)
-├── playerData: Map<String, PlayerGameData>    — игровые данные (HP, оружие, инвентарь)
-├── systems: Systems                           — логика (HeroSystem, BulletSystem)
-└── bus: EventBus                              — коммуникация
-```
-
-`PlayerGameData` — чистые игровые данные (TODO: добавить в SimWorld):
-```haxe
-typedef PlayerGameData = {
-    var hp : Float;
-    var maxHp : Float;
-    var weaponId : Int;
-    var ammo : Int;
-    var score : Int;
-}
-```
-
-### Транспортный контейнер: WorldState
-
-```
-WorldState (NetworkSerializable, @:s поля)
-├── heroes: Array<HeroState>    — копия позиций + HP для сети
-└── bullets: Array<BulletState> — копия пуль для сети (TODO)
-```
-
-**WorldState НЕ хранит данные** — это буфер для @:s dirty deltas.
-Data flow:
-```
-SimWorld.playerData[pid].hp = 75    ← source of truth (системы читают/пишут)
-         ↓ ReplicationSystem.syncFromSim()
-WorldState.heroes[i].hp = 75        ← копия для сети (только транспорт)
-         ↓ flush() → rnl dirty delta
-Mirror.heroes[i].hp = 75            ← копия на клиенте (read-only)
-         ↓ ReplicationSystem.applyToSim()
-SimWorld.playerData[pid].hp = 75    ← синхронизация на клиенте
-```
-
-### Почему два контейнера (а не один)
-
-rnl `@:s` поля генерируют **свои** backing fields. Нельзя сделать их ссылку
-на `SimWorld.playerData`. Дублирование **неизбежно** — это constraint библиотеки.
-
-Trade-off:
-- **Дублирование** = цена за независимость систем от сети
-- **Системы не знают о rnl** → можно тестировать симуляцию без сети
-- **ReplicationSystem** — единственный bridge между мирами
-
-Аналогия: `memcpy()` из буфера в буфер. Один для CPU (SimWorld), другой для NIC (WorldState).
+1. **Игровые данные живут в одном месте.** У каждого факта игровых данных
+   (HP, оружие, счёт) ровно один контейнер — `@:s` поле своей сущности.
+   Никаких пар «игровой контейнер + транспортный контейнер».
+2. **`NetworkSerializable` — опция на контейнере.** Сущность, которой нужна
+   репликация, наследуется от него; детерминистическая (куб/пуля) — обычный
+   класс, пока всё решает физика. Это не два слоя — это один паттерн,
+   применённый локально.
+3. **Репликация <> логика.** Системы читают/пишут сущности напрямую
+   (`sim.heroEnts[id].hp -= 25`); dirty tracking и доставку делает rnl сам.
+4. **EventBus = единая точка коммуникации.** События (input, damage-фидбек,
+   спавн пули) идут через шину; транспорт — система-подписчик, шина не знает
+   о GameNet.
+5. **Не всё реплицируем.** Детерминистическая часть (кубы, отрисовка пуль,
+   физика) остаётся где есть. Реплицируется только то, что нужно серверу
+   контролировать (авторитетные позиции героев, HP) или нельзя получить
+   детерминистически.
 
 ---
 
@@ -90,33 +42,21 @@ Trade-off:
 ### rnl (транспорт + сериализация)
 
 - UDP/RNL сокеты
-- `@:s` dirty deltas (reliable/unreliable)
+- `@:s` dirty deltas (reliable/unreliable) — автоматически, per-поле
 - `@:rpc` вызовы (server/clients/all)
-- Reliable/unreliable каналы
+- Per-object ADD/SYNC/REMOVE/FULLSYNC (netId)
 - Peer management, timeout
-- Serialization/deserialization
 - **НЕ знает про:** ping, lag, prediction, interpolation
 
 ### Game Layer (поверх rnl)
 
 | Механизм | Что делает | Где живёт | Статус |
 |---|---|---|---|
-| **Client prediction** | Клиент применяет input локально, не дожидаясь сервера | `HeroSystem` (shared) | ✅ Уже есть |
-| **Server reconciliation** | Клиент пересчитывает когда сервер прислал авторитетное состояние | `ReplicationSystem` | ❌ TODO |
-| **Interpolation** | Плавное движение между полученными состояниями | `PhysRenderer` (shared) | ✅ Уже есть (`PhysCore.interpol`) |
-| **Lag compensation** | Сервер "отматывает" время чтобы попасть туда где был клиент | `DamageSystem` (будущий) | ❌ TODO |
-| **Jitter buffer** | Буферизация входящих пакетов для стабильности | `ReplicationSystem` | ❌ TODO |
-| **Tick sync** | Синхронизация часов client/server | `NetConfig` + timestamp | ❌ TODO |
-
-### Уже есть в проекте
-
-```
-PhysCore.interpol       — альфа между 30 Hz тиками (interpolation)
-PhysRenderer            — интерполирует mesh'ы (уже работает!)
-HeroSystem              — клиент применяет input локально (prediction!)
-```
-
-rnl здесь ни при чём — это чисто game layer.
+| Client prediction | Клиент применяет input локально | `HeroSystem` (shared) | ✅ есть |
+| Interpolation | Плавное движение между состояниями | `PhysRenderer` (`PhysCore.interpol`) | ✅ есть |
+| Server reconciliation | Клиент сверяет локальное состояние с авторитетным | клиентский SyncBridge | ❌ TODO |
+| Lag compensation | Сервер «отматывает» время для попаданий | `DamageSystem` (будущий) | ❌ TODO |
+| Jitter buffer | Буферизация входящих пакетов | клиентский SyncBridge | ❌ TODO |
 
 ---
 
@@ -124,46 +64,99 @@ rnl здесь ни при чём — это чисто game layer.
 
 | Тип данных | Механизм | Когда | Пример |
 |---|---|---|---|
-| **Часто + всем** | `@:s` на NetworkSerializable | Auto dirty delta, каждый тик | Позиции героев (2-4) |
-| **Событийно** | `@:rpc` + Serializable payload | По вызову, one-shot | Выстрел, spawn, damage, join/leave |
-| **Редко / конфиг** | `@:s` на NetworkSerializable | Auto, но меняется редко | Гравитация, размер мира |
+| **Часто + всем** | `@:s` на per-entity объекте (HeroObject) | Auto dirty delta, 30 Hz | Позиция, HP героя |
+| **Событийно** | `@:rpc` + Serializable payload | По вызову, one-shot | Выстрел, damage-фидбек |
+| **Детерминизм** | общий sim, без сети | Всегда | Кубы, физика, логика |
 
-### Что реплицируем
+### Что реплицируем / нет
 
 | Что | Механизм | Почему |
 |---|---|---|
-| Позиции героев | `@:s` dirty delta | Часто (30 Hz), все должны видеть |
-| Спавн пули | `@:rpc(clients) bulletSpawn(...)` | Событие, одного раза достаточно |
-| Удаление пули | `@:rpc(clients) bulletRemove(...)` | Событие |
-| Damage | `@:rpc(clients) damage(...)` | Событие |
-| Join/Leave | `@:rpc(clients) playerJoined/Left(...)` | Событие (уже через `announce()`) |
-| Спавн куба | `@:rpc(clients) cubeSpawn(...)` | Один раз, потом физика синхронна |
-| Удаление куба | `@:rpc(clients) cubeRemove(...)` | Событие |
-| Конфиг мира | `@:s` на WorldState | Редко меняется |
+| Позиция + HP + оружие героя | `@:s` HeroObject | сервер-owned, античит |
+| Спавн пули | `@:rpc(clients) bulletSpawn` | one-shot, дальше — детерминизм |
+| Damage-фидбек (числа, HUD) | `@:rpc(clients) damage` | мгновенный визуал |
+| Input (движение/прыжок) | `@:rpc(server) heroInput` | prediction на клиенте |
+| Join/Leave | `LobbyNet.announce` | уже есть |
+| Кубы / их физика | **не реплицируем** | детерминистически одинаковы |
+| Пули (движение, коллизии) | **не реплицируем** | детерминистическая симуляция |
+| Логика (HeroSystem, BulletSystem) | **не реплицируем** | одна на обе стороны |
+| Спавн героев | детерминистический | обе стороны вызывают `spawnHero()` |
 
-### Что НЕ реплицируем
-
-| Что | Почему |
-|---|---|
-| Физика кубов | Детерминистическое дублирование (обе стороны spawn'ят одинаково) |
-| Позиции пуль | Детерминистическое (обе стороны apply velocity одинаково) |
-| Конфиг мира (cdb) | Уже синхронизирован через `GameData` (cdb файл идентичен) |
-| Логика (HeroSystem, BulletSystem) | Одинаковая на обеих сторонах |
-| Спавн героев | Детерминистический (обе стороны вызывают `spawnHero()`) |
+> **Примечание:** детерминизм — НЕ гарантия. Когда пуля/куб станут
+> серверными (античит, разрушаемость), они получат свой класс с `@:s` —
+> ровно как HeroObject. Это локальное изменение типа, не архитектурное.
 
 ---
 
-## Архитектура: три слоя
+## Архитектура данных
+
+### Source of truth: SimWorld (сервер owns)
 
 ```
-Layer 1: EventBus (shared)             — чистая pub/sub шина, без знаний о транспорте
-Layer 2: TransportSystems (client/server) — подписчики шины, forwarding через GameNet
-Layer 3: NetworkFacade (shared)        — WorldState + GameNet (@:rpc, @:s)
+SimWorld
+├── heroes  : Map<String, PhysBody>    — физические тела (позиция, velocity)
+├── heroEnts: Map<String, HeroObject>  — НЕТВОРК-сущности (HP, оружие, счёт, позиция-копия)
+├── systems : Systems                  — логика (HeroSystem, BulletSystem)
+└── bus     : EventBus                 — коммуникация
 ```
 
-**Принцип:** шина ничего не знает о транспорте. Транспорт = система-подписчик,
-как `HeroSystem` или `BulletSystem`. Добавление нового ивента = подписка в
-`TransportSystem`, без изменений шины.
+Ключ обеих map — `playerId`. `HeroObject` создаёт/добавляет сервер;
+клиент получает mirror и строит свою `Map<playerId, HeroObject>`.
+
+### HeroObject — единственное место игровых данных героя
+
+```haxe
+// shared/net/HeroObject.hx
+class HeroObject extends rnl.net.NetworkSerializable {
+    @:s public var playerId : String = "";
+    // позиция — единственная копия (Oimo владеет transform PhysBody)
+    @:s public var posX : Float = 0;
+    @:s public var posY : Float = 0;
+    @:s public var posZ : Float = 0;
+    @:s public var yaw : Float = 0;
+    // игровые данные — ЖИВУТ здесь
+    @:s public var hp : Float = 100;
+    @:s public var maxHp : Float = 100;
+    @:s public var weaponId : Int = 0;
+    @:s public var ammo : Int = 0;
+    @:s public var score : Int = 0;
+
+    public function new() {
+        super();
+        __syncChannel = 1; // позиции loss-tolerant (unreliable)
+    }
+}
+```
+
+**Правило доступа:**
+- **Сервер** — создаёт `HeroObject`, `net.add(obj)`, пишет в `@:s` поля
+  (dirty ставится сам, SYNC летит клиентам).
+- **Клиент** — читает mirror напрямую (HUD `obj.hp`); НЕ пишет в него
+  (это рушит dirty-бит и конфликтует с сервером).
+
+### Один факт данных — одно место (без дублирования)
+
+```
+Система (сервер):  sim.heroEnts[id].hp -= 25
+                     ↓ dirty автоматически
+нуждается только в этом → SYNC → зеркала клиентов
+```
+
+Позиция — единственная явная копия: `PhysBody` владеет transform (Oimo),
+его нельзя сделать `@:s` полем. Пишет её **SyncBridge** (см. ниже).
+
+---
+
+## Архитектура: три слоя (коммуникация)
+
+```
+Layer 1: EventBus (shared)             — чистая pub/sub без знаний о транспорте
+Layer 2: TransportSystems (client/server) — подписчики шины → GameNet RPC
+Layer 3: Per-entity replicated objects  — HeroObject (@:s) + GameNet (@:rpc)
+```
+
+**Принцип:** шина ничего не знает о GameNet. Транспорт = система-подписчик,
+как HeroSystem. Добавление ивента = подписка в TransportSystem, без правок шины.
 
 ---
 
@@ -174,37 +167,34 @@ Layer 3: NetworkFacade (shared)        — WorldState + GameNet (@:rpc, @:s)
 ```
 PlayerControllerSystem
   → bus.publish(HeroMoveIntent("local", ...))
-  → ClientTransportSystem.onHeroMove()    [подписчик шины]
+  → ClientTransportSystem.onHeroMove()     [подписчик шины]
     → gameNet.heroInput(playerId, dirX, dirZ, yaw, mag, jump)
     → RNL: CALL → сервер
 
 Сервер:
   NetRoomSystem.update() → socket.update(0) → receive CALL
   → GameNet.heroInput__im() → onHeroInput hook
-  → bus.publish(HeroMoveIntent(...))      [локальная доставка]
-  → HeroSystem.onIntent()                 [пишет в SimWorld.heroes]
+  → bus.publish(HeroMoveIntent(...))       [локальная доставка]
+  → HeroSystem.onIntent()                  [двигает PhysBody]
 ```
 
-### Сервер → Клиент (state): два параллельных канала
+### Сервер → Клиент (state): два канала
 
 ```
-A) @:s dirty delta (автоматически, 30 Hz):
-   SimWorld.playerData[pid].hp = 75       ← source of truth
-   ↓ ReplicationSystem.syncFromSim()
-   WorldState.heroes[i].hp = 75           ← копия для сети
-   ↓ flush() → dirty delta
-   Mirror.heroes[i].hp = 75               ← клиент получает
+A) @:s dirty delta (автоматически, 30 Hz) — авторитетное состояние:
+   HeroSystem.move → PhysBody
+   SyncBridge (сервер): body.pos → obj.pos*     [1 строка]
+   системы пишут: obj.hp = ...                   [1 строка]
+   rnl: dirty/clear → SYNC (unreliable канал) → mirror на клиенте
 
-B) @:rpc event (one-shot, мгновенно):
+B) @:rpc event (one-shot, мгновенно) — визуальный фидбек:
    ServerTransportSystem.onPlayerDamaged()
-     → gameNet.playerDamaged(playerId, damage, hp)
-     → @:rpc(clients) → клиент получает событие
-     → показать damage number, HUD update
+     → gameNet.damage(playerId, amount)
+     → клиенты показывают damage number / HUD flash
 ```
 
-**Зачем оба канала:**
-- `@:s` delta — авторитетное HP (source of truth), задержка до 33ms
-- `@:rpc` event — мгновенный фидбек (damage number, HUD flash)
+**Зачем оба:** `@:s` = авторитетное HP (задержка до 33ms), `@:rpc` = мгновенный
+фидбек UI. Оба инициируются сервером от одного события.
 
 ---
 
@@ -212,299 +202,201 @@ B) @:rpc event (one-shot, мгновенно):
 
 ```
 shared/
-├── SimWorld.hx                      — физика + логика (без изменений)
+├── SimWorld.hx                         — ✅ heroEnts: Map<String, HeroObject> (#if sys)
 ├── replication/
-│   └── ReplicationSystem.hx         — NEW: sync мир ↔ сеть
+│   └── SyncBridge.hx                   — ✅ NEW: единственная копия body↔obj позиции (#if sys)
 ├── net/
-│   ├── LobbyNet.hx                  — RPC facade (без изменений)
-│   ├── GameNet.hx                   — RPC facade (расширить: heroInput, bulletSpawn, ...)
-│   ├── WorldState.hx                — NEW: NetworkSerializable, @:s позиции героев
-│   ├── HeroState.hx                 — NEW: Serializable, данные героя
-│   ├── BulletState.hx               — NEW: Serializable, данные пули (payload для RPC)
-│   ├── PlayerInfo.hx                — есть
-│   ├── NetConfig.hx                 — есть
-│   └── NetRegistry.hx              — добавить новые классы
-├── events/
-│   ├── EventBus.hx                  — есть (без изменений)
-│   └── GameEvents.hx                — есть (HeroMoveIntent, BulletFired)
+│   ├── HeroObject.hx                   — ✅ NEW: per-entity NetworkSerializable
+│   ├── GameNet.hx                      — ✅ EDIT: только события + playerJoined
+│   ├── LobbyNet.hx / PlayerInfo.hx     — есть, без изменений
+│   ├── NetConfig.hx                    — есть
+│   └── NetRegistry.hx                  — ✅ EDIT: +CLID HeroObject
+├── events/                             — есть (без изменений)
 └── systems/
-    ├── HeroSystem.hx                — есть (без изменений)
-    └── BulletSystem.hx              — есть (без изменений)
+    ├── HeroSystem.hx                   — есть; спавн сущности вызывает room/кто-то
+    └── BulletSystem.hx                 — есть (без изменений)
 
 server/
 ├── systems/
-│   ├── NetRoomSystem.hx             — добавить GameNet в socket
-│   └── ServerTransportSystem.hx     — NEW: подписчик шины → broadcast через GameNet
+│   ├── NetRoomSystem.hx                — есть
+│   └── ServerTransportSystem.hx        — ✅ NEW: подписчик шины → broadcast через GameNet
 ├── room/
-│   ├── Room.hx                      — создать WorldState + GameNet
-│   ├── LobbyRoom.hx                 — без изменений
-│   └── DemoRoom.hx                  — wire GameNet handlers
-└── events/
-    └── ServerEventBus.hx            — чистая шина (без изменений)
+│   ├── Room.hx                         — ✅ EDIT: GameNet + ServerTransportSystem; flush шины в tick
+│   ├── LobbyRoom.hx                    — без изменений
+│   └── DemoRoom.hx                     — ✅ EDIT: HeroObject на join, playerJoined, SyncBridge(true)
+└── events/                             — есть
 
 client/
 ├── systems/
-│   ├── RoomNetSystem.hx             — findMirror(WorldState + GameNet), wire transport
-│   ├── PlayerControllerSystem.hx    — есть (без изменений)
-│   └── ClientTransportSystem.hx     — NEW: подписчик шины → input через GameNet
+│   ├── RoomNetSystem.hx                — ✅ EDIT: gameNet mirror + onPlayerJoined/onBulletSpawn/onDamage
+│   ├── PlayerControllerSystem.hx       — есть
+│   └── ClientTransportSystem.hx        — ✅ NEW: подписчик шины → input через GameNet
 ├── views/
-│   └── GamePlayView.hx              — создать ReplicationSystem
-└── events/
-    └── ClientEventBus.hx            — чистая шина (без изменений)
+│   └── GamePlayView.hx                 — ✅ EDIT: heroEnts poll, SyncBridge(false), wire GameNet
+└── events/                             — есть
 ```
 
 ---
 
 ## Детали по файлам
 
-### shared/net/HeroState.hx
+### shared/net/HeroObject.hx
+
+Класс с `@:s` игровыми полями (см. выше). Дополнительно:
 
 ```haxe
-package shared.net;
-
-import rnl.net.Serializable;
-
-/** Позиция одного героя в мире. Payload для @:rpc и @:s массивов. */
-class HeroState extends Serializable {
-    @:s public var playerId : String = "";
-    @:s public var x : Float = 0;
-    @:s public var y : Float = 0;
-    @:s public var z : Float = 0;
-    @:s public var yaw : Float = 0;
-    // Будущее (добавляем когда нужно):
-    // @:s public var hp : Float = 100;
-    // @:s public var weaponId : Int = 0;
+override function onFullSync() : Void {
+    // mirror прибыл: выставить dirty, чтобы клиент прочитал полное состояние
+    super.onFullSync();
 }
 ```
 
-### shared/net/BulletState.hx
+> rnl-лимит: максимум 32 `@:s` поля на класс. Сейчас 9. Вся будущая
+> игровая статистика (инвентарь, баффы) — сюда, запас есть.
+
+### shared/net/NetRegistry.hx — добавить
 
 ```haxe
-package shared.net;
+Registry.getCLID(Type.getClassName(HeroObject));
+```
 
-import rnl.net.Serializable;
+> ADD/FULLSYNC резолвят класс по имени (`Type.resolveClass`) и CLID не требуют,
+> но регистрация обязательна для value-«Serializable» payload'ов (PlayerInfo).
+> HeroObject — NetworkSerializable — регистрируем для симметрии/безопасности.
+> Класс должен пережить DCE (`-D dce=no` уже в обоих hxml).
 
-/** Payload для bulletSpawn RPC — one-shot, не реплицируется через @:s. */
-class BulletState extends Serializable {
-    @:s public var x : Float = 0;
-    @:s public var y : Float = 0;
-    @:s public var z : Float = 0;
-    @:s public var dirX : Float = 0;
-    @:s public var dirY : Float = 0;
-    @:s public var dirZ : Float = 0;
-    @:s public var lifetime : Float = 0;
+### client/src/extract/net/ClientNet.hx — `findObjects`
+
+`findMirror<T>` возвращает ПЕРВЫЙ объект класса. Для per-entity нужны все:
+
+```haxe
+/** All mirrored NetworkSerializable instances of `cls` (empty on web). */
+public function findObjects<T:NetworkSerializable>(cls : Class<T>) : Array<T>
+{
+    if (socket == null) return [];
+    var out : Array<T> = [];
+    for (o in socket.objects)
+    {
+        var m = Std.downcast(o, cls);
+        if (m != null) out.push(m);
+    }
+    return out;
 }
 ```
 
-### shared/net/WorldState.hx
+(`#if !sys` stub: `return [];`)
+
+### shared/replication/SyncBridge.hx
+
+Единственное место явного копирования позиции (Oimo владеет transform).
+isServer определяет направление:
 
 ```haxe
-package shared.net;
+class SyncBridge extends System {
+    var isServer : Bool;   // true — сервер, false — клиент
 
-import rnl.net.NetworkSerializable;
-
-/** Реплицируемое состояние мира. Только то, что невозможно
-    дублировать детерминистически. Сервер owner, клиенты — mirror. */
-class WorldState extends NetworkSerializable {
-    /** Позиции всех героев. Переприсваивать массив каждый тик
-        (plain Array не отслеживает push — dirty bit не ставится). */
-    @:s public var heroes : Array<HeroState> = [];
-    // Bullets НЕ здесь — спавн/удаление через @:rpc
-    // Cubes НЕ здесь — детерминистическое дублирование
-    // Config НЕ здесь — уже в GameData (cdb)
-}
-```
-
-### shared/net/GameNet.hx — расширение
-
-```haxe
-package shared.net;
-
-import rnl.net.NetworkSerializable;
-
-/** Game RPC facade. Сервер owner, клиенты — mirror. */
-class GameNet extends NetworkSerializable {
-    // === Server handler hooks ===
-    public var onPosition : Null<String -> Float -> Float -> Float -> Float -> Void> = null;
-    public var onFire : Null<String -> Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
-    public var onHeroInput : Null<String -> Float -> Float -> Float -> Float -> Bool -> Void> = null;
-
-    // === Client handler hooks ===
-    public var onHeroUpdate : Null<String -> Float -> Float -> Float -> Float -> Void> = null;
-    public var onBulletSpawn : Null<Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
-    public var onBulletRemove : Null<Int -> Void> = null;
-    public var onCubeSpawn : Null<Int -> Float -> Float -> Float -> Float -> Void> = null;
-    public var onCubeRemove : Null<Int -> Void> = null;
-    public var onDamage : Null<String -> Float -> Void> = null;
-
-    // === Client -> server RPCs ===
-
-    /** Input: movement intent from a client. */
-    @:rpc(server)
-    public function heroInput(playerId : String, dirX : Float, dirZ : Float,
-                              yaw : Float, mag : Float, jump : Bool) : Void {
-        if (onHeroInput != null) onHeroInput(playerId, dirX, dirZ, yaw, mag, jump);
+    override function update(dt : Float) : Void {
+        if (isServer) pushSimToNet();
+        else pullNetToSim();
     }
 
-    /** Fire request from a client. */
-    @:rpc(server)
-    public function fireBullet(playerId : String, x : Float, y : Float, z : Float,
-                               dirX : Float, dirY : Float, dirZ : Float) : Void {
-        if (onFire != null) onFire(playerId, x, y, z, dirX, dirY, dirZ);
-    }
-
-    // === Server -> client RPCs ===
-
-    /** Broadcast: a hero moved. */
-    @:rpc(clients)
-    public function heroUpdate(playerId : String, x : Float, y : Float,
-                               z : Float, yaw : Float) : Void {
-        if (onHeroUpdate != null) onHeroUpdate(playerId, x, y, z, yaw);
-    }
-
-    /** Broadcast: a bullet was spawned. */
-    @:rpc(clients)
-    public function bulletSpawn(x : Float, y : Float, z : Float,
-                                dirX : Float, dirY : Float, dirZ : Float) : Void {
-        if (onBulletSpawn != null) onBulletSpawn(x, y, z, dirX, dirY, dirZ);
-    }
-
-    /** Broadcast: a bullet was removed (lifetime expire or collision). */
-    @:rpc(clients)
-    public function bulletRemove(netId : Int) : Void {
-        if (onBulletRemove != null) onBulletRemove(netId);
-    }
-
-    /** Broadcast: a cube was spawned (one-shot, then deterministic). */
-    @:rpc(clients)
-    public function cubeSpawn(netId : Int, x : Float, y : Float, z : Float, size : Float) : Void {
-        if (onCubeSpawn != null) onCubeSpawn(netId, x, y, z, size);
-    }
-
-    /** Broadcast: a cube was removed. */
-    @:rpc(clients)
-    public function cubeRemove(netId : Int) : Void {
-        if (onCubeRemove != null) onCubeRemove(netId);
-    }
-
-    /** Broadcast: damage dealt to a player. */
-    @:rpc(clients)
-    public function damage(playerId : String, amount : Float) : Void {
-        if (onDamage != null) onDamage(playerId, amount);
-    }
-}
-```
-
-### shared/replication/ReplicationSystem.hx
-
-```haxe
-package shared.replication;
-
-import shared.SimWorld;
-import shared.Player;
-import shared.net.WorldState;
-import shared.net.HeroState;
-import shared.systems.System;
-
-/**
-    Отдельный слой: копирует данные между SimWorld и NetworkSerializable.
-    Не знает про логику, RPC, или транспорт.
-
-    WorldState — транспортный контейнер, НЕ хранилище данных.
-    Source of truth = SimWorld (playerData, heroes).
-    WorldState — временный буфер для @:s dirty deltas.
-
-    Контейнер (Systems) вызывает update(dt) автоматически:
-    - Сервер: roomSystems (после world.update())
-    - Клиент: BaseScene.systems (каждый кадр)
-
-    isServer определяет направление копирования:
-    - true:  SimWorld → WorldState (копия для сети)
-    - false: WorldState → SimWorld (применение от сервера) */
-class ReplicationSystem extends System {
-    var worldState : WorldState;
-    var isServer : Bool;
-
-    public function new(bus, sim, worldState, isServer) {
-        super(bus, sim, "Replication");
-        this.worldState = worldState;
-        this.isServer = isServer;
-    }
-
-    override function update(dt) {
-        if (isServer) syncFromSim();
-        else applyToSim();
-    }
-
-    /** Сервер: SimWorld → WorldState (копия для сети). */
-    function syncFromSim() {
-        var arr : Array<HeroState> = [];
+    /** Сервер: авторитетная физика → HeroObject (отправка клиентам). */
+    function pushSimToNet() {
         for (id in sim.heroes.keys()) {
-            var body = sim.heroes.get(id);
-            var data = sim.playerData.get(id);
-            var hs = new HeroState();
-            hs.playerId = id;
-            hs.x = body.getPos().x;
-            hs.y = body.getPos().y;
-            hs.z = body.getPos().z;
-            hs.yaw = 0; // TODO: извлечь yaw из body
-            if (data != null) hs.hp = data.hp; // копия HP
-            arr.push(hs);
+            var obj = sim.heroEnts.get(id);
+            if (obj == null) continue;
+            var p = sim.heroes.get(id).getPos();
+            obj.posX = p.x; obj.posY = p.y; obj.posZ = p.z;
+            // yaw: извлечь из PhysBody (Quat → angle вокруг Y) — TODO
         }
-        worldState.heroes = arr; // переприсваивание → dirty bit
     }
 
-    /** Клиент: WorldState → SimWorld (remote players). */
-    function applyToSim() {
-        if (worldState == null) return; // mirror ещё не arrived
-        for (hs in worldState.heroes) {
-            if (hs.playerId == Player.LOCAL) continue;
-            var body = sim.heroes.get(hs.playerId);
-            if (body != null) {
-                body.setPosition(hs.x, hs.y, hs.z);
-                // TODO: apply rotation from hs.yaw
-            }
-            var data = sim.playerData.get(hs.playerId);
-            if (data != null) data.hp = hs.hp; // синхронизация HP
+    /** Клиент: mirror → тело remote-игрока (для рендера интерполяции).
+        Player.LOCAL пропускаем — его движение идёт локально (prediction),
+        применение зеркала дёрнуло/перектлав бы собственное тело. */
+    function pullNetToSim() {
+        for (id in sim.heroes.keys()) {
+            if (id == Player.LOCAL) continue; // prediction — свой герой локальный
+            var obj = sim.heroEnts.get(id);
+            if (obj == null) continue;
+            var body = sim.heroes.get(id);
+            body.setPosition(obj.posX, obj.posY, obj.posZ);
         }
     }
 }
 ```
 
-### client/systems/ClientTransportSystem.hx — Transport (подписчик шины)
+Размещение:
+- **Сервер:** `Room.roomSystems.add(new SyncBridge(bus, world, heroObjs, true))`
+  — тикает в `roomSystems.update(dt)` (после `world.update`, 30 Hz).
+- **Клиент:** `GamePlayView.systems.add(new SyncBridge(bus, sim, heroEnts, false))`
+  — тикает каждый кадр.
+
+> Только позиция копируется. HP/оружие/счёт пишут системы напрямую —
+> dirty бешеный, отдельного копирования нет.
+
+### shared/net/GameNet.hx — только события
+
+Удалить `sendPosition`/`heroUpdate` (позиция теперь в HeroObject). Остаются:
 
 ```haxe
-package extract.systems;
+class GameNet extends NetworkSerializable {
+    public var onHeroInput : Null<Float->Float->Float->Float->Bool->Void> = null; // pid сервер резолвит из __rpcCaller
+    public var onFire      : Null<Float->Float->Float->Float->Float->Float->Void> = null;
+    public var onBulletSpawn : Null<String->Float->Float->Float->Float->Float->Float->Void> = null; // ownerId first
+    public var onDamage    : Null<String->Float->Void> = null;
+    public var onPlayerJoined : Null<String->String->Void> = null; // playerId, name
 
-import shared.GameData;
-import shared.events.EventBus;
-import shared.events.GameEvents.HeroMoveIntent;
-import shared.events.GameEvents.BulletFired;
-import shared.net.GameNet;
-import shared.systems.System;
+    @:rpc(server)  public function heroInput(dirX, dirZ, yaw, mag, jump) { if(onHeroInput!=null) onHeroInput(...); }
+    @:rpc(server)  public function fireBullet(x,y,z,dirX,dirY,dirZ) { if(onFire!=null) onFire(...); }
+    @:rpc(clients) public function bulletSpawn(ownerId:String, ...) { if(onBulletSpawn!=null) onBulletSpawn(...); }
+    @:rpc(clients) public function damage(playerId:String, amount:Float) { if(onDamage!=null) onDamage(playerId, amount); }
+    @:rpc(clients) public function playerJoined(playerId:String, name:String) { if(onPlayerJoined!=null) onPlayerJoined(playerId, name); }
+}
+```
 
-/** Клиентская транспортная система: подписывается на шину и forwarding input
-    на сервер через GameNet RPC. Шина ничего не знает о транспорте. */
+### server/systems/ServerTransportSystem.hx — NEW
+
+```haxe
+class ServerTransportSystem extends System {
+    var gameNet : Null<GameNet>;
+    public function new(bus, gd, gameNet) {
+        super(bus, null, gd, "ServerTransport");
+        this.gameNet = gameNet;
+        bus.subscribe(BulletFired, onBulletFire);
+    }
+    function onBulletFire(e : BulletFired) {
+        if (gameNet != null) gameNet.bulletSpawn(e.ownerId, e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+    }
+    // TODO: subscribe to damage/playerDamaged → gameNet.damage(...)
+    override function dispose() {
+        bus.unsubscribe(BulletFired, onBulletFire);
+        gameNet = null;
+        super.dispose();
+    }
+}
+```
+
+> Позиции/HP НЕ идут через шину — их реплицирует HeroObject (@:s).
+> Шина только для one-shot событий.
+
+### client/systems/ClientTransportSystem.hx — NEW
+
+```haxe
 class ClientTransportSystem extends System {
     var gameNet : Null<GameNet>;
-
     public function new(bus, gd, gameNet) {
         super(bus, null, gd, "ClientTransport");
         this.gameNet = gameNet;
         bus.subscribe(HeroMoveIntent, onHeroMove);
         bus.subscribe(BulletFired, onBulletFire);
     }
-
     function onHeroMove(e : HeroMoveIntent) {
-        if (gameNet != null)
-            gameNet.heroInput(e.playerId, e.dirX, e.dirZ, e.yaw, e.mag, e.jump);
+        if (gameNet != null) gameNet.heroInput(e.playerId, e.dirX, e.dirZ, e.yaw, e.mag, e.jump);
     }
-
     function onBulletFire(e : BulletFired) {
-        if (gameNet != null)
-            gameNet.fireBullet("_", e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+        if (gameNet != null) gameNet.fireBullet("_", e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
     }
-
     override function dispose() {
         bus.unsubscribe(HeroMoveIntent, onHeroMove);
         bus.unsubscribe(BulletFired, onBulletFire);
@@ -514,112 +406,69 @@ class ClientTransportSystem extends System {
 }
 ```
 
-### server/systems/ServerTransportSystem.hx — Broadcast (подписчик шины)
+### server/room/Room.hx — EDIT
 
 ```haxe
-package serv.systems;
-
-import shared.GameData;
-import shared.events.EventBus;
-import shared.events.GameEvents.HeroMoveIntent;
-import shared.events.GameEvents.BulletFired;
-import shared.net.GameNet;
-import shared.systems.System;
-
-/** Серверная транспортная система: подписывается на шину и broadcast
-    one-shot события клиентам через GameNet RPC. Позиции героев
-    реплицируются через @:s dirty delta (ReplicationSystem), не через шину. */
-class ServerTransportSystem extends System {
-    var gameNet : Null<GameNet>;
-
-    public function new(bus, gd, gameNet) {
-        super(bus, null, gd, "ServerTransport");
-        this.gameNet = gameNet;
-        bus.subscribe(BulletFired, onBulletFire);
-        // TODO: subscribe to new events as needed
-    }
-
-    function onBulletFire(e : BulletFired) {
-        if (gameNet != null)
-            gameNet.bulletSpawn(e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
-    }
-
-    override function dispose() {
-        bus.unsubscribe(BulletFired, onBulletFire);
-        gameNet = null;
-        super.dispose();
-    }
-}
-```
-
-**Почему это правильно:**
-- `EventBus` — чистая pub/sub шина, **без знаний** о GameNet, ивентах, или транспорте
-- `TransportSystem` — обычный подписчик, как `HeroSystem` или `BulletSystem`
-- Добавление нового ивента = подписка в `TransportSystem`, без изменений шины
-- `dispose()` отписывается от шины — нет утечек
-
-### server/room/Room.hx — измнения
-
-```haxe
-// Добавить поля:
-var worldState : WorldState;
 var gameNet : GameNet;
-
-// В конструкторе:
-worldState = new WorldState();
-netSys.socket.add(worldState);
-
+// в конструкторе (после netSys):
 gameNet = new GameNet();
 netSys.socket.add(gameNet);
-
-// Wire transport + replication systems (room-level):
 roomSystems.add(new ServerTransportSystem(bus, gd, gameNet));
-roomSystems.add(new ReplicationSystem(bus, world, worldState, true));
-//                                                     ^^^^^ isServer
-
-// tick() уже вызывает roomSystems.update(dt) после world.update()
-// — ReplicationSystem.tick() автоматически синхронизирует heroes → worldState
 ```
 
-### client/views/GamePlayView.hx — измнения
+### server/room/DemoRoom.hx — EDIT (на join)
 
 ```haxe
-// В конструкторе (после создания sim и systems):
-var worldStateMirror = roomNet.clientNet.findMirror(WorldState);
+// peer собрался играть → создать авторскую сущность
+var obj = new HeroObject();
+obj.playerId = playerId;
+obj.hp = 100; obj.maxHp = 100;     // из GameData? TODO
+sim.heroEnts.set(playerId, obj);
+netSys.socket.add(obj);
+roomSystems.add(new SyncBridge(bus, world, sim.heroEnts, true));
+```
+
+### client/views/GamePlayView.hx — EDIT
+
+```haxe
+var heroEnts : Map<String, HeroObject> = new Map();
 var gameNetMirror = roomNet.clientNet.findMirror(GameNet);
 
-// Wire transport system (подписчик шины, в BaseScene.systems):
 systems.add(new ClientTransportSystem(bus, gd, gameNetMirror));
+// poll mirrors каждый кадр (в update()):
+for (o in roomNet.clientNet.findObjects(HeroObject)) {
+    if (!heroEnts.exists(o.playerId)) {
+        heroEnts.set(o.playerId, o);
+        // показать remote-героя (спавн mesh) — TODO
+    }
+}
+systems.add(new SyncBridge(bus, sim, heroEnts, false));
 
-// Wire replication system (sync mirror → sim, в BaseScene.systems):
-systems.add(new ReplicationSystem(bus, sim, worldStateMirror, false));
-//                                                        ^^^^^ isServer
-
-// Wire GameNet client handlers:
-gameNetMirror.onHeroUpdate = onHeroUpdate;
-gameNetMirror.onBulletSpawn = onBulletSpawn;
-// ...
-
-// systems.update() уже вызывается в super.update()
-// — ReplicationSystem.tick() автоматически применяет позиции remote heroes
+gameNetMirror.onDamage = (pid, amount) -> { /* HUD damage number */ };
 ```
+
+### client/systems/RoomNetSystem.hx — EDIT
+
+Добавить в `update()` после mirror-up: сбор `heroEnts` из `findObjects`,
+выносить наружу как `heroEnts: Map<String, HeroObject>` (или оставить
+GamePlayView самому поллить — см. выше).
 
 ---
 
 ## rnl: @:s ограничения и gotchas
 
-| Ограничение | Значение |
+| Ограничение | Здесь |
 |---|---|
-| Max 32 `@:s` полей на класс | Single UInt bitmask. Для прототипа достаточно. |
-| `Array<T>` с `@:s` не отслеживает `push()` | Нужно **переприсваивать** весь массив каждый тик. |
-| Dirty tracking на уровне массива | Изменение элемента помечает весь массив. При 2-4 героях ОК. |
-| `@:s(unreliable)` на `__syncChannel = 1` | Все дельты едут по unreliable каналу. Позиции можно потерять. |
-| ADD/FULLSYNC всегда reliable | При подключении нового клиента — полное состояние. |
-| `@:rpc(clients)` не возвращает значение | Только broadcast. |
-| CLID registration mandatory | `NetRegistry.init()` на обеих сторонах. |
-| `@:rpc` не может иметь optional args | Макрос ошибается. |
-| `Serializable` vs `NetworkSerializable` | `Serializable` = payload (inline). `NetworkSerializable` = replicated object (netId, dirty). |
-| `@:s` на anonymous struct | Работает, но нет versioning/migration. |
+| Max 32 `@:s` полей/класс | HeroObject: 9. Запас для инвентаря. |
+| `Array<T>` с `@:s` не видит `push()` | В Pattern A массивов нет — поля on-the-fly. ✅ |
+| Dirty per-поле / per-объект | XY упаковки не надо — 32-битный битмаск сам. |
+| `__syncChannel = 1` (unreliable) | Позиции ловятся потерями → следующий SYNC перепишет. |
+| ADD/FULLSYNC всегда reliable | Первое полное состояние приходит гарантированно. |
+| `@:rpc(clients)` — только broadcast | События one-shot, ок. |
+| CLID registration | NetRegistry.init() на обеих сторонах; HeroObject добавить. |
+| `@:rpc` — без optional args | Держать сигнатуры фиксированными. |
+| Serializable vs NetworkSerializable | HeroObject — второй (netId/dirty). Payload'ы (@:rpc args) — первый. |
+| rnl `receiveCall` patch (`__rpcCaller`) | Нужен для map peerId→playerId (есть в AGENTS.md). |
 
 ---
 
@@ -628,130 +477,96 @@ gameNetMirror.onBulletSpawn = onBulletSpawn;
 ### Что работает сейчас
 
 - LobbyNet RPC facade ✅
-- GameNet RPC facade (heroUpdate, bulletSpawn) ✅
+- GameNet RPC facade (только события: heroInput/fire/bulletSpawn/damage) ✅
 - SimWorld (физика + HeroSystem + BulletSystem) ✅
-- ClientNet с findMirror<T>() ✅
+- ClientNet: `findMirror<T>` ✅ + `findObjects<T>` ✅
 - RoomNetSystem (client) / NetRoomSystem (server) ✅
-- EventBus (publish/subscribe/flush) ✅
-- ClientEventBus / ServerEventBus (TODO transport) ✅
+- EventBus, ClientEventBus / ServerEventBus ✅ (transport — подписчик, не шина)
+- SyncBridge (shared/replication, #if sys) ✅
+- ClientTransportSystem / ServerTransportSystem (Phase 5) ✅
+- Room/GameNet/ServerTransport + DemoRoom (HeroObject на join, playerJoined, SyncBridge(true)) (Phase 6) ✅
+- GamePlayView/RoomNetSystem: heroEnts poll, SyncBridge(false), wire handlers (Phase 7) ✅
+- Прогон: server + 2 headless клиента видят HeroObject друг друга (Phase 8) ✅
 
-### Что нужно построить
+### Что нужно построить (Pattern A)
 
-- WorldState (NetworkSerializable, @:s поля) ❌
-- HeroState / BulletState (Serializable) ❌
-- ReplicationSystem (sync мир ↔ сеть) ❌
-- ClientTransportSystem (подписчик шины → input через GameNet) ❌
-- ServerTransportSystem (подписчик шины → broadcast через GameNet) ❌
-- Room.hx: создание WorldState + GameNet ❌
-- RoomNetSystem: findMirror(WorldState + GameNet) ❌
-
----
-
-## Вопросы для решения
-
-### Q1: heroUpdate через @:s или @:rpc?
-
-**A) `@:s` на WorldState.heroes** — auto dirty delta. Просто, но массив пересылается целиком.
-**B) `@:rpc(clients) heroUpdate(...)` — one-shot RPC. Чище, но нужно вызывать каждый тик.
-
-При 2-4 героях A проще. При большом количестве — B эффиентнее.
-
-**Рекомендация:** начать с A (проще), перейти на B при масштабировании.
-
-### Q2: Максимум героев?
-
-Определяет подход к репликации:
-- 2-4 героя → `@:s Array<HeroState>` (переприсваивание каждый тик, ~200-500 байт)
-- 8-16 героев → `@:rpc(clients) heroUpdate(...)` (только изменённые)
-- 32+ → персонифицированная рассылка (каждому клиенту только видимых)
-
-**Вопрос:** сколько героев максимум в прототипе?
-
-### Q3: Клиент applies remote hero positions — через физику или transform?
-
-**A) Transform (ткинет позицию)** — проще, но дёргано при потере пакетов.
-**B) Velocity (задаёт velocity)** — плавнее, но нужен interpolation.
-
-**Рекомендация:** начать с A (проще), добавить interpolation позже.
-
-### Q4: Один ReplicationSystem или два?
-
-**A) Один с `isServer` флагом** — проще, меньше кода.
-**B) ServerReplication / ClientReplication** — чище, но дублирование.
-
-**Рекомендация:** A (проще для прототипа).
-
-### Q5: GameNet.heroInput — нужен ли он?
-
-`ClientEventBus` уже может вызывать `mirror.sendPosition()` напрямую. `heroInput` RPC = `sendPosition` с другим именем.
-
-**Вариант A:** Удалить `sendPosition`, оставить `heroInput` как единый input RPC.
-**Вариант B:** Оставить оба (sendPosition для позиций, heroInput для всего input).
-
-**Рекомендация:** A — один RPC для input чище.
-
-### Q6: `Std.isOfType` для определения типа ивента?
-
-В Haxe 4.x `Std.isOfType(event, HeroMoveIntent)` работает. Альтернатива — `Type.getClass(event) == HeroMoveIntent`.
-
-**Рекомендация:** `Std.isOfType` — чище.
-
-### Q7: CubeSpawn через @:rpc или детерминистически?
-
-Сейчас кубы спавнятся одинаково на обеих сторонах (один и тот же таймер в `SimWorld.update()`). Если сохранить детерминистику —不需要 репликация.
-
-**Вариант A:** Оставить детерминистику (проще).
-**Вариант B:** Сервер authoritative — кубы только на сервере, клиент получает `cubeSpawn` RPC.
-
-**Рекомендация:** A для прототипа, B когда появится разная геометрия уровней.
-
-### Q8: __syncChannel = 1 для WorldState?
-
-Если `__syncChannel = 1` — все дельты (включая reliable `@:s` поля) едут по unreliable каналу. Позиции можно потерять, следующий тик перезапишет.
-
-**Вариант A:** `__syncChannel = 0` (reliable) — guaranteed delivery, но больше bandwidth.
-**Вариант B:** `__syncChannel = 1` (unreliable) — loss-tolerant, fewer retransmits.
-**Вариант C:** Reliable для конфига, unreliable для позиций (нужно два объекта или `@:s(unreliable)`).
-
-**Рекомендация:** B для позиций героев (30 Hz, следующий тик перезапишет).
-
-### Q9: Порядок реализации?
-
-1. Serializable классы (HeroState, BulletState) — данные
-2. NetworkSerializable (WorldState) — контейнер
-3. ReplicationSystem — sync логика
-4. ClientEventBus / ServerEventBus — transport
-5. Room.hx — создание объектов
-6. RoomNetSystem —irror discovery
-7. GamePlayView — подключение
-
-**Или** другой порядок?
+- HeroObject (NetworkSerializable, @:s игровые поля) ✅
+- ClientNet.findObjects<T> (все mirror'ы класса) ✅
+- SyncBridge (единственное копирование body↔obj) ✅
+- GameNet чистка (только события: heroInput/fire/bulletSpawn/damage) ✅
+- Room.hx: GameNet + ServerTransportSystem ✅
+- DemoRoom: HeroObject на join + net.add + SyncBridge(true) ✅
+- GamePlayView: heroEnts map + SyncBridge(false) + wire handlers ✅
+- RoomNetSystem / GamePlayView: poll findObjects(HeroObject) ✅
 
 ---
 
-## Решения (заполнять по мере реализации)
+## Фазы
 
-- [ ] Q1: @:s или @:rpc для heroUpdate?
-- [ ] Q2: Максимум героев?
-- [ ] Q3: Transform или velocity для remote heroes?
-- [ ] Q4: Один или два ReplicationSystem?
-- [ ] Q5: heroInput или sendPosition?
-- [ ] Q6: Std.isOfType или Type.getClass?
-- [ ] Q7: CubeSpawn — @:rpc или детерминистика?
-- [ ] Q8: __syncChannel для WorldState?
-- [ ] Q9: Порядок реализации?
+1. **HeroObject** + NetRegistry → компилится `server.hxml`/`win.hxml`/`web.hxml`
+2. **ClientNet.findObjects<T>** (+ web-stub `[]`)
+3. **SyncBridge** (push/pull, yaw из PhysBody TODO)
+4. **GameNet** — чистка: убрать sendPosition/heroUpdate, оставить события
+5. **ServerTransport / ClientTransport** — подписчики шины → GameNet
+6. **Room.hx** — GameNet + ServerTransport; **DemoRoom** — HeroObject на join
+7. **GamePlayView / RoomNetSystem** — heroEnts map, SyncBridge(false), wire handlers
+8. **Сборки + прогон**: сервер, клиент; два клиента видят друг друга (позиция/HP)
+
+---
+
+## Решения (Pattern A)
+
+- **Entity = NetworkSerializable (HeroObject).** Никаких WorldState/HeroState/playerData.
+- **Единственная копия — позиция из Oimo** (SyncBridge, 1 строка на ось).
+- **Двухканальность HP:** `@:s` авторитетный (33ms), `@:rpc` фидбек UI (мгновенно).
+- **GameNet — только события.** Позиции/состояние — `@:s` per-entity.
+- **Детерминизм — не гарантия:** будущая серверная пуля/куб = новый класс
+  с `@:s` (тот же паттерн, локальное изменение типа).
+- **`__syncChannel = 1`** на HeroObject (позиции unreliable, loss-tolerant).
+- **Клиент узнаёт свой server-pid по имени** — из `@:s name` ПОЛЯ HeroObject
+  (в ADD приходит имя владельца → матч с `playerName` на ADD-time, без гонок
+  и повторного спавна своей сущности как remote). Dубликаты имён — прототип-ограничение.
+- **Сервер НЕ доверяет client-supplied playerId** — `heroInput`/`fireBullet`
+  не несут pid; сервер резолвит его из `__rpcCaller` → `playerByPeer`.
+  Клиент физически не может вести чужого героя.
+- **Камера/якорь привязаны ТОЛЬКО к локальному герою** — `setHero` регистрирует
+  ключ ДО onSpawn, view биндит `player.mesh` только при `sim.hero == b`
+  (remote-спавны не угоняют камеру и origin пуль).
+- **SyncBridge.ownId** — клиент пропускает СВОЁ тело (prediction); имя — не
+  константа Player.LOCAL, а server-id (для будущей смены ключей).
+- **bulletSpawn(ownerId, ...)** — стрелявший клиент уже заспавнил пулю локально
+  и пропускает эхо; remote-клиенты спавнят через `BulletSystem.spawnBullet()`
+  НАПРЯМУЮ (в обход шины → нет эха RPC).
+- **Серверный шина флашится в `Room.tick`** (`bus.flush()` после
+  roomSystems.update) — RPC-handler'ы публикуют в шину, доставка в конце тика.
+
+---
+
+## Вопросы (открытые)
+
+- Q1: yaw — извлекать из PhysBody (Quat→угол) в SyncBridge, или хранить
+  поворот отдельным `@:s` полем yaw на hero и применять к телу на клиенте?
+  (пока `@:s` pos без поворота; TODO: добавить yaw полем и применять в pull)
+
+## Вопросы (решённые)
+
+- Q2: **DamageSystem** — логика в BulletSystem: пересечение скорости пули с
+  позицией героя → `sim.heroEnts[pid].hp -= d` → `PlayerDamaged` →
+  ServerTransport → `gameNet.damage`. (урон-фидбек `@:rpc`, HP-состояние `@:s`)
+- Q3: **HeroObject.spawn** — DemoRoom на join (серверный lifecycle), HeroSystem
+  не знает о сети. 
+- Q4: **LATE-JOIN** — FULLSYNC шлёт полное состояние всех HeroObject'ов
+  автоматически (подтверждено прогоном: Bob сразу увидел p1). Доп. логика не нужна.
 
 ---
 
 ## Статус
 
-- [ ] Phase 1: Serializable классы (HeroState, BulletState)
-- [ ] Phase 2: NetworkSerializable (WorldState)
-- [ ] Phase 3: GameNet расширение (heroInput, bulletSpawn, ...)
-- [ ] Phase 4: ReplicationSystem
-- [ ] Phase 5: ClientTransportSystem (подписчик шины → GameNet)
-- [ ] Phase 6: ServerTransportSystem (подписчик шины → GameNet broadcast)
-- [ ] Phase 7: Room.hx (создание WorldState + GameNet)
-- [ ] Phase 8: RoomNetSystem (mirror discovery)
-- [ ] Phase 9: GamePlayView (подключение)
-- [ ] Phase 10: Тест и отладка
+- [x] Phase 1: HeroObject + NetRegistry
+- [x] Phase 2: ClientNet.findObjects<T>
+- [x] Phase 3: SyncBridge
+- [x] Phase 4: GameNet — чистка
+- [x] Phase 5: TransportSystems (client/server)
+- [x] Phase 6: Room.hx / DemoRoom (+ GameNet, HeroObject)
+- [x] Phase 7: GamePlayView / RoomNetSystem
+- [x] Phase 8: Сборки + прогон

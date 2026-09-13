@@ -26,5 +26,6 @@ class NetRegistry
 		Registry.getCLID(Type.getClassName(PlayerInfo));
 		Registry.getCLID(Type.getClassName(LobbyNet));
 		Registry.getCLID(Type.getClassName(GameNet));
+		Registry.getCLID(Type.getClassName(HeroObject));
 	}
 }

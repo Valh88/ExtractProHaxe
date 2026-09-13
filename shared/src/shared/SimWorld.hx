@@ -29,6 +29,12 @@ class SimWorld implements IUpdate
 	/** Player hero bodies keyed by playerId (spawned by HeroSystem). */
 	public var heroes(default, null) : Map<String, PhysBody>;
 
+	#if sys
+	/** Network entities keyed by playerId — server: owned HeroObjects,
+		client: mirrors (Pattern A). Synced by SyncBridge, not game systems. */
+	public var heroEnts(default, null) : Map<String, shared.net.HeroObject> = new Map();
+	#end
+
 	/** Convenience: the local player's hero body (or null). */
 	public var hero(get, never) : Null<PhysBody>;
 	inline function get_hero() : Null<PhysBody> return heroes.get(Player.LOCAL);
@@ -86,7 +92,10 @@ class SimWorld implements IUpdate
 	/** Register a player hero body under `playerId`. Called by HeroSystem. */
 	public function setHero(playerId : String, b : PhysBody) : Void
 	{
-		heroes.set(playerId, add(b));
+		// register the key BEFORE onSpawn fires so consumers can tell the
+		// local hero apart from later remote spawns (sim.hero == body)
+		heroes.set(playerId, b);
+		add(b);
 	}
 
 	/**

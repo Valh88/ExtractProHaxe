@@ -4,9 +4,11 @@ import shared.GameData;
 import shared.SimWorld;
 import shared.IUpdate;
 import shared.events.EventBus;
+import shared.net.GameNet;
 import shared.systems.Systems;
 import serv.events.ServerEventBus;
 import serv.systems.NetRoomSystem;
+import serv.systems.ServerTransportSystem;
 
 /**
 	Server-side room (lobby / map / ...) container. Follows the client's
@@ -41,6 +43,9 @@ class Room implements IUpdate
 	/** Server-side lifecycle of this room. */
 	public var state(default, set) : RoomState;
 
+	/** Game database this room plays with (shared source of truth for tunables). */
+	public var gd(default, null) : GameData;
+
 	/** Connected players (empty stub for now — roster/transport come later). */
 	public var roster(default, null) : Map<String, Dynamic>;
 
@@ -57,6 +62,9 @@ class Room implements IUpdate
 	/** The room's networking system (owns the RNL socket + net facade). */
 	public var netSys(default, null) : Null<NetRoomSystem>;
 
+	/** Game-play RPC facade (server-owned; mirrored to every connected client). */
+	public var gameNet(default, null) : GameNet;
+
 	/** World physics logger (set by the room itself; dumped each tick). */
 	public var logger : Null<StateLogger> = null;
 
@@ -71,6 +79,7 @@ class Room implements IUpdate
 		this.id = id;
 		this.kind = kind;
 		this.state = Waiting;
+		this.gd = gd;
 		this.roster = new Map();
 		this.roomSystems = new Systems();
 		// a room creates its own bus and hands it to the world -> one shared bus
@@ -78,6 +87,11 @@ class Room implements IUpdate
 		// networking: every room owns a socket (its own UDP port)
 		this.netSys = new NetRoomSystem(bus, gd, port);
 		roomSystems.add(this.netSys);
+		// game-play RPC facade (server-owned, mirrored to clients): one-shot
+		// events only — continuous state lives in per-entity HeroObjects
+		this.gameNet = new GameNet();
+		netSys.socket.add(gameNet);
+		roomSystems.add(new ServerTransportSystem(bus, gd, gameNet));
 		if (withWorld)
 			this.world = createWorld(gd, bus);
 	}
@@ -116,6 +130,7 @@ class Room implements IUpdate
 		{
 			// worldless room: room logic ticks every host round
 			roomSystems.update(dt);
+			bus.flush(); // deliver RPC-published events (queued on socket poll)
 			return;
 		}
 
@@ -124,6 +139,7 @@ class Room implements IUpdate
 		if (logger != null) logger.dump(dt); // world physics log, ~once per second
 		if (w.phys.tickCount() > before)
 			roomSystems.update(dt); // server-only room logic, aligned to sim ticks
+		bus.flush(); // deliver events queued by RPC handlers / sim systems
 	}
 
 	/** IUpdate contract — aliases tick() so rooms can be scheduled generically. */

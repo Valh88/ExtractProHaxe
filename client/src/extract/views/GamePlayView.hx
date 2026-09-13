@@ -20,6 +20,13 @@ import extract.systems.RoomNetSystem;
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
 
+#if sys
+import extract.systems.ClientTransportSystem;
+import shared.net.HeroObject;
+import shared.replication.SyncBridge;
+import shared.systems.BulletSystem;
+#end
+
 class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
@@ -28,6 +35,15 @@ class GamePlayView extends BaseScene
 	var physRenderer : PhysRenderer;
 	var player : PlayerControllerSystem;
 	var playerModel : PlayerModel;
+
+#if sys
+	var roomNet : RoomNetSystem;
+	var clientTransport : ClientTransportSystem;
+	var syncBridge : SyncBridge;
+	var transportWired : Bool = false;
+	/** This client's server-assigned player id (discovered by name match). */
+	var ownPid : Null<String> = null;
+#end
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, bus : EventBus)
 	{
@@ -63,7 +79,16 @@ class GamePlayView extends BaseScene
 		systems.add(player);
 
 		// game-play networking stub (HL only; port = demo room's port on the server)
+	#if sys
+		roomNet = new RoomNetSystem(bus, gd, 1790);
+		systems.add(roomNet);
+		// delegate server-broadcast events to this view (wire BEFORE connect)
+		roomNet.onPlayerJoined = onPlayerJoined;
+		roomNet.onBulletSpawn = onBulletSpawn;
+		roomNet.onDamage = onDamage;
+	#else
 		systems.add(new RoomNetSystem(bus, gd, 1790));
+	#end
 
 
 		sim.onSpawn = b ->
@@ -74,11 +99,14 @@ class GamePlayView extends BaseScene
 				this.addChild(mesh);
 				physRenderer.bind(b, mesh);
 				if (b.name == "hero")
-				{
-					player.mesh = mesh;
-					// make the rigged character follow the hero body
-					//playerModel.hero.follow = mesh;
-				}
+			{
+				// bind the camera ONLY to the LOCAL hero — remote heroes spawn
+				// later and must NOT steal the view anchor (sim.hero is the
+				// local body because setHero registers it before onSpawn)
+				if (sim.hero == b) player.mesh = mesh;
+				// make the rigged character follow the hero body
+				//playerModel.hero.follow = mesh;
+			}
 			}
 		};
 		// draw the initial scene too (created before onSpawn was set)
@@ -165,8 +193,74 @@ class GamePlayView extends BaseScene
 
 	override public function update(dt : Float)
 	{
+	#if sys
+		updateNet();
+	#end
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
 		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
 	}
+
+#if sys
+	/** Wire the transport/sync once the GameNet mirror is up; poll HeroObject
+		mirrors and spawn their bodies (remote heroes) as they arrive. */
+	function updateNet() : Void
+	{
+		if (roomNet == null || roomNet.clientNet == null) return;
+
+		var gn = roomNet.gameNet;
+		if (gn != null && !transportWired)
+		{
+			transportWired = true;
+			clientTransport = new ClientTransportSystem(bus, gd, gn);
+			systems.add(clientTransport);
+			syncBridge = new SyncBridge(bus, sim, false, gd);
+			systems.add(syncBridge);
+			trace('CLIENT transport wired');
+		}
+
+		// own-pid discovery: the HeroObject carries its OWNER's display name,
+		// so at ADD time each client can tell that object of its own apart
+		// from remotes — no playerJoined race, no wrongly-spawned own body.
+		var myName = roomNet.clientNet.playerName;
+		for (o in roomNet.clientNet.findObjects(HeroObject))
+		{
+			if (ownPid == null && o.name != null && o.name != "" && o.name == myName)
+			{
+				ownPid = o.playerId;
+				if (syncBridge != null) syncBridge.ownId = ownPid;
+				trace('CLIENT this is me: ' + ownPid);
+			}
+			if (o.playerId == ownPid) continue; // own hero: local prediction
+			if (sim.heroEnts.exists(o.playerId)) continue;
+			sim.heroEnts.set(o.playerId, o);
+			var heroSys : HeroSystem = cast sim.systems.get("Hero");
+			heroSys.spawnHero(o.playerId);
+			trace('CLIENT remote hero spawned: ' + o.playerId);
+		}
+	}
+
+	/** Server told us a player joined this room (informational — the own id
+		comes from HeroObject.name, see updateNet). */
+	function onPlayerJoined(pid : String, name : String) : Void
+	{
+		trace('CLIENT playerJoined ' + pid + ' "' + name + '"');
+	}
+
+	/** Server damage feedback (instant UI); authoritative HP arrives via @:s. */
+	function onDamage(pid : String, amount : Float) : Void
+	{
+		// TODO: HUD damage number / flash
+		trace('CLIENT damage ' + pid + ' : ' + amount);
+	}
+
+	/** Remote bullet spawn — spawn deterministically, skip own shots (already
+		spawned locally); direct call (not the bus) to avoid echoing the RPC. */
+	function onBulletSpawn(owner : String, x : Float, y : Float, z : Float, dx : Float, dy : Float, dz : Float) : Void
+	{
+		if (owner == ownPid) return;
+		var bs : BulletSystem = cast sim.systems.get("Bullet");
+		bs.spawnBullet(x, y, z, dx, dy, dz);
+	}
+#end
 }

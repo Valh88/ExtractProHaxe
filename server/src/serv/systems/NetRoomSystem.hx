@@ -38,6 +38,17 @@ class NetRoomSystem extends System
 	/** Counter for auto-assigned player ids (server-side). */
 	public var nextPlayerId(default, null) : Int = 1;
 
+	/**
+		Allocate the next stable server player id ("p1", "p2", ...). Used by
+		rooms to key HeroObjects and hero bodies; ids stay unique per room.
+	**/
+	public function allocPlayerId() : String
+	{
+		var id = "p" + nextPlayerId;
+		nextPlayerId++;
+		return id;
+	}
+
 	public function new(bus : EventBus, ?gd : GameData, port : Int)
 	{
 		super(bus, null, gd, "Net");
