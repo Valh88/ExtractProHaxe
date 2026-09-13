@@ -238,9 +238,11 @@ class GamePlayView extends BaseScene
 				if (syncBridge != null) syncBridge.ownId = ownPid;
 				trace('CLIENT this is me: ' + ownPid);
 			}
-			if (o.playerId == ownPid) continue; // own hero: local prediction
-			if (sim.heroEnts.exists(o.playerId)) continue;
+			// keep the mirror ref for ALL heroes — the own one included, so SyncBridge
+			// can RECONCILE prediction against the authority.
 			sim.heroEnts.set(o.playerId, o);
+			if (o.playerId == ownPid) continue; // own hero: local prediction
+			if (sim.heroes.exists(o.playerId)) continue; // puppet already spawned
 			var heroSys : HeroSystem = cast sim.systems.get("Hero");
 			heroSys.spawnHero(o.playerId, false); // remote: mirror puppet, no state
 			trace('CLIENT remote hero spawned: ' + o.playerId);
