@@ -211,6 +211,57 @@
 			],
 			"separators": [],
 			"props": {}
+		},
+		{
+			"name": "Crosshair",
+			"columns": [
+				{
+					"name": "id",
+					"typeStr": "0"
+				},
+				{
+					"name": "barWidth",
+					"typeStr": "4"
+				},
+				{
+					"name": "barLength",
+					"typeStr": "4"
+				},
+				{
+					"name": "baseSpread",
+					"typeStr": "4"
+				},
+				{
+					"name": "moveSpread",
+					"typeStr": "4"
+				},
+				{
+					"name": "shootSpread",
+					"typeStr": "4"
+				},
+				{
+					"name": "recoverySpeed",
+					"typeStr": "4"
+				},
+				{
+					"name": "shootRecoverySpeed",
+					"typeStr": "4"
+				}
+			],
+			"lines": [
+				{
+					"id": "default",
+					"barWidth": 2,
+					"barLength": 20,
+					"baseSpread": 34,
+					"moveSpread": 12,
+					"shootSpread": 18,
+					"recoverySpeed": 8,
+					"shootRecoverySpeed": 5
+				}
+			],
+			"separators": [],
+			"props": {}
 		}
 	]
 }

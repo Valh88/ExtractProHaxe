@@ -56,4 +56,6 @@
 .hp-fill { position:absolute; width:300; height:24; background:#8C1A1A; }
 .energy-bg { position:absolute; width:300; height:10; background:#000000 0.5; }
 .energy-fill { position:absolute; width:300; height:10; background:#B34D0D; }
+/* --- Crosshair (Graphics-based, centered at 960x540) --- */
+.crosshair { position:absolute; width:0; height:0; }
 .heroes-view { position:absolute; width:1920; height:1080; }

@@ -26,6 +26,13 @@ class HudDesign extends Flow implements Object
 			</flow>
 		</hud-design>;
 
+	public var crosshair(default, set) : CrosshairDesign;
+
+	function set_crosshair(v : CrosshairDesign) : CrosshairDesign
+	{
+		return crosshair = v;
+	}
+
 	public function new(?parent)
 	{
 		super(parent);

@@ -18,7 +18,7 @@ class Config
 	public static inline var CUBE_SPAWN_INTERVAL : Float = 2;
 
 	/** How long the headless server simulates before exiting. */
-	public static inline var SERVER_RUN_SECONDS : Float = 15;
+	public static inline var SERVER_RUN_SECONDS : Float = 500;
 
 	/** Default number of worker threads in the server room pool (HL has no cpuCount). */
 	public static inline var POOL_WORKERS : Int = 2;

@@ -9,6 +9,8 @@ import shared.SimWorld;
 import shared.GameData;
 import shared.Player;
 import shared.events.EventBus;
+import shared.events.GameEvents.BulletFired;
+import shared.events.GameEvents.HeroMoveIntent;
 import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.models.PlayerModel;
@@ -89,6 +91,10 @@ class GamePlayView extends BaseScene
 		player = new PlayerControllerSystem(bus, camera, null, this.gd);
 		systems.add(player);
 
+		// crosshair movement feedback
+		bus.subscribe(HeroMoveIntent, onHeroMoveIntent);
+		bus.subscribe(BulletFired, onBulletFired);
+
 		// game-play networking stub (HL only; port = demo room's port on the server)
 	#if sys
 		roomNet = new RoomNetSystem(bus, gd, 1790);
@@ -122,6 +128,12 @@ class GamePlayView extends BaseScene
 		style.addObject(hud);
 		style.sync();
 
+		// crosshair: positioned at screen center (1920×1080)
+		hud.crosshair = new extract.design.CrosshairDesign(null, gd);
+		s2d.addChild(hud.crosshair);
+		hud.crosshair.x = 960;
+		hud.crosshair.y = 540;
+
 		// hide cursor for FPS — future views (lobby/inventory) will call show()
 		CursorManager.get().hide();
 
@@ -136,7 +148,22 @@ class GamePlayView extends BaseScene
 	#end
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
+		if (hud != null && hud.crosshair != null) hud.crosshair.update(dt);
 		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
+	}
+
+	/** Crosshair reacts to movement: spread widens when player moves. */
+	function onHeroMoveIntent(e : HeroMoveIntent) : Void
+	{
+		if (hud != null && hud.crosshair != null)
+			hud.crosshair.setMovement(e.mag > 0);
+	}
+
+	/** Crosshair reacts to own shot: shoot spread additive. */
+	function onBulletFired(e : BulletFired) : Void
+	{
+		if (e.ownerId == Player.LOCAL && hud != null && hud.crosshair != null)
+			hud.crosshair.shoot();
 	}
 
 #if sys
@@ -261,6 +288,8 @@ class GamePlayView extends BaseScene
 	/** Release bus subscriptions before the systems/socket are torn down. */
 	override public function dispose() : Void
 	{
+		bus.unsubscribe(HeroMoveIntent, onHeroMoveIntent);
+		bus.unsubscribe(BulletFired, onBulletFired);
 		bus.unsubscribe(PlayerJoined, onPlayerJoined);
 		bus.unsubscribe(BulletSpawned, onBulletSpawn);
 		bus.unsubscribe(BulletHit, onBulletHit);

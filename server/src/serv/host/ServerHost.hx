@@ -93,7 +93,7 @@ class ServerHost
 		var round = 0;
 		var start = Sys.time();
 		var prev = start;
-		var endAt = start + 500;
+		var endAt = start + seconds;
 		while (running && Sys.time() < endAt)
 		{
 			var now = Sys.time();
