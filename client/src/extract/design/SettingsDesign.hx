@@ -14,12 +14,13 @@ class SettingsDesign extends Flow implements Object
 			<flow id="panel" class="settings-panel" x="660" y="170">
 				<text id="title" class="settings-title" x="200" y="35"/>
 				<flow id="divider" class="settings-divider" x="60" y="150"/>
-			<flow id="tabsWrap" class="settings-tabs-wrap" x="50" y="106">
-				<text id="tabAudio" class="settings-tab" x="10" y="0"/>
-				<text id="tabDisplay" class="settings-tab" x="140" y="0"/>
-				<text id="tabControls" class="settings-tab" x="270" y="0"/>
-				<text id="tabGameplay" class="settings-tab" x="400" y="0"/>
-			</flow>
+				<flow id="tabsWrap" class="settings-tabs-wrap" x="50" y="106">
+					<text id="tabAudio" class="settings-tab" x="10" y="0"/>
+					<text id="tabDisplay" class="settings-tab" x="140" y="0"/>
+					<text id="tabControls" class="settings-tab" x="270" y="0"/>
+					<text id="tabGameplay" class="settings-tab" x="400" y="0"/>
+				</flow>
+				<flow id="contentWrap" class="settings-content-wrap" x="60" y="160"/>
 			</flow>
 			<flow id="saveBtn" class="settings-btn-save" x="700" y="920">
 				<text id="saveTxt" class="settings-btn-text" x="82" y="12"/>
@@ -31,6 +32,7 @@ class SettingsDesign extends Flow implements Object
 
 	public var onBack : Null<Void -> Void>;
 	public var onSave : Null<Void -> Void>;
+	public var onTabClick : Null<Int -> Void>;
 
 	var tabTxts : Array<h2d.Text>;
 	var tabUnderlines : Array<h2d.Graphics>;
@@ -128,7 +130,9 @@ class SettingsDesign extends Flow implements Object
 			hit.setPosition(hitX[i], 0);
 			hit.cursor = Button;
 			tabsWrap.getProperties(hit).isAbsolute = true;
-			hit.onClick = function(_) setTab(idx);
+			hit.onClick = function(_) {
+				if (onTabClick != null) onTabClick(idx);
+			};
 		}
 
 		saveBtn.enableInteractive = true;
@@ -141,6 +145,8 @@ class SettingsDesign extends Flow implements Object
 
 		setTab(0);
 	}
+
+	public function getContentWrap() : h2d.Flow return contentWrap;
 
 	public function setTab(idx : Int) : Void
 	{
