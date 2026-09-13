@@ -14,12 +14,12 @@ class SettingsDesign extends Flow implements Object
 			<flow id="panel" class="settings-panel" x="660" y="170">
 				<text id="title" class="settings-title" x="200" y="35"/>
 				<flow id="divider" class="settings-divider" x="60" y="150"/>
-				<flow id="tabsWrap" class="settings-tabs-wrap" x="50" y="106">
-					<text id="tabAudio" class="settings-tab" x="0" y="0"/>
-					<text id="tabDisplay" class="settings-tab" x="130" y="0"/>
-					<text id="tabControls" class="settings-tab" x="260" y="0"/>
-					<text id="tabGameplay" class="settings-tab" x="390" y="0"/>
-				</flow>
+			<flow id="tabsWrap" class="settings-tabs-wrap" x="50" y="106">
+				<text id="tabAudio" class="settings-tab" x="10" y="0"/>
+				<text id="tabDisplay" class="settings-tab" x="140" y="0"/>
+				<text id="tabControls" class="settings-tab" x="270" y="0"/>
+				<text id="tabGameplay" class="settings-tab" x="400" y="0"/>
+			</flow>
 			</flow>
 			<flow id="saveBtn" class="settings-btn-save" x="700" y="920">
 				<text id="saveTxt" class="settings-btn-text" x="82" y="12"/>
