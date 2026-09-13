@@ -17,6 +17,7 @@ import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
+import extract.views.settings.SettingsOverlay;
 
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
@@ -37,6 +38,7 @@ import shared.systems.BulletSystem;
 class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
+	var settingsOverlay : SettingsOverlay;
 
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
@@ -142,6 +144,11 @@ class GamePlayView extends BaseScene
 
 		// hide cursor for FPS — future views (lobby/inventory) will call show()
 		CursorManager.get().hide();
+
+		// settings overlay (visible for testing)
+		settingsOverlay = new SettingsOverlay(bus, style);
+		s2d.addChild(settingsOverlay.design);
+		style.addObject(settingsOverlay.design);
 
 		// fly camera: WASD move, Q/E down/up, Shift fast, RMB drag to look
 		//systems.add(new DebugCameraSystem(bus, camera, 12)); // disabled: camera belongs to the hero now

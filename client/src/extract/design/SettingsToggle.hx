@@ -15,21 +15,16 @@ class SettingsToggle extends Flow implements Object
 			</flow>
 		</settings-toggle>;
 
-	/** Fired on toggle. `true` = on. */
 	public var onChange : Null<Bool -> Void>;
 
-	var knobWrap : Flow;
 	var onColor : Int = 0xE0D080;
 	var offColor : Int = 0x4A4036;
 	var value : Bool = false;
 
-	public function new(?parent, ?labelText : String, defaultOn : Bool = false)
+	public function new(?parent)
 	{
 		super(parent);
 		initComponent();
-
-		label.text = labelText != null ? labelText : "";
-		knobWrap = this.knobWrap;
 
 		pillWrap.enableInteractive = true;
 		pillWrap.interactive.cursor = Button;
@@ -38,8 +33,10 @@ class SettingsToggle extends Flow implements Object
 			if (onChange != null) onChange(value);
 		};
 
-		setValue(defaultOn);
+		setValue(false);
 	}
+
+	public function setLabel(t : String) : Void { label.text = t; }
 
 	public function setValue(v : Bool) : Void
 	{
@@ -47,7 +44,7 @@ class SettingsToggle extends Flow implements Object
 		knobWrap.x = v ? 24 : 4;
 		knobWrap.dom.removeClass(value ? "settings-toggle-off" : "settings-toggle-on");
 		knobWrap.dom.addClass(value ? "settings-toggle-on" : "settings-toggle-off");
-	 redrawKnob();
+		redrawKnob();
 	}
 
 	public function getValue() : Bool
@@ -57,12 +54,11 @@ class SettingsToggle extends Flow implements Object
 
 	function redrawKnob() : Void
 	{
+		knobWrap.removeChildren();
 		var g = new Graphics();
-		knobWrap.addChild(g);
-		while (knobWrap.numChildren > 1)
-			knobWrap.removeChildAt(0);
 		g.beginFill(value ? onColor : offColor);
 		g.drawCircle(10, 10, 10);
 		g.endFill();
+		knobWrap.addChild(g);
 	}
 }

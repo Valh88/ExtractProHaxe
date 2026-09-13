@@ -8,11 +8,11 @@ class SettingsDisplayContent extends Flow implements Object
 {
 	static var SRC =
 		<settings-display-content class="settings-content">
-			<settings-select id="resSelect" x="0" y="0"/>
-			<settings-toggle id="fullscreenToggle" x="0" y="50"/>
-			<settings-toggle id="vsyncToggle" x="0" y="100"/>
-			<settings-slider id="fpsLimitSlider" x="0" y="150"/>
-			<settings-slider id="brightnessSlider" x="0" y="200"/>
+			<flow id="resWrap" x="0" y="0"/>
+			<flow id="fullWrap" x="0" y="50"/>
+			<flow id="vsyncWrap" x="0" y="100"/>
+			<flow id="fpsWrap" x="0" y="150"/>
+			<flow id="brightWrap" x="0" y="200"/>
 		</settings-display-content>;
 
 	public var resolution(default, null) : SettingsSelect;
@@ -26,25 +26,25 @@ class SettingsDisplayContent extends Flow implements Object
 		super(parent);
 		initComponent();
 
-		resolution = resSelect;
-		resolution.label.text = "RESOLUTION";
+		resolution = new SettingsSelect(resWrap);
+		resolution.setLabel("RESOLUTION");
 		resolution.setOptions(["1920 × 1080", "1600 × 900", "1280 × 720"]);
 		resolution.setSelectedIndex(0);
 
-		fullscreen = fullscreenToggle;
-		fullscreen.label.text = "FULLSCREEN";
+		fullscreen = new SettingsToggle(fullWrap);
+		fullscreen.setLabel("FULLSCREEN");
 		fullscreen.setValue(true);
 
-		vsync = vsyncToggle;
-		vsync.label.text = "V-SYNC";
+		vsync = new SettingsToggle(vsyncWrap);
+		vsync.setLabel("V-SYNC");
 		vsync.setValue(false);
 
-		fpsLimit = fpsLimitSlider;
-		fpsLimit.label.text = "FPS LIMIT";
+		fpsLimit = new SettingsSlider(fpsWrap);
+		fpsLimit.setLabel("FPS LIMIT");
 		fpsLimit.setNormalized(0.3);
 
-		brightness = brightnessSlider;
-		brightness.label.text = "BRIGHTNESS";
+		brightness = new SettingsSlider(brightWrap);
+		brightness.setLabel("BRIGHTNESS");
 		brightness.setNormalized(0.85);
 	}
 }

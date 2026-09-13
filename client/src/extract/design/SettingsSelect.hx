@@ -14,33 +14,30 @@ class SettingsSelect extends Flow implements Object
 			</flow>
 		</settings-select>;
 
-	/** Fired on selection change. Index of the selected option. */
 	public var onChange : Null<Int -> Void>;
 
 	var options : Array<String>;
 	var selectedIndex : Int = 0;
 
-	public function new(?parent, ?labelText : String, ?opts : Array<String>)
+	public function new(?parent)
 	{
 		super(parent);
 		initComponent();
 
-		label.text = labelText != null ? labelText : "";
-		options = opts != null ? opts : [];
-		if (options.length > 0)
-			setSelectedIndex(0);
+		options = [];
 
 		boxWrap.enableInteractive = true;
 		boxWrap.interactive.cursor = Button;
 		boxWrap.interactive.onClick = function(_) cycleOption();
 	}
 
+	public function setLabel(t : String) : Void { label.text = t; }
+
 	public function setOptions(opts : Array<String>) : Void
 	{
 		options = opts;
 		selectedIndex = 0;
-		if (options.length > 0)
-			updateText();
+		if (options.length > 0) updateText();
 	}
 
 	public function setSelectedIndex(i : Int) : Void

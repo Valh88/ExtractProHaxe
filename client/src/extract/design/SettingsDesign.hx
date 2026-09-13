@@ -1,6 +1,8 @@
 package extract.design;
 
 import h2d.Flow;
+import h2d.Graphics;
+import h2d.Interactive;
 import h2d.domkit.Object;
 
 @:uiComp("settings-design")
@@ -8,48 +10,29 @@ class SettingsDesign extends Flow implements Object
 {
 	static var SRC =
 		<settings-design class="settings-root">
-			<flow class="settings-overlay" x="0" y="0">
-				<flow id="panel" class="settings-panel" x="660" y="170">
-					<text id="title" class="settings-title" x="0" y="35"/>
-					<flow id="divider" class="settings-divider" x="60" y="150"/>
-					<!-- tabs -->
-					<flow id="tabsWrap" class="settings-tabs" x="50" y="106">
-						<flow id="tabAudio" class="settings-tab" x="0" y="0">
-							<text id="tabAudioTxt" class="settings-tab-text" x="0" y="0"/>
-						</flow>
-						<flow id="tabDisplay" class="settings-tab" x="130" y="0">
-							<text id="tabDisplayTxt" class="settings-tab-text" x="0" y="0"/>
-						</flow>
-						<flow id="tabControls" class="settings-tab" x="260" y="0">
-							<text id="tabControlsTxt" class="settings-tab-text" x="0" y="0"/>
-						</flow>
-						<flow id="tabGameplay" class="settings-tab" x="390" y="0">
-							<text id="tabGameplayTxt" class="settings-tab-text" x="0" y="0"/>
-						</flow>
-						<flow id="tabIndicator" class="settings-tab-indicator" x="0" y="38"/>
-					</flow>
-					<!-- content slot: inlined content panels -->
-					<flow id="contentAudio" class="settings-content" x="40" y="170"/>
-					<flow id="contentDisplay" class="settings-content" x="40" y="170"/>
-					<flow id="contentControls" class="settings-content" x="40" y="170"/>
-					<flow id="contentGameplay" class="settings-content" x="40" y="170"/>
-					<!-- buttons -->
-					<flow id="saveBtn" class="settings-btn-save" x="40" y="670">
-						<text id="saveTxt" class="settings-btn-text" x="0" y="0"/>
-					</flow>
-					<flow id="backBtn" class="settings-btn-back" x="280" y="670">
-						<text id="backTxt" class="settings-btn-text" x="0" y="0"/>
-					</flow>
-				</flow>
+			<flow id="overlay" class="settings-overlay" x="0" y="0"/>
+			<flow id="panel" class="settings-panel" x="660" y="170">
+				<text id="title" class="settings-title" x="200" y="35"/>
+				<flow id="divider" class="settings-divider" x="60" y="150"/>
+			<flow id="tabsWrap" class="settings-tabs-wrap" x="50" y="106">
+				<text id="tabAudio" class="settings-tab" x="0" y="0"/>
+				<text id="tabDisplay" class="settings-tab" x="130" y="0"/>
+				<text id="tabControls" class="settings-tab" x="260" y="0"/>
+				<text id="tabGameplay" class="settings-tab" x="390" y="0"/>
+			</flow>
+				<flow id="saveBtn" class="settings-btn-save" x="40" y="670"/>
+				<flow id="backBtn" class="settings-btn-back" x="280" y="670"/>
+				<text id="saveTxt" class="settings-btn-text" x="100" y="684"/>
+				<text id="backTxt" class="settings-btn-text" x="340" y="684"/>
 			</flow>
 		</settings-design>;
 
 	public var onBack : Null<Void -> Void>;
 	public var onSave : Null<Void -> Void>;
 
-	var tabs : Array<Flow>;
-	var contents : Array<Flow>;
 	var tabTxts : Array<h2d.Text>;
+	var tabUnderlines : Array<h2d.Graphics>;
+	var tabBgs : Array<h2d.Graphics>;
 	var activeTab : Int = 0;
 
 	public function new(?parent)
@@ -59,25 +42,91 @@ class SettingsDesign extends Flow implements Object
 
 		title.text = "SETTINGS";
 
-		tabAudioTxt.text = "AUDIO";
-		tabDisplayTxt.text = "DISPLAY";
-		tabControlsTxt.text = "CONTROLS";
-		tabGameplayTxt.text = "GAMEPLAY";
+		var og = new Graphics();
+		og.beginFill(0x000000, 0.3);
+		og.drawRect(0, 0, 1920, 1080);
+		og.endFill();
+		overlay.addChildAt(og, 0);
+
+		var pg = new Graphics();
+		pg.beginFill(0xC8956C);
+		pg.drawRoundedRect(0, 0, 600, 740, 8);
+		pg.endFill();
+		pg.beginFill(0x1A1208);
+		pg.drawRoundedRect(2, 2, 596, 736, 6);
+		pg.endFill();
+		panel.addChildAt(pg, 0);
+
+		var dg = new Graphics();
+		dg.beginFill(0x99C8956C);
+		dg.drawRect(0, 0, 480, 2);
+		dg.endFill();
+		divider.addChild(dg);
+
+		tabAudio.text = "AUDIO";
+		tabDisplay.text = "DISPLAY";
+		tabControls.text = "CONTROLS";
+		tabGameplay.text = "GAMEPLAY";
+
+		tabTxts = [tabAudio, tabDisplay, tabControls, tabGameplay];
+
+		var tabX = [0.0, 130.0, 260.0, 390.0];
+		tabUnderlines = [];
+		tabBgs = [];
+		for (i in 0...4)
+		{
+			var g = new Graphics();
+			g.beginFill(0xC4A44A);
+			g.drawRect(0, 0, 110, 2);
+			g.endFill();
+			g.setPosition(tabX[i], 28);
+			g.scaleX = 0;
+			tabsWrap.addChild(g);
+			tabsWrap.getProperties(g).isAbsolute = true;
+			tabUnderlines.push(g);
+
+			var bg = new Graphics();
+			bg.beginFill(0x241C14);
+			bg.drawRoundedRect(0, 0, 130, 34, 4);
+			bg.endFill();
+			bg.setPosition(tabX[i] - 10, 0);
+			bg.visible = false;
+			tabsWrap.addChildAt(bg, 0);
+			tabsWrap.getProperties(bg).isAbsolute = true;
+			tabBgs.push(bg);
+		}
 
 		saveTxt.text = "SAVE";
 		backTxt.text = "BACK";
 
-		tabs = [tabAudio, tabDisplay, tabControls, tabGameplay];
-		contents = [contentAudio, contentDisplay, contentControls, contentGameplay];
-		tabTxts = [tabAudioTxt, tabDisplayTxt, tabControlsTxt, tabGameplayTxt];
+		var sg = new Graphics();
+		sg.beginFill(0xA03020);
+		sg.drawRoundedRect(0, 0, 200, 50, 4);
+		sg.endFill();
+		sg.beginFill(0x8B2010);
+		sg.drawRoundedRect(2, 2, 196, 46, 3);
+		sg.endFill();
+		saveBtn.addChildAt(sg, 0);
 
+		var bg = new Graphics();
+		bg.beginFill(0x403828);
+		bg.drawRoundedRect(0, 0, 200, 50, 4);
+		bg.endFill();
+		bg.beginFill(0x28201A);
+		bg.drawRoundedRect(2, 2, 196, 46, 3);
+		bg.endFill();
+		backBtn.addChildAt(bg, 0);
+
+		var hitX = [0, 130, 260, 390];
+		var hitW = [130, 130, 130, 130];
 		for (i in 0...4)
 		{
 			var idx = i;
-			var t = tabs[i];
-			t.enableInteractive = true;
-			t.interactive.cursor = Button;
-			t.interactive.onClick = function(_) setTab(idx);
+			var hit = new h2d.Interactive(hitW[i], 30, tabsWrap);
+			hit.setPosition(hitX[i], 0);
+			hit.cursor = Button;
+			tabsWrap.getProperties(hit).isAbsolute = true;
+			hit.onClick = function(_) setTab(idx);
 		}
 
 		saveBtn.enableInteractive = true;
@@ -94,36 +143,15 @@ class SettingsDesign extends Flow implements Object
 	public function setTab(idx : Int) : Void
 	{
 		if (idx < 0 || idx > 3) return;
-
-		// hide old content
-		if (contents[activeTab] != null) contents[activeTab].visible = false;
-
 		activeTab = idx;
 
-		// show new content
-		if (contents[activeTab] != null) contents[activeTab].visible = true;
-
-		// update tab styles
 		for (i in 0...4)
 		{
-			if (i == idx)
-			{
-				tabs[i].dom.addClass("settings-tab-active");
-				tabTxts[i].color = 0xC4A44A;
-			}
-			else
-			{
-				tabs[i].dom.removeClass("settings-tab-active");
-				tabTxts[i].color = 0x737373;
-			}
+			if (tabTxts[i] == null) continue;
+			tabTxts[i].dom.addClass(i == idx ? "settings-tab-active" : "settings-tab-idle");
+			tabTxts[i].dom.removeClass(i == idx ? "settings-tab-idle" : "settings-tab-active");
+			tabUnderlines[i].scaleX = (i == idx) ? 1.0 : 0.0;
+			tabBgs[i].visible = (i == idx);
 		}
-
-		// move indicator
-		tabIndicator.x = tabs[idx].x;
-	}
-
-	public function getContent(idx : Int) : Flow
-	{
-		return contents[idx];
 	}
 }

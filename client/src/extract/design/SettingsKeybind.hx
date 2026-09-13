@@ -14,12 +14,13 @@ class SettingsKeybind extends Flow implements Object
 			</flow>
 		</settings-keybind>;
 
-	public function new(?parent, ?labelText : String)
+	public function new(?parent)
 	{
 		super(parent);
 		initComponent();
-		label.text = labelText != null ? labelText : "";
 	}
+
+	public function setLabel(t : String) : Void { label.text = t; }
 
 	public function setKey(key : String) : Void
 	{

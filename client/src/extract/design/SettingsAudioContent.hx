@@ -8,9 +8,9 @@ class SettingsAudioContent extends Flow implements Object
 {
 	static var SRC =
 		<settings-audio-content class="settings-content">
-			<settings-slider id="masterSlider" x="0" y="0"/>
-			<settings-slider id="musicSlider" x="0" y="50"/>
-			<settings-slider id="sfxSlider" x="0" y="100"/>
+			<flow id="masterWrap" x="0" y="0"/>
+			<flow id="musicWrap" x="0" y="50"/>
+			<flow id="sfxWrap" x="0" y="100"/>
 		</settings-audio-content>;
 
 	public var master(default, null) : SettingsSlider;
@@ -22,16 +22,16 @@ class SettingsAudioContent extends Flow implements Object
 		super(parent);
 		initComponent();
 
-		master = masterSlider;
-		master.label.text = "MASTER";
+		master = new SettingsSlider(masterWrap);
+		master.setLabel("MASTER");
 		master.setNormalized(0.8);
 
-		music = musicSlider;
-		music.label.text = "MUSIC";
+		music = new SettingsSlider(musicWrap);
+		music.setLabel("MUSIC");
 		music.setNormalized(0.6);
 
-		sfx = sfxSlider;
-		sfx.label.text = "SFX";
+		sfx = new SettingsSlider(sfxWrap);
+		sfx.setLabel("SFX");
 		sfx.setNormalized(0.4);
 	}
 }
