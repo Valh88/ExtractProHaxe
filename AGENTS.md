@@ -87,7 +87,8 @@ carry `@:rpc`. `rnl.net.Serializable` is a payload embedded inline in args/field
 |---|---|---|---|
 | `shared/net/LobbyNet.hx` | ✅ `NetworkSerializable` | **server** creates + `add()`s it | `@:rpc(server)` join/setReady/announce, `@:rpc(clients)` rosterChanged. 1 per lobby |
 | `shared/net/PlayerInfo.hx` | ❌ `Serializable` | — | payload inside `rosterChanged(Array<PlayerInfo>)` |
-| future `GameNet`/`HeroObject` | ✅ | server-owned | game room RPC + coordinates replicating DOWN via `__syncChannel=1` |
+| `shared/net/GameNet.hx` | ✅ `NetworkSerializable` | **server** creates + `add()`s it | game-room RPC facade: `@:rpc(server)` heroInput/fireBullet, `@:rpc(clients)` bulletSpawn/playerJoined/damage/bulletHit. 1 per game room |
+| `shared/net/HeroObject.hx` | ✅ `NetworkSerializable` | **server** (created by `HeroSystem`) | per-player entity: `@:s` posX/Y/Z, yaw, hp/maxHp, weaponId, ammo, score — replicating DOWN via `__syncChannel=1` |
 
 `__isServer` is set by the host: `add()` on server → `true`; receiving a mirror → accepting
 side's role. **`@:rpc(server)` only executes where `__isServer==true`**, so server-RPCs require
@@ -103,14 +104,27 @@ client-owned → server wouldn't run its `@:rpc(server)` bodies (wrong `__isServ
 two facades. Client-owned objects are for per-player things later (e.g. a client's own weapon),
 not for the lobby facade.
 
+**Per-player entities (`HeroObject`) — a System owns the lifecycle, the room routes to the socket.**
+`HeroSystem.spawnHero`/`removeHero` create/populate/release the `HeroObject` on the server
+(`sim.isServer` guard), and the world map `sim.heroEnts` is the SINGLE storage (`SyncBridge` and
+future systems read it there). The socket is owned by the room's `NetRoomSystem`, never the sim:
+`DemoRoom` wires `heroSys.onNetSpawned = obj -> netSys.socket.add(obj)` and
+`onNetRemoved = obj -> netSys.socket.remove(obj)`. The hooks are `#if sys` — on the client the
+mirror arrives from the network (`GamePlayView.updateNet` writes it into `sim.heroEnts` for
+`SyncBridge` reconciliation); the client never creates a `HeroObject`.
+
+Rule of thumb — continuous per-player fields (`@:s`, e.g. `hp`) are written into the HeroObject
+by the owning system; rnl replicates the dirty delta automatically. One-shot events (input, hits,
+spawns) go through `@:rpc` on `GameNet`.
+
 ### rnl.net Registry CLID — must be seeded on BOTH ends (`NetRegistry`)
 
 `rnl.net.Registry` fills lazily on `getCLID`. A peer that only RECEIVES a value-carrying
 `Serializable` (e.g. `PlayerInfo` inside `rosterChanged`) never calls `getCLID` for it, so
 `Registry.getClassName(clid)` returns null → deserialization crash
 `Null access .bytes` in `LobbyNet.__rpcDispatch` (`rnl/net/Macros.hx`). Fix: 
-`shared/net/NetRegistry.hx` (`init()` calls `Registry.getCLID` for `PlayerInfo` + `LobbyNet`),
-invoked in `ClientNet.new()` and `NetRoomSystem.new()`.
+`shared/net/NetRegistry.hx` (`init()` calls `Registry.getCLID` for `PlayerInfo`, `LobbyNet`,
+`GameNet` and `HeroObject`), invoked in `ClientNet.new()` and `NetRoomSystem.new()`.
 
 ### hxml — models must survive DCE
 
@@ -151,9 +165,13 @@ socket, sets `connectTimedOut`. No crash/hang; client keeps running offline.
 
 ### Current scope
 
-Lobby prototype only (join/ready/roster, console traces). Game room (`MapRoom`), port pool
-`1790..1990`, `gameStart` handoff, `HeroObject` coordinate replication — planned next. `LobbyRoom`
-still auto-joins two demo players (`player-1`/`player-2`) in `ServerApp.main` — visible in roster.
+Lobby + demo game room prototype: join/ready/roster (lobby, console traces); game room
+(`DemoRoom`, port 1790) with per-player `HeroObject` coordinate replication (`SyncBridge`),
+server-authoritative bullet hits (`SERVER HIT` verdict → `ShooterHit`/`VictimHit` on clients),
+and puppet (de)spawn on join/disconnect (`HeroObject` REMOVE → client despawns the mirror hero).
+`LobbyRoom` still auto-joins two demo players (`player-1`/`player-2`) in `ServerApp.main` —
+visible in roster. Next: damage/HP (`HealthSystem` + cdb `damage` column + `gameNet.damage()`
+RPC), weapon/ammo fields, `MapRoom` room kind, port pool `1790..1990`, `gameStart` handoff.
 
 ## Web target: resource (pak) loading
 
@@ -439,21 +457,56 @@ Gotchas:
 Gameplay rules (auto-spawn cubes, level geometry) live in SimWorld or shared systems, never
 in client/server code.
 
+`SimWorld.isServer` (from the ctor `server` param) tells systems which side they are:
+true on the headless server (authority — owns net objects, emits hit verdicts), false on
+every client and on web (where the whole net layer is `#if sys`'ed out).
+
 Consumers hook in via `IPhysicsConsumer`: client attaches `phys.render.PhysRenderer` (with
 `sim.physCore` for interpolation); server attaches a `StateLogger`. The server must never
 link heaps or define `-D heapsphysics_render` (that define gates `phys/render/*`, which needs h3d).
+
+### Entity factory — the only spawn path
+
+`IEntityFactory` (shared interface) → `BaseEntityFactory` (shared recipes: `createWorld`,
+`spawnLevel`, `spawnCube`, `spawnHeroBody`, `spawnBulletBody`). Side implementations:
+`server/src/serv/factory/ServerEntityFactory` (headless — lifecycle hooks are no-ops) and
+`client/src/extract/factory/ClientEntityFactory` (binds a mesh in `onBodyAdded` via the
+PhysRenderer and exposes `localHeroMesh` as the camera anchor).
+
+Bodies are spawned ONLY through `sim.factory.spawnX` and then registered via `sim.add(b)` /
+`sim.setHero(pid, b)` — that is what fires `factory.onBodyAdded` (client: mesh up; server:
+no-op). `sim.buildLevel()` spawns the level; on the client it MUST run after
+`factory.bindRenderer(physRenderer)`, or level meshes never bind.
+
+Why two classes: the recipes are pure physics and shared (identical client+server = the
+deterministic sim); `meshForBody` builds h3d meshes and therefore lives in the client factory
+only — it must NOT be in the shared interface, or the headless server build would pull in heaps.
+
+**Creation order in GamePlayView**: `factory = new ClientEntityFactory(this)` →
+`sim = factory.createWorld(gd, bus, false)` → `physRenderer = new PhysRenderer(sim.physCore)`
+→ `sim.phys.addConsumer(physRenderer)` → `factory.bindRenderer(physRenderer)` →
+`sim.buildLevel()` → `heroSys.spawnHero(Player.LOCAL)` → `player.mesh = factory.localHeroMesh`.
 
 ### Systems & EventBus
 
 All gameplay logic is split into isolated `System` subclasses (`shared/systems/System.hx`),
 held by a `Systems` container inside `SimWorld`. Systems communicate only through the
-`EventBus` (`shared/events/EventBus.hx`) — no direct system-to-system references.
+`EventBus` (`shared/events/EventBus.hx`) — no direct system-to-system references. A system
+may read/write WORLD state (`sim.heroes`, `sim.heroEnts`, physics) freely; it may not reach
+into another system or the room's socket.
 
 **Sim systems** (shared, run on client and server alike):
 - `HeroSystem` — per-player hero capsules; subscribes to `HeroMoveIntent`; applies velocity
-  easing, yaw, ground check, jump lock via `HeroState` typedef keyed by `playerId`
+  easing, yaw, ground check, jump lock via `HeroState` typedef keyed by `playerId`. On the
+  server it ALSO owns the per-player `HeroObject` lifecycle (see "Per-player entities" under
+  Networking). Input vs output: `states` (`Map<String, HeroState>`) is the per-player INPUT
+  snapshot (dirX/dirZ/yaw/mag + jump lock) — local to each sim, NEVER replicated; `HeroObject`
+  is the OUTPUT (position/HP/weapon) — replicated. Pipeline: states → `apply()` → physics body
+  → SyncBridge → HeroObject → clients.
 - `BulletSystem` — subscribes to `BulletFired`; spawns `SphereGeometry` projectiles with
-  `setGravityScale(0)`, collision layer BULLET→WORLD; deferred removal (safe outside solver)
+  `setGravityScale(0)`, collision layer BULLET→WORLD; deferred removal (safe outside solver).
+  On the server (`sim.isServer`) it is the authoritative hit detector: publishes `BulletHit`
+  verdicts (ownerId, victimId, impact point) that `ServerTransportSystem` broadcasts.
 
 **Client systems** (`client/src/extract/systems/`):
 - `PlayerControllerSystem` — composes `CameraController` (look) + `MovementController` (WASD);
@@ -464,7 +517,8 @@ held by a `Systems` container inside `SimWorld`. Systems communicate only throug
 
 `shared/Player.hx`: `Player.LOCAL = "local"` constant. `SimWorld.heroes: Map<String, PhysBody>`
 holds all hero bodies keyed by playerId. `sim.hero` is a convenience getter returning
-`heroes[LOCAL]`.
+`heroes[LOCAL]`. `sim.heroEnts: Map<String, HeroObject>` (under `#if sys`) holds the per-player
+net entities — server: owned objects, client: mirrors written by `GamePlayView.updateNet`.
 
 ### Collision layers (`shared/Collision.hx`)
 
@@ -475,9 +529,9 @@ Structural constants, not cdb tunables — identical on client and server for de
 
 ### Body types
 
-Extend by adding a case in `GamePlayView.meshForBody()` (keyed by body name string) AND
-corresponding spawn logic in `SimWorld` or a system. Current body names: `"floor"`, `"cube"`,
-`"hero"`, `"bullet"`.
+Extend by adding a case in `ClientEntityFactory.meshForBody()` (keyed by body name string),
+a shared recipe in `BaseEntityFactory`, AND corresponding spawn logic in `SimWorld` or a system.
+Current body names: `"floor"`, `"cube"`, `"hero"`, `"bullet"`.
 
 ### Tunables
 
@@ -491,8 +545,31 @@ clear error at startup when a field is missing (fail-fast, no silent defaults).
 
 - Fixed 30 Hz tick (`Config.PHYSICS_HZ`); rendering interpolated via `PhysCore.interpol`
 - Physics world is Y-up; Heaps camera defaults to Z-up — `camera.up.set(0,1,0)` in HeapsApp
-- `SimWorld.add(b)` is the mandatory spawn path for client mesh creation (`onSpawn` callback);
-  `phys.spawnBody()` without `sim.add()` never reaches the client view
+- `SimWorld.add(b)` is the mandatory spawn path: it fires `factory.onBodyAdded(b)`, which is
+  what creates/binds the client mesh (`ClientEntityFactory`); `phys.spawnBody()` without
+  `sim.add()` never reaches the client view
+
+### Extending the prototype — recipes
+
+**New shared sim system** (runs on both ends, e.g. next `HealthSystem`):
+1. `class HealthSystem extends shared.systems.System` — ctor `super(bus, sim, gd, "Health")` +
+   `bus.subscribe(...)`; rules run in `update(dt)`, world mutation via `sim` only.
+2. Register in `SimWorld` ctor: `systems.add(new shared.systems.HealthSystem(bus, this, gd));`.
+3. Server-only net write: guard `#if sys if (sim.isServer)` and write straight into
+   `sim.heroEnts[pid]` `@:s` fields (automatic dirty replication). The room never touches
+   entity data — it only routes objects to the socket (`onNetSpawned`/`onNetRemoved`).
+4. Tunables via `gd.req("Sheet", "field")` (fail-fast on missing) — add the column to
+   `client/res/db/data.cdb` (hand-edit; `GenDb.hx` only builds World+Hero — re-add the rest).
+
+**New `@:rpc` on GameNet**: add a handler field (`onX : Null<... -> Void>`) + a `@:rpc(server)`
+/`@:rpc(clients)` method; wire the handler on the matching `__isServer` side (room sets the
+server-side ones, client `RoomNetSystem`/`ServerTransportSystem` the client-side ones). If a NEW
+`Serializable`/model type reaches a receiver as RPC arg or `@:s` field, reseed `NetRegistry` with
+it (CLID must exist on both ends).
+
+**New spawnable body**: recipe in `BaseEntityFactory` (`spawnXBody`) + mesh case in
+`ClientEntityFactory.meshForBody` (name string must match) + spawn call in SimWorld/system through
+`sim.factory` — never inline.
 
 ## Current cdb sheets
 
@@ -505,6 +582,10 @@ clear error at startup when a field is missing (fail-fast, no silent defaults).
 | **Camera** | `id:0`, `sensitivity:4`, `fov:4`, `maxPitch:4`, `lookSmooth:4`, `invertX:1`, `invertY:1`, `eyeHeight:4` | 0.002, 75, 1.5533, 25, true, false, 1.6 | FPS camera params |
 | **Controller** | `id:0`, `moveSmooth:4`, `stopSmooth:4`, `stopThreshold:4`, `fastMult:4`, `invertX:1`, `invertZ:1` | 12, 20, 0.05, 2, true, false | WASD input smoothing |
 | **Bullet** | `id:0`, `radius:4`, `speed:4`, `cooldown:4`, `lifetime:4` | 0.15, 25, 0.25, 10 | Projectile params |
+
+> **Planned**: add `damage:4` (TFloat, default ~25) to the Bullet sheet for `HealthSystem`
+> (server: `HeroObject.hp -= damage` on hero-hit, rnl replicates the dirty delta; the instant-UI
+> `gameNet.damage()` RPC is a separate channel — see "Extending" recipes above).
 
 Type codes: `0=TId`, `1=TBool`, `4=TFloat`.
 
@@ -536,7 +617,8 @@ are exporter bugs in the files themselves, the third is scale:
 3. **Native size ≠ game units.** These models are ~3.75 world units tall (the hero capsule is
    1.7). **Fix**: `model.setScale(0.45)` ≈ hero height.
 
-Diagnosis tool: `h3d.prim.ModelCache` + `fixSkinBind` are in `GamePlayView.hx`; a headless probe
+Diagnosis tool: `h3d.prim.ModelCache` is used in `client/src/extract/models/PlayerModel.hx`
+(`fixSkinBind` is currently commented out there); a headless probe
 (`tools` or temp) that runs `hxd.fmt.fbx.Parser` → `HMDOut.toHMD` → `hxd.fmt.hmd.Writer/Reader`
 round-trip and prints per-joint `transPos * bindWorld` palettes shows immediately whether a model
 needs the bind fix.
