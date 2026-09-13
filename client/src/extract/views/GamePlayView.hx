@@ -16,6 +16,7 @@ import extract.design.HudDesign;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.systems.RoomNetSystem;
+import extract.systems.StatisticSystem;
 
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
@@ -99,8 +100,6 @@ class GamePlayView extends BaseScene
 	#if sys
 		roomNet = new RoomNetSystem(bus, gd, 1790);
 		systems.add(roomNet);
-		// server-broadcast events arrive on the local bus (RoomNetSystem
-		// relays the GameNet mirror rpcs there) — subscribe, like any system
 		bus.subscribe(PlayerJoined, onPlayerJoined);
 		bus.subscribe(BulletSpawned, onBulletSpawn);
 		bus.subscribe(BulletHit, onBulletHit);
@@ -133,6 +132,13 @@ class GamePlayView extends BaseScene
 		s2d.addChild(hud.crosshair);
 		hud.crosshair.x = 960;
 		hud.crosshair.y = 540;
+
+		// stats: FPS from Engine, ping from RNL socket — self-contained in system
+	#if sys
+		systems.add(new StatisticSystem(bus, hud, roomNet.clientNet != null ? roomNet.clientNet.socket : null));
+	#else
+		systems.add(new StatisticSystem(bus, hud));
+	#end
 
 		// hide cursor for FPS — future views (lobby/inventory) will call show()
 		CursorManager.get().hide();

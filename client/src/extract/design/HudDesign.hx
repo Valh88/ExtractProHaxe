@@ -24,14 +24,20 @@ class HudDesign extends Flow implements Object
 			<flow id="energyBg" class="energy-bg" x="810" y="1010">
 				<flow id="energyFill" class="energy-fill" x="0" y="0"/>
 			</flow>
-			<statistic-design id="stats" x="1850" y="20"/>
+			<statistic-design id="statsPanel" x="1850" y="20"/>
 		</hud-design>;
 
 	public var crosshair(default, set) : CrosshairDesign;
+	public var stats(get, never) : StatisticDesign;
 
 	function set_crosshair(v : CrosshairDesign) : CrosshairDesign
 	{
 		return crosshair = v;
+	}
+
+	function get_stats() : StatisticDesign
+	{
+		return statsPanel;
 	}
 
 	public function new(?parent)

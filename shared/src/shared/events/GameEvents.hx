@@ -232,3 +232,19 @@ class EntityNetRemoved
 		this.playerId = playerId;
 	}
 }
+
+/**
+	Client-only: periodic stats snapshot (FPS + ping). Published by
+	StatisticSystem every UPDATE_INTERVAL seconds.
+**/
+class StatsUpdate
+{
+	public var fps : Int;
+	public var pingMs : Int;
+
+	public function new(fps : Int, pingMs : Int)
+	{
+		this.fps = fps;
+		this.pingMs = pingMs;
+	}
+}
