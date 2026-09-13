@@ -76,4 +76,4 @@
 .settings-tabs-wrap { position:absolute; width:520; height:40; clipContent:false; }
 .settings-btn-save { position:absolute; width:200; height:50; }
 .settings-btn-back { position:absolute; width:200; height:50; }
-.settings-btn-text { color:#FFFFFF; font: font/oswald_bold_18.fnt; }
+.settings-btn-text { position:absolute; color:#FFFFFF; font: font/oswald_bold_18.fnt; }
