@@ -13,8 +13,11 @@ INST_DIR = tempfile.mkdtemp(prefix="mkfont_")
 
 # (family, weight, size, out_name)
 CONFIGS = [
+    ("oswald", 400, 13, "oswald_regular_13"),
     ("oswald", 400, 14, "oswald_regular_14"),
+    ("oswald", 500, 16, "oswald_medium_16"),
     ("oswald", 500, 22, "oswald_medium_22"),
+    ("oswald", 700, 14, "oswald_bold_14"),
     ("oswald", 700, 18, "oswald_bold_18"),
     ("oswald", 700, 20, "oswald_bold_20"),
     ("oswald", 700, 22, "oswald_bold_22"),
