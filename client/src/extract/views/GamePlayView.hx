@@ -22,6 +22,9 @@ import extract.utils.CursorManager;
 
 #if sys
 import extract.systems.ClientTransportSystem;
+import shared.events.GameEvents.BulletSpawned;
+import shared.events.GameEvents.PlayerDamaged;
+import shared.events.GameEvents.PlayerJoined;
 import shared.net.HeroObject;
 import shared.replication.SyncBridge;
 import shared.systems.BulletSystem;
@@ -82,10 +85,11 @@ class GamePlayView extends BaseScene
 	#if sys
 		roomNet = new RoomNetSystem(bus, gd, 1790);
 		systems.add(roomNet);
-		// delegate server-broadcast events to this view (wire BEFORE connect)
-		roomNet.onPlayerJoined = onPlayerJoined;
-		roomNet.onBulletSpawn = onBulletSpawn;
-		roomNet.onDamage = onDamage;
+		// server-broadcast events arrive on the local bus (RoomNetSystem
+		// relays the GameNet mirror rpcs there) — subscribe, like any system
+		bus.subscribe(PlayerJoined, onPlayerJoined);
+		bus.subscribe(BulletSpawned, onBulletSpawn);
+		bus.subscribe(PlayerDamaged, onDamage);
 	#else
 		systems.add(new RoomNetSystem(bus, gd, 1790));
 	#end
@@ -235,32 +239,41 @@ class GamePlayView extends BaseScene
 			if (sim.heroEnts.exists(o.playerId)) continue;
 			sim.heroEnts.set(o.playerId, o);
 			var heroSys : HeroSystem = cast sim.systems.get("Hero");
-			heroSys.spawnHero(o.playerId);
+			heroSys.spawnHero(o.playerId, false); // remote: mirror puppet, no state
 			trace('CLIENT remote hero spawned: ' + o.playerId);
 		}
 	}
 
 	/** Server told us a player joined this room (informational — the own id
 		comes from HeroObject.name, see updateNet). */
-	function onPlayerJoined(pid : String, name : String) : Void
+	function onPlayerJoined(e : PlayerJoined) : Void
 	{
-		trace('CLIENT playerJoined ' + pid + ' "' + name + '"');
+		trace('CLIENT playerJoined ' + e.playerId + ' "' + e.name + '"');
 	}
 
 	/** Server damage feedback (instant UI); authoritative HP arrives via @:s. */
-	function onDamage(pid : String, amount : Float) : Void
+	function onDamage(e : PlayerDamaged) : Void
 	{
 		// TODO: HUD damage number / flash
-		trace('CLIENT damage ' + pid + ' : ' + amount);
+		trace('CLIENT damage ' + e.playerId + ' : ' + e.amount);
 	}
 
 	/** Remote bullet spawn — spawn deterministically, skip own shots (already
 		spawned locally); direct call (not the bus) to avoid echoing the RPC. */
-	function onBulletSpawn(owner : String, x : Float, y : Float, z : Float, dx : Float, dy : Float, dz : Float) : Void
+	function onBulletSpawn(e : BulletSpawned) : Void
 	{
-		if (owner == ownPid) return;
+		if (e.ownerId == ownPid) return;
 		var bs : BulletSystem = cast sim.systems.get("Bullet");
-		bs.spawnBullet(x, y, z, dx, dy, dz);
+		bs.spawnBullet(e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+	}
+
+	/** Release bus subscriptions before the systems/socket are torn down. */
+	override public function dispose() : Void
+	{
+		bus.unsubscribe(PlayerJoined, onPlayerJoined);
+		bus.unsubscribe(BulletSpawned, onBulletSpawn);
+		bus.unsubscribe(PlayerDamaged, onDamage);
+		super.dispose();
 	}
 #end
 }

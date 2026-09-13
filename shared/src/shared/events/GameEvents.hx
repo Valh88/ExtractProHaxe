@@ -67,3 +67,65 @@ class HeroMoveIntent
 		this.jump = jump;
 	}
 }
+
+/**
+	Network -> local bus: a player joined this game room (server-assigned id).
+	Published by RoomNetSystem when the GameNet mirror's playerJoined rpc
+	arrives. Consumers use it for HUD / own-pid bookkeeping.
+**/
+class PlayerJoined
+{
+	public var playerId : String;
+	public var name : String;
+
+	public function new(playerId : String, name : String)
+	{
+		this.playerId = playerId;
+		this.name = name;
+	}
+}
+
+/**
+	Network -> local bus: a REMOTE bullet was spawned (server broadcast).
+	The owner spawned it locally already and skips its echo; others spawn it
+	deterministically (BulletSystem.spawnBullet). Published by RoomNetSystem
+	from the GameNet mirror's bulletSpawn rpc.
+**/
+class BulletSpawned
+{
+	public var ownerId : String;
+	public var x : Float;
+	public var y : Float;
+	public var z : Float;
+	public var dirX : Float;
+	public var dirY : Float;
+	public var dirZ : Float;
+
+	public function new(ownerId : String, x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float)
+	{
+		this.ownerId = ownerId;
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		this.dirX = dirX;
+		this.dirY = dirY;
+		this.dirZ = dirZ;
+	}
+}
+
+/**
+	Network -> local bus: a player took damage (instant UI feedback; the
+	authoritative HP arrives via the HeroObject `@:s` delta). Published by
+	RoomNetSystem from the GameNet mirror's damage rpc.
+**/
+class PlayerDamaged
+{
+	public var playerId : String;
+	public var amount : Float;
+
+	public function new(playerId : String, amount : Float)
+	{
+		this.playerId = playerId;
+		this.amount = amount;
+	}
+}

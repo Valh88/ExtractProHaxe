@@ -1,6 +1,8 @@
 #if sys
 package shared.replication;
 
+import oimo.common.Quat;
+
 import shared.Player;
 import shared.SimWorld;
 import shared.GameData;
@@ -50,11 +52,17 @@ class SyncBridge extends System
 		{
 			var obj = sim.heroEnts.get(id);
 			if (obj == null) continue;
-			var p = sim.heroes.get(id).getPosition();
+			var body = sim.heroes.get(id);
+			var p = body.getPosition();
 			obj.posX = p.x;
 			obj.posY = p.y;
 			obj.posZ = p.z;
-			// yaw: extract from the PhysBody (Quat → angle around Y) — TODO (Q1)
+			// yaw: inverse of HeroSystem.apply's orientation setter. The hero's
+			// rotation is locked to pitch/roll (rotationFactor 0,1,0), so the
+			// quat is a pure Y rotation: q = (0, sin(-yaw/2), 0, cos(yaw/2))
+			// → yaw = -2 * atan2(q.y, q.w).
+			var q = body.body.getOrientation();
+			obj.yaw = -2 * Math.atan2(q.y, q.w);
 		}
 	}
 
@@ -70,6 +78,12 @@ class SyncBridge extends System
 			var body = sim.heroes.get(id);
 			if (body == null) continue;
 			body.setPosition(obj.posX, obj.posY, obj.posZ);
+			// face the owner's view yaw — same rotation form HeroSystem.apply
+			// uses, so the remote capsule turns toward where the player aims.
+			// Remote bodies have no HeroSystem state (puppets) — nothing
+			// overwrites this between pulls.
+			var ha = obj.yaw * 0.5;
+			body.body.setOrientation(new Quat(0, Math.sin(-ha), 0, Math.cos(ha)));
 		}
 	}
 }

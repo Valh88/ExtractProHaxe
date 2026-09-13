@@ -100,8 +100,14 @@ class HeroSystem extends System
 		Create a hero capsule resting on the floor at the origin and register
 		it under `playerId` (defaults to the local player). Called once per
 		connected player.
+
+		`simulated` = HeroSystem drives the body from input intents each tick
+		(has a movement state). Server: pass true for every player (default).
+		Client: pass false for REMOTE heroes — they are puppets owned by the
+		SyncBridge mirror (position + yaw pulled from the server every tick);
+		a state would make apply() overwrite the pulled orientation/velocity.
 	**/
-	public function spawnHero(?playerId : String) : Void
+	public function spawnHero(?playerId : String, simulated : Bool = true) : Void
 	{
 		if (playerId == null) playerId = Player.LOCAL;
 		// capsule total height = 2*(hh + r); spawn so the bottom touches the floor.
@@ -112,7 +118,7 @@ class HeroSystem extends System
 			.setGroup(Collision.HERO).setMask(Collision.WORLD);
 		sim.setHero(playerId, b);
 		// make sure the player has a movement state so update() runs for it
-		state(states, playerId);
+		if (simulated) state(states, playerId);
 	}
 
 	/** Apply the latest movement intent of every player to their hero body. */

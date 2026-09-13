@@ -14,6 +14,9 @@ class RoomNetSystem extends System
 import extract.net.ClientNet;
 import shared.GameData;
 import shared.events.EventBus;
+import shared.events.GameEvents.BulletSpawned;
+import shared.events.GameEvents.PlayerDamaged;
+import shared.events.GameEvents.PlayerJoined;
 import shared.net.GameNet;
 import shared.net.LobbyNet;
 import shared.net.PlayerInfo;
@@ -22,12 +25,13 @@ import shared.systems.System;
 /**
 	Client-side networking system (HL only via ClientNet). Owns the one active
 	RNL socket for the current scene's lifetime: creates it, pumps it each
-	frame, performs the one-shot join/ready handshake, and publishes roster
-	updates onto the bus.
+	frame, performs the one-shot join/ready handshake, and publishes incoming
+	network events (roster, game broadcasts) onto the bus. Consumers subscribe
+	to the bus — there are no direct inter-system references.
 
 	Generic over the mirror type via ClientNet.findMirror<T>() — currently
-	uses LobbyNet; extend by adding findMirror calls in onConnected for new
-	net facades (GameNet, ChatNet, etc.).
+	uses LobbyNet + GameNet; extend by adding findMirror calls in onConnected
+	for new net facades (ChatNet, etc.).
 
 	Contract: this is a client presentation system (`sim == null`) — it talks
 	to the rest of the app only through the event bus. It owns and disposes
@@ -43,11 +47,6 @@ class RoomNetSystem extends System
 
 	/** Typed mirror of the server's GameNet (set once connected). */
 	public var gameNet(default, null) : Null<GameNet>;
-
-	/** Delegated to GamePlayView via the GameNet mirror (wire before connect). */
-	public var onPlayerJoined : Null<String -> String -> Void> = null;
-	public var onDamage : Null<String -> Float -> Void> = null;
-	public var onBulletSpawn : Null<String -> Float -> Float -> Float -> Float -> Float -> Float -> Void> = null;
 
 	var joined : Bool = false;
 	var readySent : Bool = false;
@@ -75,7 +74,8 @@ class RoomNetSystem extends System
 			mirror.onAnnounce = onAnnounce;
 		}
 		// wire the game RPC facade as early as possible so broadcast events
-		// (playerJoined, bulletSpawn, damage) are never dropped
+		// (playerJoined, bulletSpawn, damage) are relayed onto the bus — never
+		// dropped, and consumers subscribe to the bus, not to this system
 		gameNet = clientNet.findMirror(GameNet);
 		if (gameNet == null)
 		{
@@ -83,9 +83,9 @@ class RoomNetSystem extends System
 		}
 		else
 		{
-			gameNet.onPlayerJoined = onPlayerJoined;
-			gameNet.onBulletSpawn = onBulletSpawn;
-			gameNet.onDamage = onDamage;
+			gameNet.onPlayerJoined = (pid, name) -> bus.publish(new PlayerJoined(pid, name));
+			gameNet.onBulletSpawn = (owner, x, y, z, dx, dy, dz) -> bus.publish(new BulletSpawned(owner, x, y, z, dx, dy, dz));
+			gameNet.onDamage = (pid, amount) -> bus.publish(new PlayerDamaged(pid, amount));
 		}
 	}
 

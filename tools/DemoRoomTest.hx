@@ -46,7 +46,7 @@ class DemoRoomTest
 					{
 						act = 0;
 						var gn = net.findMirror(GameNet);
-						if (gn != null) gn.heroInput(dirX, 0, 0, 1, false);
+						if (gn != null) gn.heroInput(dirX, 0, 1.2, 1, false);
 					}
 					act++;
 				}
@@ -61,6 +61,7 @@ class DemoRoomTest
 					if (i % 25 == 0)
 						trace('HEROOBJ ' + o.playerId
 							+ ' pos=' + Std.int(o.posX * 100) / 100 + ',' + Std.int(o.posY * 100) / 100 + ',' + Std.int(o.posZ * 100) / 100
+							+ ' yaw=' + Std.int(o.yaw * 100) / 100
 							+ ' hp=' + o.hp);
 				}
 			}

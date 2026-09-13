@@ -539,22 +539,24 @@ GamePlayView самому поллить — см. выше).
   НАПРЯМУЮ (в обход шины → нет эха RPC).
 - **Серверный шина флашится в `Room.tick`** (`bus.flush()` после
   roomSystems.update) — RPC-handler'ы публикуют в шину, доставка в конце тика.
+- **Remote-герои на клиенте = марионетки** (`spawnHero(pid, false)`, ни state,
+  ни input): позицию и yaw каждый тик ставит SyncBridge pull; HeroSystem
+  применяется только к локальному (prediction) и серверным героям.
 
 ---
 
-## Вопросы (открытые)
-
-- Q1: yaw — извлекать из PhysBody (Quat→угол) в SyncBridge, или хранить
-  поворот отдельным `@:s` полем yaw на hero и применять к телу на клиенте?
-  (пока `@:s` pos без поворота; TODO: добавить yaw полем и применять в pull)
-
 ## Вопросы (решённые)
 
+- Q1: **поворот remote-героев** — `@:s yaw` на HeroObject; push извлекает yaw из
+  Quat (инверсия сеттера HeroSystem.apply: `yaw = -2*atan2(q.y, q.w)`), pull
+  прикладывает тем же Quat. Remote-герои на клиенте — МАРИОНЕТКИ: `spawnHero(pid, false)`
+  без state → HeroSystem не перетирает ориентацию/скорость (только локальный игрок
+  симулируется предсказательно, серверные тела латчатся к зеркалу).
 - Q2: **DamageSystem** — логика в BulletSystem: пересечение скорости пули с
   позицией героя → `sim.heroEnts[pid].hp -= d` → `PlayerDamaged` →
   ServerTransport → `gameNet.damage`. (урон-фидбек `@:rpc`, HP-состояние `@:s`)
 - Q3: **HeroObject.spawn** — DemoRoom на join (серверный lifecycle), HeroSystem
-  не знает о сети. 
+  не знает о сети.
 - Q4: **LATE-JOIN** — FULLSYNC шлёт полное состояние всех HeroObject'ов
   автоматически (подтверждено прогоном: Bob сразу увидел p1). Доп. логика не нужна.
 
