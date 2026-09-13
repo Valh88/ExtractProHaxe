@@ -63,3 +63,56 @@
 .stat-caption { position:absolute; color:#CCCCCC; font: font/oswald_regular_14.fnt; font-size:14; }
 .stat-value { position:absolute; color:#CCCCCC; font: font/oswald_regular_14.fnt; font-size:14; }
 .heroes-view { position:absolute; width:1920; height:1080; }
+/* === Settings overlay === */
+.settings-root { position:absolute; width:1920; height:1080; }
+.settings-overlay { position:absolute; width:1920; height:1080; background:#4D000000; }
+.settings-panel { position:absolute; width:600; height:740; background:#1A; border:1 #C8956C; border-radius:8; }
+.settings-title { position:absolute; width:600; height:65; color:#C4A44A; font: font/oswald_bold_22.fnt; text-align:center; }
+.settings-divider { position:absolute; width:480; height:2; background:#99C8956C; }
+/* --- Tabs --- */
+.settings-tabs { position:absolute; width:500; height:40; }
+.settings-tab { position:absolute; width:110; height:40; }
+.settings-tab-active { background:#241C14; }
+.settings-tab-text { position:absolute; width:110; height:40; color:#73; font: font/oswald_medium_22.fnt; text-align:center; v-align:middle; }
+.settings-tab-active .settings-tab-text { color:#C4A44A; }
+.settings-tab-indicator { position:absolute; width:110; height:2; background:#C4A44A; }
+/* --- Content slot --- */
+.settings-content { position:absolute; width:520; height:560; }
+/* --- Buttons --- */
+.settings-btn-save { position:absolute; width:200; height:50; background:#8B2010; border:1 #A03020; border-radius:4; }
+.settings-btn-back { position:absolute; width:200; height:50; background:#28201A; border:1 #403828; border-radius:4; }
+.settings-btn-text { position:absolute; width:200; height:50; color:#FFFFFF; font: font/oswald_bold_18.fnt; text-align:center; v-align:middle; }
+.settings-btn-save .settings-btn-text { color:#FFFFFF; }
+.settings-btn-back .settings-btn-text { color:#BFBFBF; }
+/* === Reusable controls === */
+.settings-slider { position:absolute; width:520; height:40; }
+.settings-slider-label { position:absolute; width:300; height:24; color:#BFBFBF; font: font/oswald_medium_22.fnt; v-align:middle; }
+.settings-slider-track { position:absolute; width:190; height:14; background:#1A; border:1 #45382A; border-radius:7; }
+.settings-slider-fill { position:absolute; width:190; height:14; background:#C4A44A; border-radius:7; }
+.settings-slider-knob { position:absolute; width:28; height:28; background:#E0D080; border-radius:14; }
+.settings-slider-value { position:absolute; width:50; height:24; color:#BFBFBF; font: font/oswald_medium_22.fnt; text-align:right; v-align:middle; }
+/* --- Toggle --- */
+.settings-toggle { position:absolute; width:520; height:40; }
+.settings-toggle-label { position:absolute; width:300; height:24; color:#BFBFBF; font: font/oswald_medium_22.fnt; v-align:middle; }
+.settings-toggle-pill { position:absolute; width:44; height:26; background:#2A; border:1 #40382C; border-radius:13; }
+.settings-toggle-knob { position:absolute; width:20; height:20; background:#4A4036; border-radius:10; }
+.settings-toggle-on .settings-toggle-knob { background:#E0D080; }
+.settings-toggle-on .settings-toggle-knob-pos { x:20; }
+.settings-toggle-off .settings-toggle-knob-pos { x:4; }
+/* --- Select / Dropdown --- */
+.settings-select { position:absolute; width:520; height:40; }
+.settings-select-label { position:absolute; width:300; height:24; color:#BFBFBF; font: font/oswald_medium_22.fnt; v-align:middle; }
+.settings-select-box { position:absolute; width:190; height:28; background:#2A; border:1 #40382C; border-radius:4; }
+.settings-select-text { position:absolute; width:190; height:28; color:#BFBFBF; font: font/oswald_medium_22.fnt; text-align:center; v-align:middle; }
+/* --- Section header --- */
+.settings-section { position:absolute; width:520; height:27; color:#8A7A5A; font: font/oswald_bold_18.fnt; }
+/* --- Key binding row --- */
+.settings-keybind { position:absolute; width:520; height:36; }
+.settings-keybind-label { position:absolute; width:300; height:24; color:#BFBFBF; font: font/oswald_medium_22.fnt; v-align:middle; }
+.settings-keybind-box { position:absolute; width:190; height:28; background:#28201A; border:1 #403828; border-radius:4; }
+.settings-keybind-text { position:absolute; width:190; height:28; color:#E0D080; font: font/oswald_bold_18.fnt; text-align:center; v-align:middle; }
+/* --- Reset button --- */
+.settings-reset-btn { position:absolute; width:520; height:40; background:#3A2A1A; border:1 #5A4A34; border-radius:4; }
+.settings-reset-text { position:absolute; width:520; height:40; color:#8A7A5A; font: font/oswald_bold_18.fnt; text-align:center; v-align:middle; }
+/* --- Hint text --- */
+.settings-hint { position:absolute; width:520; height:20; color:#6A5A3A; font: font/oswald_regular_14.fnt; }
