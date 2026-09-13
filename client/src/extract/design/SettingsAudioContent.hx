@@ -8,9 +8,9 @@ class SettingsAudioContent extends Flow implements Object
 {
 	static var SRC =
 		<settings-audio-content class="settings-content">
-			<flow id="masterWrap" x="0" y="0"/>
-			<flow id="musicWrap" x="0" y="50"/>
-			<flow id="sfxWrap" x="0" y="100"/>
+			<flow id="masterWrap" class="settings-content-row" x="0" y="0"/>
+			<flow id="musicWrap" class="settings-content-row" x="0" y="50"/>
+			<flow id="sfxWrap" class="settings-content-row" x="0" y="100"/>
 		</settings-audio-content>;
 
 	public var master(default, null) : SettingsSlider;

@@ -8,14 +8,14 @@ class SettingsControlsContent extends Flow implements Object
 {
 	static var SRC =
 		<settings-controls-content class="settings-content">
-			<flow id="sensWrap" x="0" y="0"/>
-			<flow id="invertWrap" x="0" y="50"/>
-			<text id="sectionKeybindings" class="settings-section" x="0" y="110"/>
-			<flow id="keyMoveWrap" x="0" y="150"/>
-			<flow id="keyFireWrap" x="0" y="190"/>
-			<flow id="keyCrouchWrap" x="0" y="230"/>
-			<flow id="keySkillsWrap" x="0" y="270"/>
-			<flow id="resetBtn" class="settings-reset-btn" x="0" y="330">
+			<flow id="sensWrap" class="settings-content-row" x="0" y="0"/>
+			<flow id="invertWrap" class="settings-content-row" x="0" y="50"/>
+			<text id="sectionKeybindings" class="settings-section settings-content-row" x="0" y="110"/>
+			<flow id="keyMoveWrap" class="settings-content-row" x="0" y="150"/>
+			<flow id="keyFireWrap" class="settings-content-row" x="0" y="190"/>
+			<flow id="keyCrouchWrap" class="settings-content-row" x="0" y="230"/>
+			<flow id="keySkillsWrap" class="settings-content-row" x="0" y="270"/>
+			<flow id="resetBtn" class="settings-reset-btn settings-content-row" x="0" y="330">
 				<text id="resetTxt" class="settings-reset-text" x="0" y="0"/>
 			</flow>
 		</settings-controls-content>;

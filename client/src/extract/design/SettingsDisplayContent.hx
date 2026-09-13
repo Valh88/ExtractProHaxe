@@ -8,11 +8,11 @@ class SettingsDisplayContent extends Flow implements Object
 {
 	static var SRC =
 		<settings-display-content class="settings-content">
-			<flow id="resWrap" x="0" y="0"/>
-			<flow id="fullWrap" x="0" y="50"/>
-			<flow id="vsyncWrap" x="0" y="100"/>
-			<flow id="fpsWrap" x="0" y="150"/>
-			<flow id="brightWrap" x="0" y="200"/>
+			<flow id="resWrap" class="settings-content-row" x="0" y="0"/>
+			<flow id="fullWrap" class="settings-content-row" x="0" y="50"/>
+			<flow id="vsyncWrap" class="settings-content-row" x="0" y="100"/>
+			<flow id="fpsWrap" class="settings-content-row" x="0" y="150"/>
+			<flow id="brightWrap" class="settings-content-row" x="0" y="200"/>
 		</settings-display-content>;
 
 	public var resolution(default, null) : SettingsSelect;

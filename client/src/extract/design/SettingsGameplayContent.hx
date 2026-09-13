@@ -8,11 +8,11 @@ class SettingsGameplayContent extends Flow implements Object
 {
 	static var SRC =
 		<settings-gameplay-content class="settings-content">
-			<flow id="langWrap" x="0" y="0"/>
-			<flow id="fpsWrap" x="0" y="50"/>
-			<flow id="namesWrap" x="0" y="100"/>
-			<flow id="hudWrap" x="0" y="150"/>
-			<text id="hint" class="settings-hint" x="0" y="220"/>
+			<flow id="langWrap" class="settings-content-row" x="0" y="0"/>
+			<flow id="fpsWrap" class="settings-content-row" x="0" y="50"/>
+			<flow id="namesWrap" class="settings-content-row" x="0" y="100"/>
+			<flow id="hudWrap" class="settings-content-row" x="0" y="150"/>
+			<text id="hint" class="settings-hint settings-content-row" x="0" y="220"/>
 		</settings-gameplay-content>;
 
 	public var language(default, null) : SettingsSelect;

@@ -41,7 +41,9 @@ class SettingsOverlay extends SubView<SettingsDesign>
 
 	function attachSubView(sub : SubView<Dynamic>) : Void
 	{
-		settings.getContentWrap().addChild(sub.design);
+		var cw = settings.getContentWrap();
+		cw.addChild(sub.design);
+		cw.getProperties(sub.design).isAbsolute = true;
 		style.addObject(sub.design);
 	}
 
