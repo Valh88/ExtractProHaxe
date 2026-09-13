@@ -87,6 +87,19 @@ class SimWorld implements IUpdate
 		add(phys.spawnBody(RigidBodyType._STATIC, new Vec3(0, -0.5, 0), "floor")
 			.addBox(floorHalf(), 0.25, floorHalf())
 			.setGroup(Collision.WORLD).setMask(Collision.ALL));
+
+		// static obstacles from the hide-authored prefab — the SAME bodies must
+		// exist on client and server, or collisions desync (the client had the
+		// pillars, the server simulated straight through them).
+		// Path: client = resource (hxd.Res), server = filesystem relative to
+		// the run CWD (repo root).
+		var pp = new PrefabPhysics(phys);
+	#if heapsphysics_render
+		var statics = pp.load("levels/test.prefab");
+	#else
+		var statics = pp.load("client/res/levels/test.prefab");
+	#end
+		for (s in statics) add(s);
 	}
 
 	/** Register a player hero body under `playerId`. Called by HeroSystem. */

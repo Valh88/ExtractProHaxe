@@ -54,15 +54,13 @@ class GamePlayView extends BaseScene
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 		this.renderer.effects.push(new extract.gfx.DistanceFog());
 
+	sim = new SimWorld(this.gd, bus);
+		// SimWorld.buildLevel() owns the level geometry (identical client+server).
+		// Visuals: hide draws the prefab meshes on HL; web falls back to the box
+		// mesh meshForBody builds (default case, #else below).
 	#if hide
-		// level authored in Hide's scene editor, loaded as a prefab (HL only —
-		// the web target has no hide support and uses the procedural level below)
 		var level = hxd.Res.load("levels/test.prefab").toPrefab();
 		level.load().make(this);
-		sim = new SimWorld(this.gd, bus);
-	#else
-		//procedural level on targets without hide (web)
-		sim = new SimWorld(this.gd, bus);
 	#end
 
 		// CLIENT consumer: maps each PhysBody to a mesh and interpolates it;
@@ -122,12 +120,6 @@ class GamePlayView extends BaseScene
 		var heroSys : HeroSystem = cast sim.systems.get("Hero");
 		heroSys.spawnHero(Player.LOCAL);
 
-	#if hide
-		var prefabPhys = new shared.PrefabPhysics(sim.phys);
-		var statics = prefabPhys.load(shared.PrefabPhysics.defaultLevelPath("levels/test.prefab"));
-		trace("PREFAB-PHYS statics=" + statics.length + " " + [for (b in statics) b.name].join(","));
-	#end
-
 		// HUD on top of the gameplay scene
 		hud = new HudDesign();
 		s2d.addChild(hud);
@@ -163,7 +155,14 @@ class GamePlayView extends BaseScene
 				s.addNormals();
 				s;
 			default:
+				// static obstacle from the level prefab (pillars, ...): hide
+				// draws the authored meshes on HL, so skip the sim box there;
+				// targets without hide (web) fall back to this box.
+			#if hide
 				null;
+			#else
+				new h3d.prim.Cube(sizes.hx * 2, sizes.hy * 2, sizes.hz * 2, true);
+			#end
 		}
 		if (prim == null) return null;
 		var poly = Std.downcast(prim, h3d.prim.Polygon);
@@ -190,6 +189,10 @@ class GamePlayView extends BaseScene
 				pbr.metalnessValue = 0.2;
 				pbr.roughnessValue = 0.4;
 				m.color.set(1, 0.95, 0.2, 1);
+			default: // prefab obstacle (pillar, ...) — plain concrete
+				pbr.metalnessValue = 0;
+				pbr.roughnessValue = 0.85;
+				m.color.set(0.55, 0.5, 0.45, 1);
 		}
 		m.mainPass.addShader(pbr);
 		return new h3d.scene.Mesh(prim, m);
