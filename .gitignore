@@ -14,3 +14,4 @@ tools/gendb.hl
 assets/
 client/res/models/Juliet_Rigged/
 client/res/models/hero/
+.session/

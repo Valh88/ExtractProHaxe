@@ -3,6 +3,8 @@ package serv.room;
 import shared.GameData;
 import shared.events.GameEvents.BulletFired;
 import shared.events.GameEvents.HeroMoveIntent;
+import shared.events.GameEvents.EntityNetSpawned;
+import shared.events.GameEvents.EntityNetRemoved;
 import shared.replication.SyncBridge;
 import shared.systems.HeroSystem;
 
@@ -19,11 +21,12 @@ import serv.systems.DemoLogSystem;
 
 	Networking (Pattern A): on every join this room allocates a server
 	player id and delegates the entity lifecycle to HeroSystem (authoritative
-	hero PhysBody + `HeroObject`, server-owned `@:s`): onNetSpawned routes the
-	object onto the room socket, and the id is broadcast via GameNet.playerJoined.
-	SyncBridge (true) pushes the authoritative body position into the
-	HeroObject each tick. Server receives input intents (fireBullet/heroInput)
-	and routes them into the room bus -> shared sim.
+	hero PhysBody + `HeroObject`, server-owned `@:s`). HeroSystem publishes
+	EntityNetSpawned/EntityNetRemoved on the bus; the room subscribes and
+	routes each net object onto its socket. The id is broadcast via
+	GameNet.playerJoined. SyncBridge (true) pushes the authoritative body
+	position into the HeroObject each tick. Server receives input intents
+	(fireBullet/heroInput) and routes them into the room bus -> shared sim.
 **/
 class DemoRoom extends Room
 {
@@ -76,12 +79,18 @@ class DemoRoom extends Room
 		logger = new StateLogger();
 		roomSystems.add(new DemoLogSystem(bus));
 
-		// HeroObject lifecycle belongs to HeroSystem (spawn/despawn alongside
-		// the hero body); the ROOM only forwards each net object to its socket
-		// — the socket is owned by netSys, never by the sim.
-		var heroSys : HeroSystem = cast world.systems.get("Hero");
-		heroSys.onNetSpawned = obj -> netSys.socket.add(obj);
-		heroSys.onNetRemoved = obj -> netSys.socket.remove(obj);
+		// HeroSystem owns HeroObject lifecycle; the ROOM only routes each
+		// net object onto its socket — the socket is owned by netSys, never
+		// by the sim. Transport subscribes to the bus events that HeroSystem
+		// publishes when it creates/removes an entity.
+		bus.subscribe(EntityNetSpawned, e -> {
+			var obj = world.heroEnts.get(e.playerId);
+			if (obj != null) netSys.socket.add(obj);
+		});
+		bus.subscribe(EntityNetRemoved, e -> {
+			var obj = world.heroEnts.get(e.playerId);
+			if (obj != null) netSys.socket.remove(obj);
+		});
 	}
 
 	/** Resolve the playerId of the peer that dispatched the current @:rpc
@@ -103,10 +112,10 @@ class DemoRoom extends Room
 
 		// authoritative hero body + replicated HeroObject (server-owned, @:s)
 		// are created together by HeroSystem.spawnHero — the room stays out
-		// of the entity lifecycle, it only routes the net object onto its
-		// socket via onNetSpawned above.
+		// of the entity lifecycle; EntityNetSpawned on the bus routes the
+		// net object onto the socket.
 		var heroSys : HeroSystem = cast world.systems.get("Hero");
-		heroSys.spawnHero(pid, true, name);
+		if (heroSys != null) heroSys.spawnHero(pid, true, name);
 
 		// tell every client the new player's server id (own id = name match)
 		gameNet.playerJoined(pid, name);

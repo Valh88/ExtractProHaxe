@@ -201,3 +201,34 @@ class PlayerDamaged
 		this.amount = amount;
 	}
 }
+
+/**
+	Server-only: a per-player entity (HeroObject) was created by a system
+	and placed in `sim.heroEnts`. The room's transport subscribes to this
+	event and calls `socket.add(obj)` — the sim never touches the socket.
+**/
+class EntityNetSpawned
+{
+	public var playerId : String;
+
+	public function new(playerId : String)
+	{
+		this.playerId = playerId;
+	}
+}
+
+/**
+	Server-only: a per-player entity is about to be removed from
+	`sim.heroEnts`. The room's transport subscribes and calls
+	`socket.remove(obj)` — the object is still in the map when
+	this event fires.
+**/
+class EntityNetRemoved
+{
+	public var playerId : String;
+
+	public function new(playerId : String)
+	{
+		this.playerId = playerId;
+	}
+}

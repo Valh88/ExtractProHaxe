@@ -110,8 +110,11 @@ class GamePlayView extends BaseScene
 		// only when a real client connects (with that client's id);
 		// its mesh (bound by the factory) is the camera anchor
 		var heroSys : HeroSystem = cast sim.systems.get("Hero");
-		heroSys.spawnHero(Player.LOCAL);
-		if (factory.localHeroMesh != null) player.mesh = factory.localHeroMesh;
+		if (heroSys != null)
+		{
+			heroSys.spawnHero(Player.LOCAL);
+			if (factory.localHeroMesh != null) player.mesh = factory.localHeroMesh;
+		}
 
 		// HUD on top of the gameplay scene
 		hud = new HudDesign();
@@ -175,7 +178,7 @@ class GamePlayView extends BaseScene
 			if (o.playerId == ownPid) continue; // own hero: local prediction
 			if (sim.heroes.exists(o.playerId)) continue; // puppet already spawned
 			var heroSys : HeroSystem = cast sim.systems.get("Hero");
-			heroSys.spawnHero(o.playerId, false); // remote: mirror puppet, no state
+			if (heroSys != null) heroSys.spawnHero(o.playerId, false); // remote: mirror puppet, no state
 			trace('CLIENT remote hero spawned: ' + o.playerId);
 		}
 
@@ -252,7 +255,7 @@ class GamePlayView extends BaseScene
 	{
 		if (e.ownerId == ownPid) return;
 		var bs : BulletSystem = cast sim.systems.get("Bullet");
-		bs.spawnBullet(e.ownerId, e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+		if (bs != null) bs.spawnBullet(e.ownerId, e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
 	}
 
 	/** Release bus subscriptions before the systems/socket are torn down. */

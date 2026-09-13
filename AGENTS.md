@@ -108,8 +108,8 @@ not for the lobby facade.
 `HeroSystem.spawnHero`/`removeHero` create/populate/release the `HeroObject` on the server
 (`sim.isServer` guard), and the world map `sim.heroEnts` is the SINGLE storage (`SyncBridge` and
 future systems read it there). The socket is owned by the room's `NetRoomSystem`, never the sim:
-`DemoRoom` wires `heroSys.onNetSpawned = obj -> netSys.socket.add(obj)` and
-`onNetRemoved = obj -> netSys.socket.remove(obj)`. The hooks are `#if sys` — on the client the
+`DemoRoom` subscribes to `EntityNetSpawned`/`EntityNetRemoved` on the bus and calls
+`socket.add(obj)`/`socket.remove(obj)`. The events are `#if sys` — on the client the
 mirror arrives from the network (`GamePlayView.updateNet` writes it into `sim.heroEnts` for
 `SyncBridge` reconciliation); the client never creates a `HeroObject`.
 
@@ -556,8 +556,9 @@ clear error at startup when a field is missing (fail-fast, no silent defaults).
    `bus.subscribe(...)`; rules run in `update(dt)`, world mutation via `sim` only.
 2. Register in `SimWorld` ctor: `systems.add(new shared.systems.HealthSystem(bus, this, gd));`.
 3. Server-only net write: guard `#if sys if (sim.isServer)` and write straight into
-   `sim.heroEnts[pid]` `@:s` fields (automatic dirty replication). The room never touches
-   entity data — it only routes objects to the socket (`onNetSpawned`/`onNetRemoved`).
+   `sim.heroEnts[pid]` `@:s` fields (automatic dirty replication). Publish
+   `EntityNetSpawned`/`EntityNetRemoved` on the bus when creating/removing objects;
+   the room subscribes and routes them to the socket (`socket.add`/`socket.remove`).
 4. Tunables via `gd.req("Sheet", "field")` (fail-fast on missing) — add the column to
    `client/res/db/data.cdb` (hand-edit; `GenDb.hx` only builds World+Hero — re-add the rest).
 
