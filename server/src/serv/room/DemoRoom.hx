@@ -3,7 +3,6 @@ package serv.room;
 import shared.GameData;
 import shared.events.GameEvents.BulletFired;
 import shared.events.GameEvents.HeroMoveIntent;
-import shared.net.HeroObject;
 import shared.replication.SyncBridge;
 import shared.systems.HeroSystem;
 
@@ -19,11 +18,12 @@ import serv.systems.DemoLogSystem;
 	  server-only room logic ticks in the pool alongside the world.
 
 	Networking (Pattern A): on every join this room allocates a server
-	player id, creates the authoritative `HeroObject` (server-owned, `@:s`
-	replicated to clients) plus the hero PhysBody, and broadcasts the id via
-	GameNet.playerJoined. SyncBridge (true) pushes the authoritative body
-	position into the HeroObject each tick. Server receives input intents
-	(fireBullet/heroInput) and routes them into the room bus -> shared sim.
+	player id and delegates the entity lifecycle to HeroSystem (authoritative
+	hero PhysBody + `HeroObject`, server-owned `@:s`): onNetSpawned routes the
+	object onto the room socket, and the id is broadcast via GameNet.playerJoined.
+	SyncBridge (true) pushes the authoritative body position into the
+	HeroObject each tick. Server receives input intents (fireBullet/heroInput)
+	and routes them into the room bus -> shared sim.
 **/
 class DemoRoom extends Room
 {
@@ -75,6 +75,13 @@ class DemoRoom extends Room
 
 		logger = new StateLogger();
 		roomSystems.add(new DemoLogSystem(bus));
+
+		// HeroObject lifecycle belongs to HeroSystem (spawn/despawn alongside
+		// the hero body); the ROOM only forwards each net object to its socket
+		// — the socket is owned by netSys, never by the sim.
+		var heroSys : HeroSystem = cast world.systems.get("Hero");
+		heroSys.onNetSpawned = obj -> netSys.socket.add(obj);
+		heroSys.onNetRemoved = obj -> netSys.socket.remove(obj);
 	}
 
 	/** Resolve the playerId of the peer that dispatched the current @:rpc
@@ -94,32 +101,20 @@ class DemoRoom extends Room
 		playerByPeer.set(peerId, pid);
 		trace('GAME "' + id + '" join "' + name + '" from peer ' + peerId + ' -> ' + pid);
 
-		// per-entity game state (server-owned, @:s replicated to clients)
-		var obj = new HeroObject(pid);
-		obj.name = name;
-		obj.hp = 100;
-		obj.maxHp = 100;
-		// TODO: read spawn stats (hp/maxHp/weapon) from GameData instead of literals
-		world.heroEnts.set(pid, obj);
-		netSys.socket.add(obj);
-
-		// authoritative hero body so SyncBridge has a PhysBody to push from
+		// authoritative hero body + replicated HeroObject (server-owned, @:s)
+		// are created together by HeroSystem.spawnHero — the room stays out
+		// of the entity lifecycle, it only routes the net object onto its
+		// socket via onNetSpawned above.
 		var heroSys : HeroSystem = cast world.systems.get("Hero");
-		heroSys.spawnHero(pid);
+		heroSys.spawnHero(pid, true, name);
 
 		// tell every client the new player's server id (own id = name match)
 		gameNet.playerJoined(pid, name);
 	}
 
-	/** Peer gone: release its HeroObject (REMOVE flows to clients) + hero body. */
+	/** Peer gone: HeroSystem releases body + state + HeroObject (-> socket.remove). */
 	function leave(peerId : Int, pid : String) : Void
 	{
-		var obj = world.heroEnts.get(pid);
-		if (obj != null)
-		{
-			world.heroEnts.remove(pid);
-			netSys.socket.remove(obj);
-		}
 		var heroSys : HeroSystem = cast world.systems.get("Hero");
 		if (heroSys != null) heroSys.removeHero(pid);
 		playerByPeer.remove(peerId);

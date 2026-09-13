@@ -57,6 +57,16 @@ class HeroSystem extends System
 	/** Per-player hero state (input snapshot + jump lock), keyed by playerId. */
 	var states : Map<String, HeroState> = new Map();
 
+#if sys
+	/** Server-only transport hooks: the room forwards a spawned/removed
+		HeroObject to its socket (add/remove). HeroSystem OWNS the lifecycle
+		(creates/populates/releases the object); the socket belongs to the
+		room's NetRoomSystem, so it is never touched here. On the client these
+		stay null — mirrors arrive from the network and are never created. */
+	public var onNetSpawned : Null<shared.net.HeroObject -> Void> = null;
+	public var onNetRemoved : Null<shared.net.HeroObject -> Void> = null;
+#end
+
 	public function new(bus : EventBus, sim : SimWorld, ?gd : GameData)
 	{
 		super(bus, sim, gd, "Hero");
@@ -102,19 +112,48 @@ class HeroSystem extends System
 		SyncBridge mirror (position + yaw pulled from the server every tick);
 		a state would make apply() overwrite the pulled orientation/velocity.
 	**/
-	public function spawnHero(?playerId : String, simulated : Bool = true) : Void
+	public function spawnHero(?playerId : String, simulated : Bool = true, ?name : String = "") : Void
 	{
 		if (playerId == null) playerId = Player.LOCAL;
 		var b = sim.factory.spawnHeroBody(sim, playerId);
 		sim.setHero(playerId, b);
 		// make sure the player has a movement state so update() runs for it
 		if (simulated) state(states, playerId);
+	#if sys
+		// server owns the replicated HeroObject: create it here (lifecycle),
+		// keep the world map as the single storage and hand it to the room's
+		// transport via onNetSpawned (socket.add). Client mirrors NEVER reach
+		// this path — the client sim is not the server.
+		if (sim.isServer)
+		{
+			var obj = new shared.net.HeroObject(playerId);
+			obj.name = name;
+			obj.hp = 100;
+			obj.maxHp = 100;
+			sim.heroEnts.set(playerId, obj);
+			if (onNetSpawned != null) onNetSpawned(obj);
+		}
+	#end
 	}
 
 	/** Despawn a player hero (server: disconnect; client: mirror removed). */
 	public function removeHero(playerId : String) : Void
 	{
 		states.remove(playerId);
+    #if sys
+		// release the replicated object too: server removes it from the map
+		// and the room's transport drops it from the socket (onNetRemoved);
+		// on the client the mirror is already gone from findObjects — no-op.
+		if (sim.isServer)
+		{
+			var obj = sim.heroEnts.get(playerId);
+			if (obj != null)
+			{
+				sim.heroEnts.remove(playerId);
+				if (onNetRemoved != null) onNetRemoved(obj);
+			}
+		}
+    #end
 		sim.removeHero(playerId);
 	}
 

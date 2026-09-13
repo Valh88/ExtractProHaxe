@@ -30,6 +30,11 @@ class SimWorld implements IUpdate
 	**/
 	public var factory(default, null) : IEntityFactory;
 
+	/** true on the headless server sim — the authority: owns and replicates
+		net objects (HeroSystem), emits authoritative hit verdicts. False on
+		every client (prediction/puppets read mirrors, never own them). */
+	public var isServer(default, null) : Bool;
+
 	/** Player hero bodies keyed by playerId (spawned by HeroSystem). */
 	public var heroes(default, null) : Map<String, PhysBody>;
 
@@ -70,6 +75,7 @@ class SimWorld implements IUpdate
 		this.gd = gd != null ? gd : new GameData();
 		this.bus = bus != null ? bus : new EventBus();
 		this.factory = factory != null ? factory : new BaseEntityFactory();
+		isServer = server;
 		heroes = new Map();
 		systems = new Systems();
 		var world = new GameWorld(new Vec3(0, gravityY(), 0));
