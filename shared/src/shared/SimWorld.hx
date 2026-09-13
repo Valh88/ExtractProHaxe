@@ -55,8 +55,10 @@ class SimWorld implements IUpdate
 		@param gd game database; null -> empty (Config defaults used).
 		All tunables (gravity, floor, cubes, hero capsule) are read per-sheet.
 		@param bus app event bus; null -> local-only EventBus.
+		@param server true on the headless server sim — makes BulletSystem the
+		authoritative hit detector (publishes BulletHit verdicts to be broadcast).
 	**/
-	public function new(?gd : GameData, ?bus : EventBus)
+	public function new(?gd : GameData, ?bus : EventBus, ?server : Bool = false)
 	{
 		this.gd = gd != null ? gd : new GameData();
 		this.bus = bus != null ? bus : new EventBus();
@@ -71,7 +73,7 @@ class SimWorld implements IUpdate
 		buildLevel();
 		// gameplay systems (sim == this: direct world access; gd for cdb queries)
 		systems.add(new shared.systems.HeroSystem(bus, this, gd));
-		systems.add(new shared.systems.BulletSystem(bus, this, gd));
+		systems.add(new shared.systems.BulletSystem(bus, this, gd, server));
 	}
 
 	// --- cdb accessors (all data lives in the base — required reads) ---

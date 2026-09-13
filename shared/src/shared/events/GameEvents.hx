@@ -114,6 +114,31 @@ class BulletSpawned
 }
 
 /**
+	Server-authoritative hit verdict -> local bus: a bullet (ownerId) hit
+	something (victimId = hero pid, or a world body name like "floor"/"cube")
+	at world-space (x, y, z). Published ONLY by the server's BulletSystem
+	via the GameNet mirror's bulletHit rpc; clients log it (CLIENT HIT) and
+	use it as a fallback to destroy the matching local bullet.
+**/
+class BulletHit
+{
+	public var ownerId : String;
+	public var victimId : String;
+	public var x : Float;
+	public var y : Float;
+	public var z : Float;
+
+	public function new(ownerId : String, victimId : String, x : Float, y : Float, z : Float)
+	{
+		this.ownerId = ownerId;
+		this.victimId = victimId;
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+}
+
+/**
 	Network -> local bus: a player took damage (instant UI feedback; the
 	authoritative HP arrives via the HeroObject `@:s` delta). Published by
 	RoomNetSystem from the GameNet mirror's damage rpc.

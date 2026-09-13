@@ -10,10 +10,12 @@ import shared.net.LobbyNet;
 	the LobbyNet mirror and watches HeroObject mirrors arrive/replicate
 	(server spawns one per join, SyncBridge pushes positions).
 
-	Args: <name> <frames> <dirX>
+	Args: <name> <frames> <dirX> <fire>
 	- dirX != 0 also sends movement input each 0.1s (heroInput dirX) so a
 	  pair of clients can verify the server resolves each input to the RIGHT
 	  player (Alice dirX=+1, Bob dirX=-1 -> p1 moves +X, p2 moves -X).
+	- fire != 0 sends fireBullet downward each 0.5s and traces the server's
+	  authoritative hit verdict when it comes back (bulletHit rpc).
 **/
 class DemoRoomTest
 {
@@ -22,10 +24,11 @@ class DemoRoomTest
 		var name = Sys.args().length > 0 ? Sys.args()[0] : "Tester";
 		var n = Sys.args().length > 1 ? Std.parseInt(Sys.args()[1]) : 5000;
 		var dirX = Sys.args().length > 2 ? Std.parseFloat(Sys.args()[2]) : 0;
-		trace("== demo-room net test (" + name + ", dirX=" + dirX + ") ==");
+		var fire = Sys.args().length > 3 ? Std.parseInt(Sys.args()[3]) : 0;
+		trace("== demo-room net test (" + name + ", dirX=" + dirX + ", fire=" + fire + ") ==");
 		var net = new ClientNet(name, 1790);
 		var joined = false;
-		// send input ~ every 0.1s
+		// send input ~ every 0.1s, fire ~ every 0.5s
 		var act = 0;
 		for (i in 0...n)
 		{
@@ -40,15 +43,27 @@ class DemoRoomTest
 			}
 			if (net.connected)
 			{
-				if (dirX != 0)
+				if (dirX != 0 || fire != 0)
 				{
 					if (act >= 10)
 					{
 						act = 0;
 						var gn = net.findMirror(GameNet);
-						if (gn != null) gn.heroInput(dirX, 0, 1.2, 1, false);
+						if (gn != null)
+						{
+							if (dirX != 0) gn.heroInput(dirX, 0, 1.2, 1, false);
+							if (fire != 0) // straight down at the spawn floor
+								gn.fireBullet(0, 5, 0, 0, -1, 0);
+						}
 					}
 					act++;
+				}
+				// server-authoritative hit verdict echo
+				var gn = net.findMirror(GameNet);
+				if (gn != null && gn.onBulletHit == null)
+				{
+					gn.onBulletHit = (owner, victim, x, y, z) ->
+						trace('CLIENT HIT ' + victim + ' at ' + Std.int(x * 100) / 100 + ',' + Std.int(y * 100) / 100 + ',' + Std.int(z * 100) / 100);
 				}
 				var objs = net.findObjects(HeroObject);
 				for (o in objs)

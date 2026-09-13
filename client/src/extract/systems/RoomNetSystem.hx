@@ -14,6 +14,7 @@ class RoomNetSystem extends System
 import extract.net.ClientNet;
 import shared.GameData;
 import shared.events.EventBus;
+import shared.events.GameEvents.BulletHit;
 import shared.events.GameEvents.BulletSpawned;
 import shared.events.GameEvents.PlayerDamaged;
 import shared.events.GameEvents.PlayerJoined;
@@ -86,6 +87,7 @@ class RoomNetSystem extends System
 			gameNet.onPlayerJoined = (pid, name) -> bus.publish(new PlayerJoined(pid, name));
 			gameNet.onBulletSpawn = (owner, x, y, z, dx, dy, dz) -> bus.publish(new BulletSpawned(owner, x, y, z, dx, dy, dz));
 			gameNet.onDamage = (pid, amount) -> bus.publish(new PlayerDamaged(pid, amount));
+			gameNet.onBulletHit = (owner, victim, x, y, z) -> bus.publish(new BulletHit(owner, victim, x, y, z));
 		}
 	}
 

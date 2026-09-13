@@ -103,7 +103,8 @@ class Room implements IUpdate
 	**/
 	public function createWorld(gd : GameData, bus : EventBus) : SimWorld
 	{
-		return new SimWorld(gd, bus);
+		// server sim: BulletSystem runs as the authoritative hit detector
+		return new SimWorld(gd, bus, true);
 	}
 
 	/**

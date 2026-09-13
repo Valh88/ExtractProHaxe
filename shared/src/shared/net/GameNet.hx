@@ -37,6 +37,10 @@ class GameNet extends NetworkSerializable
 	/** Client handler: received a damage feedback (instant UI). */
 	public var onDamage : Null<String -> Float -> Void> = null;
 
+	/** Client handler: server-authoritative hit verdict (owner fired, victim
+		= hero pid or world body name, world-space impact point). */
+	public var onBulletHit : Null<String -> String -> Float -> Float -> Float -> Void> = null;
+
 	public function new()
 	{
 		super();
@@ -84,5 +88,14 @@ class GameNet extends NetworkSerializable
 	public function damage(playerId : String, amount : Float) : Void
 	{
 		if (onDamage != null) onDamage(playerId, amount);
+	}
+
+	/** Server -> clients: a bullet hit something. `victimId` = hero pid, or a
+		world body name ("floor"/"cube"). Clients log the verdict and destroy
+		their matching local bullet (fallback). */
+	@:rpc(clients)
+	public function bulletHit(ownerId : String, victimId : String, x : Float, y : Float, z : Float) : Void
+	{
+		if (onBulletHit != null) onBulletHit(ownerId, victimId, x, y, z);
 	}
 }

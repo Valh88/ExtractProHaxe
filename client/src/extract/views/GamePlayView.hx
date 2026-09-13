@@ -22,6 +22,7 @@ import extract.utils.CursorManager;
 
 #if sys
 import extract.systems.ClientTransportSystem;
+import shared.events.GameEvents.BulletHit;
 import shared.events.GameEvents.BulletSpawned;
 import shared.events.GameEvents.PlayerDamaged;
 import shared.events.GameEvents.PlayerJoined;
@@ -87,6 +88,7 @@ class GamePlayView extends BaseScene
 		// relays the GameNet mirror rpcs there) — subscribe, like any system
 		bus.subscribe(PlayerJoined, onPlayerJoined);
 		bus.subscribe(BulletSpawned, onBulletSpawn);
+		bus.subscribe(BulletHit, onBulletHit);
 		bus.subscribe(PlayerDamaged, onDamage);
 	#else
 		systems.add(new RoomNetSystem(bus, gd, 1790));
@@ -263,13 +265,26 @@ class GamePlayView extends BaseScene
 		trace('CLIENT damage ' + e.playerId + ' : ' + e.amount);
 	}
 
+	/** Server-authoritative hit verdict — log it and drop the local bullet
+		(fallback: deterministic local swept detection usually removed it
+		already; this guarantees it vanishes even if a sim lagged a frame). */
+	function onBulletHit(e : BulletHit) : Void
+	{
+		trace('CLIENT HIT ' + e.victimId + ' at '
+			+ Math.round(e.x * 100) / 100 + ','
+			+ Math.round(e.y * 100) / 100 + ','
+			+ Math.round(e.z * 100) / 100);
+		var bs : BulletSystem = cast sim.systems.get("Bullet");
+		if (bs != null) bs.removeBulletByHit(e.ownerId, e.x, e.y, e.z);
+	}
+
 	/** Remote bullet spawn — spawn deterministically, skip own shots (already
 		spawned locally); direct call (not the bus) to avoid echoing the RPC. */
 	function onBulletSpawn(e : BulletSpawned) : Void
 	{
 		if (e.ownerId == ownPid) return;
 		var bs : BulletSystem = cast sim.systems.get("Bullet");
-		bs.spawnBullet(e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
+		bs.spawnBullet(e.ownerId, e.x, e.y, e.z, e.dirX, e.dirY, e.dirZ);
 	}
 
 	/** Release bus subscriptions before the systems/socket are torn down. */
@@ -277,6 +292,7 @@ class GamePlayView extends BaseScene
 	{
 		bus.unsubscribe(PlayerJoined, onPlayerJoined);
 		bus.unsubscribe(BulletSpawned, onBulletSpawn);
+		bus.unsubscribe(BulletHit, onBulletHit);
 		bus.unsubscribe(PlayerDamaged, onDamage);
 		super.dispose();
 	}
