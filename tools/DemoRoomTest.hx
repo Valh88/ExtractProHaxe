@@ -28,6 +28,8 @@ class DemoRoomTest
 		trace("== demo-room net test (" + name + ", dirX=" + dirX + ", fire=" + fire + ") ==");
 		var net = new ClientNet(name, 1790);
 		var joined = false;
+		// our own server-assigned pid (discovered via HeroObject name match)
+		var ownPid : String = null;
 		// send input ~ every 0.1s, fire ~ every 0.5s
 		var act = 0;
 		for (i in 0...n)
@@ -52,22 +54,33 @@ class DemoRoomTest
 						if (gn != null)
 						{
 							if (dirX != 0) gn.heroInput(dirX, 0, 1.2, 1, false);
-							if (fire != 0) // straight down at the spawn floor
+							if (fire == 1) // straight down at the spawn floor
 								gn.fireBullet(0, 5, 0, 0, -1, 0);
+							else if (fire == 2) // horizontal point-blank at the spawn point
+								gn.fireBullet(0, 1, 0, 0, 0, 1);
 						}
 					}
 					act++;
 				}
-				// server-authoritative hit verdict echo
+				// server-authoritative hit verdict -> split by our identity:
+				// shooter only ("you hit X"), victim only ("hit by X")
 				var gn = net.findMirror(GameNet);
 				if (gn != null && gn.onBulletHit == null)
 				{
 					gn.onBulletHit = (owner, victim, x, y, z) ->
+					{
 						trace('CLIENT HIT ' + victim + ' at ' + Std.int(x * 100) / 100 + ',' + Std.int(y * 100) / 100 + ',' + Std.int(z * 100) / 100);
+						if (ownPid == null) return;
+						if (owner == ownPid)
+							trace('CLIENT you hit ' + victim + ' (ShooterHit)');
+						if (victim == ownPid)
+							trace('CLIENT hit by ' + owner + ' (VictimHit)');
+					};
 				}
 				var objs = net.findObjects(HeroObject);
 				for (o in objs)
 				{
+					if (o.name == name) ownPid = o.playerId; // find our own id
 					if (!seen.exists(o.playerId))
 					{
 						seen.set(o.playerId, true);

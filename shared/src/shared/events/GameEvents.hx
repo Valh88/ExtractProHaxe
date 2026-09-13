@@ -139,6 +139,53 @@ class BulletHit
 }
 
 /**
+	Local, SHOOTER's client only: this player's bullet landed on something.
+	Published by GamePlayView when a BulletHit verdict arrives with
+	ownerId == ownPid — the shooter gets its hit-confirm feedback.
+	victimId = hero pid, or a world body name ("floor"/"cube").
+**/
+class ShooterHit
+{
+	public var shooterId : String;
+	public var victimId : String;
+	public var x : Float;
+	public var y : Float;
+	public var z : Float;
+
+	public function new(shooterId : String, victimId : String, x : Float, y : Float, z : Float)
+	{
+		this.shooterId = shooterId;
+		this.victimId = victimId;
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+}
+
+/**
+	Local, VICTIM's client only: a bullet hit THIS player, and shooterId names
+	who fired it. Published by GamePlayView when a BulletHit verdict arrives
+	with victimId == ownPid — the victim learns its attacker.
+**/
+class VictimHit
+{
+	public var shooterId : String;
+	public var victimId : String;
+	public var x : Float;
+	public var y : Float;
+	public var z : Float;
+
+	public function new(shooterId : String, victimId : String, x : Float, y : Float, z : Float)
+	{
+		this.shooterId = shooterId;
+		this.victimId = victimId;
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+}
+
+/**
 	Network -> local bus: a player took damage (instant UI feedback; the
 	authoritative HP arrives via the HeroObject `@:s` delta). Published by
 	RoomNetSystem from the GameNet mirror's damage rpc.

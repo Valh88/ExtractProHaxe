@@ -26,6 +26,8 @@ import shared.events.GameEvents.BulletHit;
 import shared.events.GameEvents.BulletSpawned;
 import shared.events.GameEvents.PlayerDamaged;
 import shared.events.GameEvents.PlayerJoined;
+import shared.events.GameEvents.ShooterHit;
+import shared.events.GameEvents.VictimHit;
 import shared.net.HeroObject;
 import shared.replication.SyncBridge;
 import shared.systems.BulletSystem;
@@ -89,6 +91,8 @@ class GamePlayView extends BaseScene
 		bus.subscribe(PlayerJoined, onPlayerJoined);
 		bus.subscribe(BulletSpawned, onBulletSpawn);
 		bus.subscribe(BulletHit, onBulletHit);
+		bus.subscribe(ShooterHit, onShooterHit);
+		bus.subscribe(VictimHit, onVictimHit);
 		bus.subscribe(PlayerDamaged, onDamage);
 	#else
 		systems.add(new RoomNetSystem(bus, gd, 1790));
@@ -265,9 +269,11 @@ class GamePlayView extends BaseScene
 		trace('CLIENT damage ' + e.playerId + ' : ' + e.amount);
 	}
 
-	/** Server-authoritative hit verdict — log it and drop the local bullet
+	/** Server-authoritative hit verdict — log it, drop the local bullet
 		(fallback: deterministic local swept detection usually removed it
-		already; this guarantees it vanishes even if a sim lagged a frame). */
+		already; this guarantees it vanishes even if a sim lagged a frame),
+		and split into player-targeted events: the SHOOTER learns it hit,
+		the VICTIM learns who hit them. */
 	function onBulletHit(e : BulletHit) : Void
 	{
 		trace('CLIENT HIT ' + e.victimId + ' at '
@@ -276,6 +282,29 @@ class GamePlayView extends BaseScene
 			+ Math.round(e.z * 100) / 100);
 		var bs : BulletSystem = cast sim.systems.get("Bullet");
 		if (bs != null) bs.removeBulletByHit(e.ownerId, e.x, e.y, e.z);
+		if (ownPid == null) return;
+		if (e.ownerId == ownPid)
+			bus.publish(new ShooterHit(e.ownerId, e.victimId, e.x, e.y, e.z));
+		if (e.victimId == ownPid)
+			bus.publish(new VictimHit(e.ownerId, e.victimId, e.x, e.y, e.z));
+	}
+
+	/** Local hit-confirm: my shot landed (crosshair / audio feedback hook). */
+	function onShooterHit(e : ShooterHit) : Void
+	{
+		trace('CLIENT you hit ' + e.victimId + ' at '
+			+ Math.round(e.x * 100) / 100 + ','
+			+ Math.round(e.y * 100) / 100 + ','
+			+ Math.round(e.z * 100) / 100);
+	}
+
+	/** Local "I was hit": show the attacker / hurt overlay hook. */
+	function onVictimHit(e : VictimHit) : Void
+	{
+		trace('CLIENT hit by ' + e.shooterId + ' at '
+			+ Math.round(e.x * 100) / 100 + ','
+			+ Math.round(e.y * 100) / 100 + ','
+			+ Math.round(e.z * 100) / 100);
 	}
 
 	/** Remote bullet spawn — spawn deterministically, skip own shots (already
@@ -293,6 +322,8 @@ class GamePlayView extends BaseScene
 		bus.unsubscribe(PlayerJoined, onPlayerJoined);
 		bus.unsubscribe(BulletSpawned, onBulletSpawn);
 		bus.unsubscribe(BulletHit, onBulletHit);
+		bus.unsubscribe(ShooterHit, onShooterHit);
+		bus.unsubscribe(VictimHit, onVictimHit);
 		bus.unsubscribe(PlayerDamaged, onDamage);
 		super.dispose();
 	}
