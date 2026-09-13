@@ -54,7 +54,7 @@ class SettingsDesign extends Flow implements Object
 		pg.beginFill(0xC8956C);
 		pg.drawRoundedRect(0, 0, 600, 740, 8);
 		pg.endFill();
-		pg.beginFill(0x1A1208);
+		pg.beginFill(0x1A1A1A);
 		pg.drawRoundedRect(2, 2, 596, 736, 6);
 		pg.endFill();
 		panel.addChildAt(pg, 0);
