@@ -24,6 +24,12 @@ class HudDesign extends Flow implements Object
 			<flow id="energyBg" class="energy-bg" x="810" y="1010">
 				<flow id="energyFill" class="energy-fill" x="0" y="0"/>
 			</flow>
+			<flow id="statsPanel" class="statistic-root" x="20" y="20">
+				<text id="fpsCaption" class="stat-caption" x="0" y="0"/>
+				<text id="fpsValue" class="stat-value" x="50" y="0"/>
+				<text id="pingCaption" class="stat-caption" x="0" y="22"/>
+				<text id="pingValue" class="stat-value" x="50" y="22"/>
+			</flow>
 		</hud-design>;
 
 	public var crosshair(default, set) : CrosshairDesign;
@@ -45,6 +51,21 @@ class HudDesign extends Flow implements Object
 		addRoundedChild(skill4, 56, 56, 6, 0x0F0F0F, 0xE0D080);
 		addRoundedChild(skill5, 56, 56, 6, 0x0F0F0F, 0xE0D080);
 		addRoundedChild(stanceIndicator, 58, 58, 8, 0x0F0F0F, 0xE0D080);
+
+		fpsCaption.text = "Fps:";
+		fpsValue.text = "0";
+		pingCaption.text = "Ping:";
+		pingValue.text = "0";
+	}
+
+	public function setFps(v : Int) : Void
+	{
+		fpsValue.text = Std.string(v);
+	}
+
+	public function setPing(v : Int) : Void
+	{
+		pingValue.text = Std.string(v);
 	}
 
 	function addRoundedChild(parent : Flow, w : Int, h : Int, r : Int, fill : Int, border : Int)
