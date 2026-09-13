@@ -40,6 +40,7 @@ class CrosshairDesign extends Object
 		recoverySpeed = gd.req("Crosshair", "recoverySpeed");
 
 		spread = baseSpread;
+		targetSpread = baseSpread;
 
 		barTop = new Graphics(this);
 		barTop.beginFill(BAR_COLOR);
@@ -61,10 +62,13 @@ class CrosshairDesign extends Object
 		barRight.drawRect(0, -barWidth * 0.5, barLength, barWidth);
 		barRight.endFill();
 
-		applySpread();
+		barTop.y = -spread;
+		barBottom.y = spread;
+		barLeft.x = -spread;
+		barRight.x = spread;
 	}
 
-	/** Call each frame — exponential ease toward target. */
+	/** Call each frame — exponential ease toward target + apply bar positions. */
 	public function update(dt : Float) : Void
 	{
 		if (shootTimer > 0)
@@ -74,10 +78,7 @@ class CrosshairDesign extends Object
 			+ (moving ? moveSpreadAmt : 0)
 			+ (shootTimer > 0 ? shootSpreadAmt : 0);
 
-		// frame-rate independent exponential ease-out
-		spread += (targetSpread - spread) * (1.0 - Math.exp(-recoverySpeed * dt));
-
-		applySpread();
+		applySpread(dt);
 	}
 
 	/** Set movement spread. */
@@ -92,12 +93,13 @@ class CrosshairDesign extends Object
 		shootTimer = 0.2;
 	}
 
-	function applySpread() : Void
+	/** Interpolate spread toward target and position bars. */
+	function applySpread(dt : Float) : Void
 	{
-		var s = spread;
-		barTop.y = -s;
-		barBottom.y = s;
-		barLeft.x = -s;
-		barRight.x = s;
+		spread += (targetSpread - spread) * (1.0 - Math.exp(-recoverySpeed * dt));
+		barTop.y = -spread;
+		barBottom.y = spread;
+		barLeft.x = -spread;
+		barRight.x = spread;
 	}
 }
