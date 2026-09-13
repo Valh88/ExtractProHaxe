@@ -1,9 +1,5 @@
 package shared.systems;
 
-import oimo.common.Vec3;
-import oimo.dynamics.rigidbody.RigidBodyType;
-import oimo.collision.geometry.CapsuleGeometry;
-
 import phys.core.PhysBody;
 
 import shared.Player;
@@ -43,7 +39,6 @@ typedef HeroState = {
 
 class HeroSystem extends System
 {
-	static inline var SPAWN_MARGIN : Float = 0.01; // spawn slightly above floor
 	static inline var JUMP_AIR_LOCK : Float = 0.2;
 
 	/** Move speed, world units/sec (cdb "Hero"."speed"). */
@@ -110,12 +105,7 @@ class HeroSystem extends System
 	public function spawnHero(?playerId : String, simulated : Bool = true) : Void
 	{
 		if (playerId == null) playerId = Player.LOCAL;
-		// capsule total height = 2*(hh + r); spawn so the bottom touches the floor.
-		// HERO layer; mask without BULLET: player's own bullets ignore them
-		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(0, heroR + heroHH + SPAWN_MARGIN, 0), "hero")
-			.addShape(new CapsuleGeometry(heroR, heroHH), null, null, 0.0, 0.6)
-			.setRotationFactor(0, 1, 0) // can't topple: pitch/roll locked, only yaw
-			.setGroup(Collision.HERO).setMask(Collision.WORLD);
+		var b = sim.factory.spawnHeroBody(sim, playerId);
 		sim.setHero(playerId, b);
 		// make sure the player has a movement state so update() runs for it
 		if (simulated) state(states, playerId);

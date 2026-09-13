@@ -1,8 +1,6 @@
 package shared;
 
-import oimo.collision.geometry.CapsuleGeometry;
 import oimo.common.Vec3;
-import oimo.dynamics.rigidbody.RigidBodyType;
 
 import phys.GameWorld;
 import phys.core.IPhysics;
@@ -23,8 +21,14 @@ class SimWorld implements IUpdate
 	/** The concrete physics core (exposes `interpol` for render-side interpolation). */
 	public var physCore(default, null) : PhysCore;
 
-	/** Called when a body is spawned, so a consumer can attach visuals/logic. */
-	public var onSpawn : Null<PhysBody -> Void>;
+	/**
+		Side-specific entity factory — the ONLY way bodies are spawned
+		(`factory.spawnCube` / `spawnHeroBody` / `spawnBulletBody` / `spawnLevel`)
+		and the only hook that fires when a body enters the world
+		(`factory.onBodyAdded`: client binds a mesh, server does nothing).
+		Systems read it as `sim.factory` — never build bodies inline.
+	**/
+	public var factory(default, null) : IEntityFactory;
 
 	/** Player hero bodies keyed by playerId (spawned by HeroSystem). */
 	public var heroes(default, null) : Map<String, PhysBody>;
@@ -57,11 +61,15 @@ class SimWorld implements IUpdate
 		@param bus app event bus; null -> local-only EventBus.
 		@param server true on the headless server sim — makes BulletSystem the
 		authoritative hit detector (publishes BulletHit verdicts to be broadcast).
+		@param factory the side-specific entity factory (Server headless vs
+		Client meshes). Defaults to the shared BaseEntityFactory (no visuals).
 	**/
-	public function new(?gd : GameData, ?bus : EventBus, ?server : Bool = false)
+	public function new(?gd : GameData, ?bus : EventBus, ?server : Bool = false,
+		?factory : IEntityFactory = null)
 	{
 		this.gd = gd != null ? gd : new GameData();
 		this.bus = bus != null ? bus : new EventBus();
+		this.factory = factory != null ? factory : new BaseEntityFactory();
 		heroes = new Map();
 		systems = new Systems();
 		var world = new GameWorld(new Vec3(0, gravityY(), 0));
@@ -70,7 +78,6 @@ class SimWorld implements IUpdate
 		physCore = cast world.phys;
 		spawnT = 0;
 		spawnI = 0;
-		buildLevel();
 		// gameplay systems (sim == this: direct world access; gd for cdb queries)
 		systems.add(new shared.systems.HeroSystem(bus, this, gd));
 		systems.add(new shared.systems.BulletSystem(bus, this, gd, server));
@@ -83,25 +90,15 @@ class SimWorld implements IUpdate
 	public inline function cubeSize() : Float return gd.req("World", "cubeSize");
 	public inline function cubeSpawnInterval() : Float return gd.req("World", "cubeSpawnInterval");
 
-	/** Static level geometry. Extend with walls/props as needed. */
-	function buildLevel() : Void
+	/**
+		Build the static level geometry through the factory (floor + prefab
+		obstacles). Called AFTER any side resources exist that onBodyAdded
+		needs — the client must have its renderer bound to the factory first,
+		so meshes can be parented/bound while the level spawns.
+	**/
+	public function buildLevel() : Void
 	{
-		add(phys.spawnBody(RigidBodyType._STATIC, new Vec3(0, -0.5, 0), "floor")
-			.addBox(floorHalf(), 0.25, floorHalf())
-			.setGroup(Collision.WORLD).setMask(Collision.ALL));
-
-		// static obstacles from the hide-authored prefab — the SAME bodies must
-		// exist on client and server, or collisions desync (the client had the
-		// pillars, the server simulated straight through them).
-		// Path: client = resource (hxd.Res), server = filesystem relative to
-		// the run CWD (repo root).
-		var pp = new PrefabPhysics(phys);
-	#if heapsphysics_render
-		var statics = pp.load("levels/test.prefab");
-	#else
-		var statics = pp.load("client/res/levels/test.prefab");
-	#end
-		for (s in statics) add(s);
+		factory.spawnLevel(this);
 	}
 
 	/** Register a player hero body under `playerId`. Called by HeroSystem. */
@@ -136,36 +133,21 @@ class SimWorld implements IUpdate
 			spawnT = cubeSpawnInterval();
 			spawnI++;
 			var x = (spawnI % 3) * 1.2 - 1.2;
-			spawnCube(new Vec3(x, 6, 0));
+			factory.spawnCube(this, new Vec3(x, 6, 0));
 		}
 
 		systems.update(dt);
 	}
 
-	/** Spawn a dynamic cube at `pos`. Returns the body (already in world). */
-	public function spawnCube(pos : Vec3) : PhysBody
-	{
-		var h = cubeSize() * 0.5;
-		return add(phys.spawnBody(RigidBodyType._DYNAMIC, pos, "cube")
-			.addBox(h, h, h, null, 0.7, 0.7)
-			.setGroup(Collision.WORLD).setMask(Collision.ALL));
-	}
-
-	/** All bodies currently in the world (for initial view building). */
-	public function existingBodies() : Array<PhysBody>
-	{
-		return phys.getBodies();
-	}
-
 	/**
-		Register a body in the world and notify onSpawn (the client draws it).
-		Systems must spawn through this (with phys.createBody) — bodies added
-		via phys.spawnBody directly never reach the client's view.
+		Register a body in the world and notify the factory's onBodyAdded
+		(the client draws it via its factory). Systems spawn through
+		`factory.spawnX` — those already route body creation through here.
 	**/
 	public function add(b : PhysBody) : PhysBody
 	{
 		phys.addBody(b);
-		if (onSpawn != null) onSpawn(b);
+		factory.onBodyAdded(b);
 		return b;
 	}
 }

@@ -1,12 +1,9 @@
 package shared.systems;
 
 import oimo.common.Vec3;
-import oimo.dynamics.rigidbody.RigidBodyType;
-import oimo.collision.geometry.SphereGeometry;
 
 import phys.core.PhysBody;
 
-import shared.Collision;
 import shared.SimWorld;
 import shared.GameData;
 import shared.events.EventBus;
@@ -53,7 +50,6 @@ class BulletSystem extends System
 {
 	// cached cdb numbers
 	var radius : Float;
-	var speed : Float;
 	var cooldown : Float;
 	/** Seconds a bullet lives without hitting anything (cdb "Bullet"."lifetime"). */
 	var lifetime : Float;
@@ -75,7 +71,6 @@ class BulletSystem extends System
 	{
 		super(bus, sim, gd, "Bullet");
 		radius = gd.req("Bullet", "radius");
-		speed = gd.req("Bullet", "speed");
 		cooldown = gd.req("Bullet", "cooldown");
 		lifetime = gd.req("Bullet", "lifetime");
 		heroR = gd.req("Hero", "heroRadius");
@@ -100,16 +95,10 @@ class BulletSystem extends System
 	**/
 	public function spawnBullet(ownerId : String, x : Float, y : Float, z : Float, dirX : Float, dirY : Float, dirZ : Float) : Void
 	{
-		// create (not spawn: must go through sim.add so the client view
-		// gets onSpawn and draws the mesh) then add via the sim.
-		// BULLET layer, WORLD mask: hits floor/cubes, ignores ALL heroes
-		// (incl. the shooter — hero hits are detected separately, swept)
-		var b = sim.phys.createBody(RigidBodyType._DYNAMIC, new Vec3(x, y, z), "bullet")
-			.addSphere(radius, null, 0.0, 0.5)
-			.setGravityScale(0) // straight-flying projectile: no gravity
-			.setGroup(Collision.BULLET).setMask(Collision.WORLD)
-			.setLinearVelocity(dirX * speed, dirY * speed, dirZ * speed);
-		sim.add(b);
+    	// create (not spawn: the recipe comes from the factory, must go through
+    	// sim.add so the client view gets onBodyAdded and draws the mesh)
+    	var b = sim.factory.spawnBulletBody(sim, ownerId, x, y, z, dirX, dirY, dirZ);
+    	sim.add(b);
 		var rec : BulletRec = { b : b, t : lifetime, ownerId : ownerId, pX : x, pY : y, pZ : z, hit : false };
 		alive.push(rec);
 		// WORld contact: queue for destruction — removing a body INSIDE the

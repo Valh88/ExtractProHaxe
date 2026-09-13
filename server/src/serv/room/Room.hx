@@ -7,6 +7,7 @@ import shared.events.EventBus;
 import shared.net.GameNet;
 import shared.systems.Systems;
 import serv.events.ServerEventBus;
+import serv.factory.ServerEntityFactory;
 import serv.systems.NetRoomSystem;
 import serv.systems.ServerTransportSystem;
 
@@ -97,14 +98,19 @@ class Room implements IUpdate
 	}
 
 	/**
-		Factory hook: create the world this room drives. Default returns a plain
-		SimWorld wired to `bus`. Future maps override this to return a world
-		subclass (custom level/systems) without touching Room.
+		Factory hook: create the world this room drives. Server side materializes
+		it through the headless ServerEntityFactory (shared recipes, no visuals);
+		level bodies spawn right after the world exists. Future maps override
+		this to return a world subclass (custom level/systems) without touching
+		Room.
 	**/
 	public function createWorld(gd : GameData, bus : EventBus) : SimWorld
 	{
 		// server sim: BulletSystem runs as the authoritative hit detector
-		return new SimWorld(gd, bus, true);
+		var factory = new ServerEntityFactory();
+		var w = factory.createWorld(gd, bus, true);
+		w.buildLevel();
+		return w;
 	}
 
 	/**
