@@ -30,7 +30,7 @@ class SettingsOverlay extends SubView<SettingsDesign>
 			function(tab : SettingsTab) settings.setTab(Type.enumIndex(tab)));
 
 		settings.onTabClick = function(idx : Int)
-			subSwitcher.switchTo(Type.createEnumIndex(SettingsTab, idx));
+			subSwitcher.switchToAnimated(Type.createEnumIndex(SettingsTab, idx));
 
 		subSwitcher.switchTo(SettingsTab.Audio);
 	}
@@ -38,6 +38,11 @@ class SettingsOverlay extends SubView<SettingsDesign>
 	public function open() : Void { design.visible = true; }
 	public function close() : Void { design.visible = false; }
 	public function toggle() : Void { design.visible = !design.visible; }
+
+	override public function update(dt : Float) : Void
+	{
+		subSwitcher.update(dt);
+	}
 
 	function attachSubView(sub : SubView<Dynamic>) : Void
 	{

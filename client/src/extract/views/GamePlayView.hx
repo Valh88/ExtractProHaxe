@@ -162,6 +162,7 @@ class GamePlayView extends BaseScene
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
 		if (hud != null) hud.update(dt);
+		if (settingsOverlay != null) settingsOverlay.update(dt);
 		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
 	}
 
