@@ -147,8 +147,9 @@ class GamePlayView extends BaseScene
 		// hide cursor for FPS — future views (lobby/inventory) will call show()
 		CursorManager.get().hide();
 
-		// settings overlay (visible for testing)
+		// settings overlay — hidden by default, toggled later by the FSM
 		settingsOverlay = new SettingsOverlay(bus, style);
+		settingsOverlay.close();
 		s2d.addChild(settingsOverlay.design);
 		style.addObject(settingsOverlay.design);
 
