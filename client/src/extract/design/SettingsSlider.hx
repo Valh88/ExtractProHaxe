@@ -24,6 +24,13 @@ class SettingsSlider extends Flow implements Object
 	var fillGfx : Graphics;
 	var knobGfx : Graphics;
 
+	var dragging : Bool = false;
+	var win : hxd.Window;
+	// bound once: Window/Interactive remove handlers by reference, so add and
+	// remove must receive the SAME closure instance (HL creates a new one on
+	// every method-field access)
+	final winMove : hxd.Event -> Void;
+
 	public function new(?parent)
 	{
 		super(parent);
@@ -33,6 +40,9 @@ class SettingsSlider extends Flow implements Object
 		valueText.text = "100%";
 		valueText.x = 450;
 		valueText.y = 9;
+
+		win = hxd.Window.getInstance();
+		winMove = onWinMove;
 
 		var trackBg = new Graphics();
 		trackBg.beginFill(0x1A1208);
@@ -57,12 +67,40 @@ class SettingsSlider extends Flow implements Object
 
 		trackWrap.enableInteractive = true;
 		trackWrap.interactive.cursor = Button;
-		trackWrap.interactive.onClick = function(e : hxd.Event) {
-			setNormalized(Math.max(0, Math.min(1, e.relX / TRACK_W)));
-			if (onChange != null) onChange(normalized);
+		// drag with the mouse button held: press sets the value at once, the
+		// window-level move handler keeps tracking while the button is down
+		trackWrap.interactive.onPush = function(e : hxd.Event) {
+			dragging = true;
+			applyFrom(e.relX);
+			// guard against double-registration (e.g. rapid re-press)
+			win.removeEventTarget(winMove);
+			win.addEventTarget(winMove);
 		};
+		trackWrap.interactive.onRelease = endDrag;
+		trackWrap.interactive.onReleaseOutside = endDrag;
 
 		setNormalized(1.0);
+	}
+
+	function endDrag(e : hxd.Event) : Void
+	{
+		dragging = false;
+		win.removeEventTarget(winMove);
+	}
+
+	/** Window-space mouse moved while dragging. */
+	function onWinMove(e : hxd.Event) : Void
+	{
+		if (!dragging) return;
+		var gx = trackWrap.localToGlobal().x;
+		applyFrom(e.relX - gx);
+	}
+
+	/** Apply a position relative to the track origin and fire onChange. */
+	function applyFrom(trackX : Float) : Void
+	{
+		setNormalized(Math.max(0, Math.min(1, trackX / TRACK_W)));
+		if (onChange != null) onChange(normalized);
 	}
 
 	public function setLabel(t : String) : Void { label.text = t; }
