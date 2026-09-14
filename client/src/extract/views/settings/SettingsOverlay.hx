@@ -7,6 +7,7 @@ import extract.design.SettingsAudioContent;
 import extract.design.SettingsDisplayContent;
 import extract.design.SettingsControlsContent;
 import extract.design.SettingsGameplayContent;
+import extract.gfx.SettingsBlur;
 import extract.utils.SubView;
 import extract.utils.ui.TabView;
 import extract.utils.animations.AnimationController;
@@ -22,14 +23,17 @@ class SettingsOverlay extends SubView<SettingsDesign>
 	var tabView : TabView<SettingsTab>;
 	var fadeAnim : Null<SettingsOverlaySlideAnim>;
 	var hudObj : Null<h2d.Object>;
+	var blur : Null<SettingsBlur>;
 	var ctrl : AnimationController = new AnimationController();
 
-	public function new(bus : EventBus, style : Style, ?hudObj : h2d.Object, ?parent : Object)
+	public function new(bus : EventBus, style : Style, ?hudObj : h2d.Object,
+			?blur : SettingsBlur, ?parent : Object)
 	{
 		settings = new SettingsDesign();
 		super(bus, settings, parent);
 		this.style = style;
 		this.hudObj = hudObj;
+		this.blur = blur;
 
 		settings.onBack = function() bus.publish(new GameplayToggleRequest());
 		settings.onSave = function() bus.publish(new GameplayToggleRequest());
@@ -54,12 +58,17 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		fadeAnim.start();
 		if (hudObj != null)
 			ctrl.add(new VarTween(hudObj, "alpha", 1, 0, 0.4, Easing.cubicOut));
+		if (blur != null) blur.enabled = true;
 	}
 
 	public function close() : Void
 	{
 		fadeAnim = new SettingsOverlaySlideAnim(this, null, design, 0.4, true);
-		fadeAnim.onComplete = function() { design.visible = false; };
+		fadeAnim.onComplete = function()
+		{
+			design.visible = false;
+			if (blur != null) blur.enabled = false;
+		};
 		fadeAnim.start();
 		if (hudObj != null)
 			ctrl.add(new VarTween(hudObj, "alpha", 0, 1, 0.4, Easing.cubicIn));

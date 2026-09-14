@@ -45,6 +45,7 @@ class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
 	var settingsOverlay : SettingsOverlay;
+	var settingsBlur : extract.gfx.SettingsBlur;
 	// pinned closure: HL creates a new closure per method-field access, but
 	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
 	final stateHandler : StateChangeEvent<GameplayMode> -> Void;
@@ -70,6 +71,8 @@ class GamePlayView extends BaseScene
 		super(s2d, style, gd, bus, 0x0D0D0D);
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 		this.renderer.effects.push(new extract.gfx.DistanceFog());
+		settingsBlur = new extract.gfx.SettingsBlur();
+		this.renderer.effects.push(settingsBlur);
 
 		// entity factory owns the world: creates it (client side: meshes),
 		// keeps it, spawns every body through the shared recipes
@@ -155,7 +158,7 @@ class GamePlayView extends BaseScene
 		CursorManager.get().hide();
 
 		// settings overlay — manages own fade animation, toggled by FSM
-		settingsOverlay = new SettingsOverlay(bus, style, hud);
+		settingsOverlay = new SettingsOverlay(bus, style, hud, settingsBlur);
 		s2d.addChild(settingsOverlay.design);
 		style.addObject(settingsOverlay.design);
 
