@@ -86,7 +86,7 @@
 .settings-slider-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
 .settings-slider-track { position:absolute; width:140; height:14; }
 .settings-slider-knob { position:absolute; width:20; height:20; }
-.settings-slider-value { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
+.settings-slider-value { position:absolute; color:#BFFFFFFF; font: font/oswald_regular_13.fnt; }
 /* --- Toggle --- */
 .settings-toggle { position:absolute; width:480; height:50; }
 .settings-toggle-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }

@@ -11,7 +11,7 @@ class SettingsSlider extends Flow implements Object
 		<settings-slider class="settings-slider">
 			<text id="label" class="settings-slider-label" x="0" y="0"/>
 			<flow id="trackWrap" class="settings-slider-track" x="310" y="13"/>
-			<text id="valueText" class="settings-slider-value" x="460" y="0"/>
+			<text id="valueText" class="settings-slider-value" x="460" y="9"/>
 		</settings-slider>;
 
 	public var onChange : Null<Float -> Void>;
@@ -29,7 +29,10 @@ class SettingsSlider extends Flow implements Object
 		super(parent);
 		initComponent();
 		getProperties(trackWrap).isAbsolute = true;
+		getProperties(valueText).isAbsolute = true;
 		valueText.text = "100%";
+		valueText.x = 450;
+		valueText.y = 9;
 
 		var trackBg = new Graphics();
 		trackBg.beginFill(0x1A1208);

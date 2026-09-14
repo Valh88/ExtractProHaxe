@@ -83,7 +83,7 @@ class SettingsDesign extends Flow implements Object
 			g.beginFill(0xC4A44A);
 			g.drawRect(0, 0, 110, 2);
 			g.endFill();
-			g.setPosition(tabX[i], 28);
+			g.setPosition(tabX[i], 35);
 			g.scaleX = 0;
 			tabsWrap.addChild(g);
 			tabsWrap.getProperties(g).isAbsolute = true;
