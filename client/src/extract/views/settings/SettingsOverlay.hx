@@ -17,6 +17,7 @@ class SettingsOverlay extends SubView<SettingsDesign>
 	var settings : SettingsDesign;
 	var style : Style;
 	var tabView : TabView<SettingsTab>;
+	var fadeAnim : Null<SettingsOverlaySlideAnim>;
 
 	public function new(bus : EventBus, style : Style, ?parent : Object)
 	{
@@ -36,10 +37,31 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		};
 
 		tabView.switchTo(SettingsTab.Audio);
+
+		design.visible = false;
+	}
+
+	public function open() : Void
+	{
+		design.visible = true;
+		fadeAnim = new SettingsOverlaySlideAnim(null, this, design, 0.4, false);
+		fadeAnim.start();
+	}
+
+	public function close() : Void
+	{
+		fadeAnim = new SettingsOverlaySlideAnim(this, null, design, 0.4, true);
+		fadeAnim.onComplete = function() { design.visible = false; };
+		fadeAnim.start();
 	}
 
 	override public function update(dt : Float) : Void
 	{
+		if (fadeAnim != null)
+		{
+			fadeAnim.update(dt);
+			if (fadeAnim.isComplete) fadeAnim = null;
+		}
 		tabView.update(dt);
 	}
 

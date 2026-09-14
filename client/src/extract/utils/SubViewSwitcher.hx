@@ -55,6 +55,21 @@ class SubViewSwitcher<K : EnumValue>
 		current = null;
 	}
 
+	/** Close with a custom animation. onComplete fires after the anim finishes. */
+	public function closeAnimated(anim : SubViewSwitchAnim) : Void
+	{
+		cancelAnim();
+		if (currentView == null) return;
+		switchAnim = anim;
+		anim.onComplete = function()
+		{
+			if (currentView != null) currentView.design.visible = false;
+			currentView = null;
+			current = null;
+		};
+		anim.start();
+	}
+
 	/** Show the sub-view for `id`, creating it on first use. */
 	public function switchTo(id : K) : Void
 	{

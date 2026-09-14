@@ -148,6 +148,10 @@ class SettingsDesign extends Flow implements Object
 
 	public function getContentWrap() : h2d.Flow return contentWrap;
 
+	public function getOverlay() : h2d.Flow return overlay;
+
+	public function getPanel() : h2d.Flow return panel;
+
 	public function setTab(idx : Int) : Void
 	{
 		if (idx < 0 || idx > 3) return;

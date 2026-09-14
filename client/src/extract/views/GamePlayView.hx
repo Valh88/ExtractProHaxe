@@ -18,8 +18,6 @@ import extract.systems.PlayerControllerSystem;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
 import extract.views.settings.SettingsOverlay;
-import extract.utils.SubViewSwitcher;
-import extract.utils.SubView;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
@@ -47,7 +45,6 @@ class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
 	var settingsOverlay : SettingsOverlay;
-	var subSwitcher : SubViewSwitcher<GameplayMode>;
 	// pinned closure: HL creates a new closure per method-field access, but
 	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
 	final stateHandler : StateChangeEvent<GameplayMode> -> Void;
@@ -157,10 +154,10 @@ class GamePlayView extends BaseScene
 		// hide cursor for FPS — future views (lobby/inventory) will call show()
 		CursorManager.get().hide();
 
-		// settings overlay — lazily created by the sub-view switcher, toggled by FSM
+		// settings overlay — manages own fade animation, toggled by FSM
 		settingsOverlay = new SettingsOverlay(bus, style);
-		subSwitcher = new SubViewSwitcher<GameplayMode>(createSubView, attachSubView);
-		subSwitcher.current = GameplayMode.fsIngame;
+		s2d.addChild(settingsOverlay.design);
+		style.addObject(settingsOverlay.design);
 
 		// the gameplay state machine is a process-wide singleton; wire it to the
 		// (app) bus here and tick it from this view's update (ESC → toggle);
@@ -187,7 +184,7 @@ class GamePlayView extends BaseScene
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
 		if (hud != null) hud.update(dt);
-		subSwitcher.update(dt);
+		if (settingsOverlay != null) settingsOverlay.update(dt);
 		GameplayState.get().update(dt); // tick the active gameplay state
 		super.update(dt); // scene systems (debug cam, ...) + domkit sync
 	}
@@ -198,7 +195,7 @@ class GamePlayView extends BaseScene
 		switch (e.newState)
 		{
 			case GameplayMode.fsSettings:
-				subSwitcher.switchTo(fsSettings);
+				settingsOverlay.open();
 				CursorManager.get().show();
 				// NOTE: the controller stays ENABLED — its update() keeps
 				// running so the camera keeps following the hero anchor (position
@@ -208,25 +205,10 @@ class GamePlayView extends BaseScene
 				// rotated back to 0 — the hero freezes in place facing the same way.
 				bus.publish(new HeroMoveIntent(Player.LOCAL, 0, 0, player.camCtrl.yaw, 0, false));
 			case GameplayMode.fsIngame:
-				subSwitcher.close();
+				settingsOverlay.close();
 				CursorManager.get().hide();
 				player.enabled = true;
 		}
-	}
-
-	function createSubView(mode : GameplayMode) : Null<SubView<Dynamic>>
-	{
-		return switch (mode)
-		{
-			case fsSettings: settingsOverlay;
-			case fsIngame:   null;
-		}
-	}
-
-	function attachSubView(sub : SubView<Dynamic>) : Void
-	{
-		s2d.addChild(sub.design);
-		style.addObject(sub.design);
 	}
 
 	/** Crosshair reacts to movement: spread widens when player moves. */

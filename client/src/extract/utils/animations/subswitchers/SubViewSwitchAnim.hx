@@ -55,12 +55,18 @@ abstract class SubViewSwitchAnim
 	/** Snap both views to rest and stop. Fires no `onComplete`. */
 	public function cancel() : Void
 	{
-		to.design.x = 0;
-		to.design.alpha = 1;
-		to.design.visible = true;
-		from.design.x = 0;
-		from.design.alpha = 1;
-		from.design.visible = false;
+		if (to != null)
+		{
+			to.design.x = 0;
+			to.design.alpha = 1;
+			to.design.visible = true;
+		}
+		if (from != null)
+		{
+			from.design.x = 0;
+			from.design.alpha = 1;
+			from.design.visible = false;
+		}
 		isRunning = false;
 		isComplete = false;
 		onComplete = null;
@@ -70,9 +76,12 @@ abstract class SubViewSwitchAnim
 	public function finish() : Void
 	{
 		if (isComplete) return;
-		from.design.x = 0;
-		from.design.alpha = 1;
-		from.design.visible = false;
+		if (from != null)
+		{
+			from.design.x = 0;
+			from.design.alpha = 1;
+			from.design.visible = false;
+		}
 		isRunning = false;
 		isComplete = true;
 		if (onComplete != null) onComplete();
