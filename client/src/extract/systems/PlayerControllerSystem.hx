@@ -9,6 +9,7 @@ import extract.utils.CameraController;
 import extract.utils.MovementController;
 import shared.GameData;
 import shared.Player;
+import shared.SimWorld;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.events.GameEvents.BulletFired;
@@ -38,6 +39,7 @@ class PlayerControllerSystem extends System
 	public var moveCtrl(default, null) : MovementController;
 
 	var cam : Camera;
+	var sim : SimWorld;
 	var shootRequested : Bool = false;
 	/** Bullet spawn clearance along the fire direction (cached from cdb). */
 	var spawnAhead : Float = 0.6;
@@ -64,9 +66,10 @@ class PlayerControllerSystem extends System
 	var accDX : Float = 0;
 	var accDY : Float = 0;
 
-	public function new(bus : EventBus, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
+	public function new(bus : EventBus, sim : SimWorld, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
 		super(bus, null, gd, "PlayerController");
+		this.sim = sim;
 		this.cam = cam;
 		this.camCtrl = new CameraController(cam);
 		this.moveCtrl = new MovementController();
@@ -90,6 +93,16 @@ class PlayerControllerSystem extends System
 				gotBaseline = true;
 			case _:
 		}
+	}
+
+	/** Freeze the hero body + clear movement intent. Call BEFORE `sim.update()`
+		so `HeroSystem.apply()` sees the cleared state in the same frame. */
+	public function freezeHero() : Void
+	{
+		var body = sim.heroes.get(Player.LOCAL);
+		if (body != null) body.setLinearVelocity(0, body.body.getLinearVelocity().y, 0);
+		var heroSys : shared.systems.HeroSystem = cast sim.systems.get("Hero");
+		if (heroSys != null) heroSys.clearIntent(Player.LOCAL);
 	}
 
 	function set_mesh(m : Null<h3d.scene.Object>) : Null<h3d.scene.Object>

@@ -101,7 +101,7 @@ class GamePlayView extends BaseScene
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
-		player = new PlayerControllerSystem(bus, camera, null, this.gd);
+		player = new PlayerControllerSystem(bus, sim, camera, null, this.gd);
 		systems.add(player);
 
 		// crosshair movement feedback
@@ -183,12 +183,7 @@ class GamePlayView extends BaseScene
 	#end
 		// freeze hero body + clear movement intent BEFORE physics step
 		if (GameplayState.get().current == GameplayMode.fsSettings)
-		{
-			var body = sim.heroes.get(Player.LOCAL);
-			if (body != null) body.setLinearVelocity(0, body.body.getLinearVelocity().y, 0);
-			var heroSys : HeroSystem = cast sim.systems.get("Hero");
-			if (heroSys != null) heroSys.clearIntent(Player.LOCAL);
-		}
+			player.freezeHero();
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
 		if (hud != null) hud.update(dt);
