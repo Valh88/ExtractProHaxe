@@ -4,7 +4,6 @@ import h3d.Camera;
 import hxd.Key;
 
 import extract.utils.CameraController;
-import extract.utils.CursorManager;
 import extract.utils.MovementController;
 import shared.GameData;
 import shared.Player;
@@ -37,7 +36,6 @@ class PlayerControllerSystem extends System
 	var cam : Camera;
 	/** True when cursor is hidden — camera follows mouse without RMB. */
 	var freeLook : Bool = true;
-	var escWasDown : Bool = false;
 	var rmbDown : Bool = false;
 	var dragging : Bool = false;
 	var shootRequested : Bool = false;
@@ -117,15 +115,9 @@ class PlayerControllerSystem extends System
 
 	override public function update(dt : Float) : Void
 	{
-		// --- ESC toggle: cursor visible ↔ hidden + camera look on/off ---
-		var escDown = Key.isDown(Key.ESCAPE);
-		if (escDown && !escWasDown)
-		{
-			freeLook = !freeLook;
-			if (freeLook) CursorManager.get().hide();
-			else CursorManager.get().show();
-		}
-		escWasDown = escDown;
+		// --- ESC is handled by the gameplay FSM (GamePlayView): it publishes a
+		// GameplayStateRequest → fsSettings/fsIngame; the view disables this
+		// system while the settings menu is open. ---
 
 		// --- look ---
 		// freeLook (cursor hidden): camera follows mouse without RMB

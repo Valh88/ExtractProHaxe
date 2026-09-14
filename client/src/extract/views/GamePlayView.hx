@@ -20,6 +20,10 @@ import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
 import extract.views.settings.SettingsOverlay;
 
+import extract.fsm.GameplayMode;
+import extract.fsm.GameplayToggleRequest;
+import shared.utils.fsm.StateChangeEvent;
+
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
 
@@ -40,7 +44,11 @@ class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
 	var settingsOverlay : SettingsOverlay;
-	var gameplayFsm : GameplayFsm;
+	/** ESC edge-detection (publish the settings request once per press). */
+	var escWasDown : Bool = false;
+	// pinned closure: HL creates a new closure per method-field access, but
+	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
+	final stateHandler : StateChangeEvent<GameplayMode> -> Void;
 
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
@@ -154,9 +162,11 @@ class GamePlayView extends BaseScene
 		style.addObject(settingsOverlay.design);
 
 		// client FSM (extensible gameplay states) — publishes StateChangeEvent
-		// on the view bus; no behavioural logic yet
-		gameplayFsm = new GameplayFsm(bus, this.gd);
+		// on the view bus; the settings menu follows fsSettings/fsIngame
+		var gameplayFsm = new GameplayFsm(bus, this.gd);
 		systems.add(gameplayFsm);
+		stateHandler = onStateChanged;
+		bus.subscribe(StateChangeEvent, stateHandler);
 
 		// fly camera: WASD move, Q/E down/up, Shift fast, RMB drag to look
 		//systems.add(new DebugCameraSystem(bus, camera, 12)); // disabled: camera belongs to the hero now
@@ -164,6 +174,13 @@ class GamePlayView extends BaseScene
 
 	override public function update(dt : Float)
 	{
+		// ESC → FSM toggle on the bus (edge detection, no key-repeat).
+		// GameplayStateRequest is for forced transitions; ESC is always a flip
+		var escDown = hxd.Key.isDown(hxd.Key.ESCAPE);
+		if (escDown && !escWasDown)
+			bus.publish(new GameplayToggleRequest());
+		escWasDown = escDown;
+
 	#if sys
 		updateNet();
 	#end
@@ -172,6 +189,22 @@ class GamePlayView extends BaseScene
 		if (hud != null) hud.update(dt);
 		if (settingsOverlay != null) settingsOverlay.update(dt);
 		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
+	}
+
+	/** FSM transition delivered on the bus → show/hide the settings menu. */
+	function onStateChanged(e : StateChangeEvent<GameplayMode>) : Void
+	{
+		switch (e.newState)
+		{
+			case GameplayMode.fsSettings:
+				settingsOverlay.open();
+				CursorManager.get().show();
+				player.enabled = false;
+			case GameplayMode.fsIngame:
+				settingsOverlay.close();
+				CursorManager.get().hide();
+				player.enabled = true;
+		}
 	}
 
 	/** Crosshair reacts to movement: spread widens when player moves. */
@@ -310,6 +343,7 @@ class GamePlayView extends BaseScene
 	/** Release bus subscriptions before the systems/socket are torn down. */
 	override public function dispose() : Void
 	{
+		bus.unsubscribe(StateChangeEvent, stateHandler);
 		bus.unsubscribe(HeroMoveIntent, onHeroMoveIntent);
 		bus.unsubscribe(BulletFired, onBulletFired);
 		bus.unsubscribe(PlayerJoined, onPlayerJoined);

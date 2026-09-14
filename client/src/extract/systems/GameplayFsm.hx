@@ -7,6 +7,7 @@ import shared.utils.fsm.StateMachine;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayStateRequest;
+import extract.fsm.GameplayToggleRequest;
 import extract.fsm.states.FsIngameState;
 import extract.fsm.states.FsSettingsState;
 
@@ -34,21 +35,30 @@ class GameplayFsm extends System
 	// access, and EventBus.unsubscribe matches handlers via
 	// Reflect.compareMethods — reuse the SAME closure for sub/unsub
 	final requestHandler : GameplayStateRequest -> Void;
+	final toggleHandler : GameplayToggleRequest -> Void;
 
 	public function new(bus : EventBus, ?gd : GameData)
 	{
 		super(bus, null, gd, "GameplayFsm");
 		requestHandler = onRequest;
+		toggleHandler = onToggle;
 		machine = new StateMachine<GameplayMode>(bus); // view bus — never create a new one
 		machine.registerState(GameplayMode.fsIngame, new FsIngameState(this));
 		machine.registerState(GameplayMode.fsSettings, new FsSettingsState(this));
 		// any system can request a transition by publishing GameplayStateRequest
+		// or a flip by publishing GameplayToggleRequest (ESC-style)
 		bus.subscribe(GameplayStateRequest, requestHandler);
+		bus.subscribe(GameplayToggleRequest, toggleHandler);
 	}
 
 	function onRequest(e : GameplayStateRequest) : Void
 	{
 		changeState(e.newState);
+	}
+
+	function onToggle(e : GameplayToggleRequest) : Void
+	{
+		toggle();
 	}
 
 	function get_current() : Null<GameplayMode>
@@ -60,10 +70,16 @@ class GameplayFsm extends System
 		machine.changeState(mode);
 	}
 
-	/** Toggle between the registered states (no-op before the first one). */
+	/** Flip between the registered states (ESC-style). Before the first
+		transition the machine is implicitly fsIngame (gameplay starts in-game),
+		so the VERY first toggle opens the settings instead of being a no-op. */
 	public function toggle() : Void
 	{
-		if (!machine.hasCurrentState) return;
+		if (!machine.hasCurrentState)
+		{
+			machine.changeState(GameplayMode.fsSettings);
+			return;
+		}
 		machine.changeState(machine.currentState == GameplayMode.fsIngame
 			? GameplayMode.fsSettings : GameplayMode.fsIngame);
 	}
@@ -82,6 +98,7 @@ class GameplayFsm extends System
 	override public function dispose() : Void
 	{
 		bus.unsubscribe(GameplayStateRequest, requestHandler);
+		bus.unsubscribe(GameplayToggleRequest, toggleHandler);
 		machine.dispose();
 	}
 }

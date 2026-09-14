@@ -2,6 +2,7 @@ package test;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayStateRequest;
+import extract.fsm.GameplayToggleRequest;
 import extract.systems.GameplayFsm;
 import shared.events.EventBus;
 import shared.utils.fsm.StateChangeEvent;
@@ -101,6 +102,39 @@ class GameplayFsmTest extends utest.Test
 		Assert.equals(GameplayMode.fsIngame, fsm.current);
 		bus.flush();
 		Assert.equals(3, transitions.length);
+	}
+
+	public function testToggleRequestEvent()
+	{
+		// ESC-style: publisher needs NO knowledge of the current state —
+		// just publishes the flip request, the FSM owns the decision
+		bus.publish(new GameplayToggleRequest());
+
+		// request delivered on flush #1, confirm event on flush #2
+		bus.flush();
+		Assert.equals(GameplayMode.fsSettings, fsm.current); // initial null → fsSettings
+		bus.flush();
+
+		// and toggle back through the bus again
+		bus.publish(new GameplayToggleRequest());
+		bus.flush();
+		Assert.equals(GameplayMode.fsIngame, fsm.current);
+		bus.flush();
+
+		Assert.equals(2, transitions.length);
+		Assert.equals(GameplayMode.fsSettings, transitions[0].n);
+		Assert.equals(GameplayMode.fsIngame, transitions[1].n);
+	}
+
+	public function testDisposeUnsubscribesToggleHandler()
+	{
+		fsm.dispose();
+
+		bus.publish(new GameplayToggleRequest());
+		bus.flush();
+		bus.flush();
+
+		Assert.isNull(fsm.current); // nothing applied — handler removed
 	}
 
 	public function testDuplicateRequestIsNoOp()
