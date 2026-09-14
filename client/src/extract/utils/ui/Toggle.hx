@@ -1,17 +1,22 @@
-package extract.design;
+package extract.utils.ui;
 
 import h2d.Flow;
 import h2d.Graphics;
 import h2d.domkit.Object;
 
-@:uiComp("settings-toggle")
-class SettingsToggle extends Flow implements Object
+/**
+	Generic reusable toggle (domkit `ui-toggle` component): pill-shaped checkbox
+	with a sliding knob. The pill is the hit area; visuals are Graphics-drawn,
+	the markup provides the label text.
+**/
+@:uiComp("ui-toggle")
+class Toggle extends Flow implements Object
 {
 	static var SRC =
-		<settings-toggle class="settings-toggle">
-			<text id="label" class="settings-toggle-label" x="0" y="0"/>
-			<flow id="pillWrap" class="settings-toggle-pill" x="436" y="7"/>
-		</settings-toggle>;
+		<ui-toggle class="ui-toggle">
+			<text id="label" class="ui-toggle-label" x="0" y="0"/>
+			<flow id="pillWrap" class="ui-toggle-pill" x="436" y="7"/>
+		</ui-toggle>;
 
 	public var onChange : Null<Bool -> Void>;
 

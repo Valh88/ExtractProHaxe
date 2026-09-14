@@ -2,6 +2,8 @@ package extract.design;
 
 import h2d.Flow;
 import h2d.domkit.Object;
+import extract.utils.ui.Toggle;
+import extract.utils.ui.Slider;
 
 @:uiComp("settings-gameplay-content")
 class SettingsGameplayContent extends Flow implements Object
@@ -16,9 +18,9 @@ class SettingsGameplayContent extends Flow implements Object
 		</settings-gameplay-content>;
 
 	public var language(default, null) : SettingsSelect;
-	public var showFps(default, null) : SettingsToggle;
-	public var showNames(default, null) : SettingsToggle;
-	public var hudScale(default, null) : SettingsSlider;
+	public var showFps(default, null) : Toggle;
+	public var showNames(default, null) : Toggle;
+	public var hudScale(default, null) : Slider;
 
 	public function new(?parent)
 	{
@@ -30,15 +32,15 @@ class SettingsGameplayContent extends Flow implements Object
 		language.setOptions(["ENGLISH", "RUSSIAN", "DEUTSCH", "FRANCAIS"]);
 		language.setSelectedIndex(0);
 
-		showFps = new SettingsToggle(fpsWrap);
+		showFps = new Toggle(fpsWrap);
 		showFps.setLabel("SHOW FPS");
 		showFps.setValue(true);
 
-		showNames = new SettingsToggle(namesWrap);
+		showNames = new Toggle(namesWrap);
 		showNames.setLabel("SHOW NAMES");
 		showNames.setValue(false);
 
-		hudScale = new SettingsSlider(hudWrap);
+		hudScale = new Slider(hudWrap);
 		hudScale.setLabel("HUD SCALE");
 		hudScale.setNormalized(1.0);
 

@@ -2,6 +2,8 @@ package extract.design;
 
 import h2d.Flow;
 import h2d.domkit.Object;
+import extract.utils.ui.Toggle;
+import extract.utils.ui.Slider;
 
 @:uiComp("settings-controls-content")
 class SettingsControlsContent extends Flow implements Object
@@ -20,8 +22,8 @@ class SettingsControlsContent extends Flow implements Object
 			</flow>
 		</settings-controls-content>;
 
-	public var sensitivity(default, null) : SettingsSlider;
-	public var invertY(default, null) : SettingsToggle;
+	public var sensitivity(default, null) : Slider;
+	public var invertY(default, null) : Toggle;
 	public var keyMove(default, null) : SettingsKeybind;
 	public var keyFire(default, null) : SettingsKeybind;
 	public var keyCrouch(default, null) : SettingsKeybind;
@@ -32,11 +34,11 @@ class SettingsControlsContent extends Flow implements Object
 		super(parent);
 		initComponent();
 
-		sensitivity = new SettingsSlider(sensWrap);
+		sensitivity = new Slider(sensWrap);
 		sensitivity.setLabel("MOUSE SENSITIVITY");
 		sensitivity.setNormalized(0.7);
 
-		invertY = new SettingsToggle(invertWrap);
+		invertY = new Toggle(invertWrap);
 		invertY.setLabel("INVERT Y");
 		invertY.setValue(false);
 

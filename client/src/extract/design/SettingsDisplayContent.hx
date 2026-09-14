@@ -2,6 +2,8 @@ package extract.design;
 
 import h2d.Flow;
 import h2d.domkit.Object;
+import extract.utils.ui.Toggle;
+import extract.utils.ui.Slider;
 
 @:uiComp("settings-display-content")
 class SettingsDisplayContent extends Flow implements Object
@@ -16,10 +18,10 @@ class SettingsDisplayContent extends Flow implements Object
 		</settings-display-content>;
 
 	public var resolution(default, null) : SettingsSelect;
-	public var fullscreen(default, null) : SettingsToggle;
-	public var vsync(default, null) : SettingsToggle;
-	public var fpsLimit(default, null) : SettingsSlider;
-	public var brightness(default, null) : SettingsSlider;
+	public var fullscreen(default, null) : Toggle;
+	public var vsync(default, null) : Toggle;
+	public var fpsLimit(default, null) : Slider;
+	public var brightness(default, null) : Slider;
 
 	public function new(?parent)
 	{
@@ -31,19 +33,19 @@ class SettingsDisplayContent extends Flow implements Object
 		resolution.setOptions(["1920 × 1080", "1600 × 900", "1280 × 720"]);
 		resolution.setSelectedIndex(0);
 
-		fullscreen = new SettingsToggle(fullWrap);
+		fullscreen = new Toggle(fullWrap);
 		fullscreen.setLabel("FULLSCREEN");
 		fullscreen.setValue(true);
 
-		vsync = new SettingsToggle(vsyncWrap);
+		vsync = new Toggle(vsyncWrap);
 		vsync.setLabel("V-SYNC");
 		vsync.setValue(false);
 
-		fpsLimit = new SettingsSlider(fpsWrap);
+		fpsLimit = new Slider(fpsWrap);
 		fpsLimit.setLabel("FPS LIMIT");
 		fpsLimit.setNormalized(0.3);
 
-		brightness = new SettingsSlider(brightWrap);
+		brightness = new Slider(brightWrap);
 		brightness.setLabel("BRIGHTNESS");
 		brightness.setNormalized(0.85);
 	}

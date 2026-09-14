@@ -82,18 +82,18 @@
 .settings-content { position:absolute; width:480; height:400; }
 .settings-content-row { position:absolute; }
 /* --- Slider --- */
-.settings-slider { position:absolute; width:480; height:50; }
-.settings-slider-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
-.settings-slider-track { position:absolute; width:140; height:14; }
-.settings-slider-knob { position:absolute; width:20; height:20; }
-.settings-slider-value { position:absolute; color:#BFFFFFFF; font: font/oswald_regular_13.fnt; }
-/* --- Toggle --- */
-.settings-toggle { position:absolute; width:480; height:50; }
-.settings-toggle-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
-.settings-toggle-pill { position:absolute; width:44; height:20; }
-.settings-toggle-knob { position:absolute; width:20; height:20; }
-.settings-toggle-on { background:#E0D080; }
-.settings-toggle-off { background:#4A4036; }
+.ui-slider { position:absolute; width:480; height:50; }
+.ui-slider-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
+.ui-slider-track { position:absolute; width:140; height:14; }
+.ui-slider-knob { position:absolute; width:20; height:20; }
+.ui-slider-value { position:absolute; color:#BFFFFFFF; font: font/oswald_regular_13.fnt; }
+
+.ui-toggle { position:absolute; width:480; height:50; }
+.ui-toggle-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
+.ui-toggle-pill { position:absolute; width:44; height:20; }
+.ui-toggle-knob { position:absolute; width:20; height:20; }
+.ui-toggle-on { background:#E0D080; }
+.ui-toggle-off { background:#4A4036; }
 /* --- Select --- */
 .settings-select { position:absolute; width:480; height:50; }
 .settings-select-label { position:absolute; color:#BFFFFFFF; font: font/oswald_medium_16.fnt; }
