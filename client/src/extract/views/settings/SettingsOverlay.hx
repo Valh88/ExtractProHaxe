@@ -10,6 +10,7 @@ import extract.design.SettingsGameplayContent;
 import extract.utils.SubView;
 import extract.utils.ui.TabView;
 import shared.events.EventBus;
+import extract.fsm.GameplayToggleRequest;
 
 class SettingsOverlay extends SubView<SettingsDesign>
 {
@@ -23,8 +24,8 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		super(bus, settings, parent);
 		this.style = style;
 
-		settings.onBack = close;
-		settings.onSave = close;
+		settings.onBack = function() bus.publish(new GameplayToggleRequest());
+		settings.onSave = function() bus.publish(new GameplayToggleRequest());
 
 		tabView = new TabView<SettingsTab>(settings.getContentWrap(), style, createSubView);
 
@@ -36,10 +37,6 @@ class SettingsOverlay extends SubView<SettingsDesign>
 
 		tabView.switchTo(SettingsTab.Audio);
 	}
-
-	public function open() : Void { design.visible = true; }
-	public function close() : Void { design.visible = false; }
-	public function toggle() : Void { design.visible = !design.visible; }
 
 	override public function update(dt : Float) : Void
 	{

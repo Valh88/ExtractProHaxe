@@ -21,7 +21,7 @@ import extract.utils.animations.subswitchers.SlideFadeSwitchAnim;
 class SubViewSwitcher<K : EnumValue>
 {
 	/** Key of the currently visible sub-view. */
-	public var current(default, null) : Null<K>;
+	public var current(default, set) : Null<K>;
 
 	/** Duration (seconds) of the built-in animated switch. */
 	public var animDuration : Float = 0.35;
@@ -41,6 +41,18 @@ class SubViewSwitcher<K : EnumValue>
 		this.factory = factory;
 		this.attach = attach;
 		this.onSwitched = onSwitched;
+	}
+
+	function set_current(v : Null<K>) : Null<K> { return current = v; }
+
+	/** Hide the current sub-view (no-op when nothing is visible). */
+	public function close() : Void
+	{
+		cancelAnim();
+		if (currentView != null)
+			currentView.design.visible = false;
+		currentView = null;
+		current = null;
 	}
 
 	/** Show the sub-view for `id`, creating it on first use. */
