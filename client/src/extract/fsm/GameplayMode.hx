@@ -1,7 +1,7 @@
 package extract.fsm;
 
 /**
-	Client gameplay UI states for `GameplayFsm`.
+	Client gameplay UI states for `GameplayState`.
 	Extensible: add a case here, an `AState` subclass, and one `registerState`.
 **/
 enum GameplayMode { fsIngame; fsSettings; }

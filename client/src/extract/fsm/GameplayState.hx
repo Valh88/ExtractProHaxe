@@ -1,35 +1,43 @@
-package extract.systems;
+package extract.fsm;
 
-import shared.GameData;
 import shared.events.EventBus;
-import shared.systems.System;
 import shared.utils.fsm.StateMachine;
 
-import extract.fsm.GameplayMode;
-import extract.fsm.GameplayStateRequest;
-import extract.fsm.GameplayToggleRequest;
 import extract.fsm.states.FsIngameState;
 import extract.fsm.states.FsSettingsState;
 
 /**
-	Client-side gameplay state machine as a visual `System`.
+	Client gameplay state machine as a process-wide GLOBAL singleton.
 
-	Owns a `StateMachine<GameplayMode>` built on the VIEW's event bus — no new
-	bus is created. Every `changeState` publishes a `StateChangeEvent` on that
-	bus (delivered by `bus.flush()` at end of frame in HeapsApp), so other
-	systems/views can react via `onState(...)` or a raw
-	`bus.subscribe(StateChangeEvent, ...)`.
+	ANY code can query the current gameplay mode via `GameplayState.get().current`
+	(settings menu visibility, input freeze switch, ...). Transitions arrive as
+	bus requests (`GameplayStateRequest` / `GameplayToggleRequest`, delivered on
+	`bus.flush()` at end of frame) or as direct `changeState` / `toggle` calls;
+	every change publishes a `StateChangeEvent` on the SAME bus the machine was
+	built on, so systems/views react loosely (`bus.subscribe(StateChangeEvent, ...)`).
+
+	Business rule: the machine is not a per-scene `System` — it is a process-wide
+	singleton wired by `GameplayState.init(bus)` and ticked once a frame from
+	`GamePlayView.update`, outliving scene switches (any system/view can query
+	`GameplayState.get().current` without holding a reference).
 
 	Extending: add a `GameplayMode` case, an `AState` subclass and one
 	`registerState` call. Behaviour goes into the state's enter/update/exit.
 **/
-class GameplayFsm extends System
+class GameplayState
 {
+	static var inst : GameplayState;
+
+	/** The bus the machine publishes `StateChangeEvent` on (the app bus). */
+	final bus : EventBus;
+
 	/** The underlying state machine (public for advanced use / listeners). */
 	public var machine(default, null) : StateMachine<GameplayMode>;
 
 	/** Current state id, null until the first transition. */
 	public var current(get, never) : Null<GameplayMode>;
+
+	var disposed : Bool = false;
 
 	// held reference: HL creates a NEW closure on every `this.onRequest`
 	// access, and EventBus.unsubscribe matches handlers via
@@ -37,18 +45,33 @@ class GameplayFsm extends System
 	final requestHandler : GameplayStateRequest -> Void;
 	final toggleHandler : GameplayToggleRequest -> Void;
 
-	public function new(bus : EventBus, ?gd : GameData)
+	function new(bus : EventBus)
 	{
-		super(bus, null, gd, "GameplayFsm");
+		this.bus = bus;
 		requestHandler = onRequest;
 		toggleHandler = onToggle;
-		machine = new StateMachine<GameplayMode>(bus); // view bus — never create a new one
+		machine = new StateMachine<GameplayMode>(bus); // app bus — never create a new one
 		machine.registerState(GameplayMode.fsIngame, new FsIngameState(this));
 		machine.registerState(GameplayMode.fsSettings, new FsSettingsState(this));
 		// any system can request a transition by publishing GameplayStateRequest
 		// or a flip by publishing GameplayToggleRequest (ESC-style)
 		bus.subscribe(GameplayStateRequest, requestHandler);
 		bus.subscribe(GameplayToggleRequest, toggleHandler);
+	}
+
+	/** Create / replace the singleton wired to `bus` (call once in GamePlayView). */
+	public static function init(bus : EventBus) : GameplayState
+	{
+		if (inst != null) inst.dispose();
+		inst = new GameplayState(bus);
+		return inst;
+	}
+
+	public static function get() : GameplayState
+	{
+		if (inst == null)
+			throw "GameplayState.get() before init(bus) — call GameplayState.init() from GamePlayView";
+		return inst;
 	}
 
 	function onRequest(e : GameplayStateRequest) : Void
@@ -64,7 +87,7 @@ class GameplayFsm extends System
 	function get_current() : Null<GameplayMode>
 		return machine.currentState;
 
-	/** Switch to `mode` (publishes a StateChangeEvent on the view bus). */
+	/** Switch to `mode` (publishes a StateChangeEvent on the app bus). */
 	public function changeState(mode : GameplayMode) : Void
 	{
 		machine.changeState(mode);
@@ -90,13 +113,18 @@ class GameplayFsm extends System
 		machine.addStateChangeListener(cb);
 	}
 
-	override public function update(dt : Float) : Void
+	/** Tick the active state. Called from `GamePlayView.update`. */
+	public function update(dt : Float) : Void
 	{
 		machine.update(dt);
 	}
 
-	override public function dispose() : Void
+	/** Unsubscribe from the bus + dispose the machine. Idempotent. */
+	public function dispose() : Void
 	{
+		if (disposed) return;
+		disposed = true;
+		if (inst == this) inst = null;
 		bus.unsubscribe(GameplayStateRequest, requestHandler);
 		bus.unsubscribe(GameplayToggleRequest, toggleHandler);
 		machine.dispose();

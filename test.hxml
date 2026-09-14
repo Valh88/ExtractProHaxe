@@ -1,4 +1,4 @@
-# utest suite for the shared FSM + client GameplayFsm (headless, HL target)
+# utest suite for the shared FSM + client GameplayState (headless, HL target)
 # run:  haxe test.hxml && <hl> bin/test/test.hl
 -cp test
 -cp client/src

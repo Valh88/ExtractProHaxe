@@ -1,9 +1,9 @@
 package extract.fsm;
 
 /**
-	Bus request to switch the gameplay FSM. A system/view publishes it on the
-	shared bus; `extract.systems.GameplayFsm` subscribes and performs the
-	transition (publishing a `StateChangeEvent` on completion).
+	Bus request to switch the gameplay state machine. A system/view publishes
+	it on the shared bus; `extract.fsm.GameplayState` subscribes and performs
+	the transition (publishing a `StateChangeEvent` on completion).
 **/
 class GameplayStateRequest
 {

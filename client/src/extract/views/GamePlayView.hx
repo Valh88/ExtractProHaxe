@@ -15,13 +15,13 @@ import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
-import extract.systems.GameplayFsm;
 import extract.systems.InputSystem;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
 import extract.views.settings.SettingsOverlay;
 
 import extract.fsm.GameplayMode;
+import extract.fsm.GameplayState;
 import extract.fsm.GameplayToggleRequest;
 import extract.events.InputEvents.KeyEvent;
 import shared.utils.fsm.StateChangeEvent;
@@ -166,10 +166,11 @@ class GamePlayView extends BaseScene
 		// subscribe, nothing else polls hxd.Key or adds window event targets
 		systems.add(new InputSystem(bus));
 
-		// client FSM (extensible gameplay states) — publishes StateChangeEvent
-		// on the view bus; the settings menu follows fsSettings/fsIngame
-		var gameplayFsm = new GameplayFsm(bus, this.gd);
-		systems.add(gameplayFsm);
+		// the gameplay state machine is a process-wide singleton; wire it to the
+		// (app) bus here and tick it from this view's update (ESCAPE →
+		// GameplayToggleRequest → GameplayState.toggle); the settings menu
+		// follows its fsSettings/fsIngame StateChangeEvent
+		GameplayState.init(bus);
 		stateHandler = onStateChanged;
 		bus.subscribe(StateChangeEvent, stateHandler);
 		inputHandler = onKeyEvent;
@@ -188,7 +189,8 @@ class GamePlayView extends BaseScene
 		physRenderer.render(); // interpolated visuals every frame
 		if (hud != null) hud.update(dt);
 		if (settingsOverlay != null) settingsOverlay.update(dt);
-		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
+		GameplayState.get().update(dt); // tick the active gameplay state
+		super.update(dt); // scene systems (debug cam, ...) + domkit sync
 	}
 
 	/** ESC comes through the central input stream → flip the gameplay FSM. */
