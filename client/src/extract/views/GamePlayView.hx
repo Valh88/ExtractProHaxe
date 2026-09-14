@@ -27,7 +27,6 @@ import shared.utils.fsm.StateChangeEvent;
 
 import extract.utils.BaseScene;
 import extract.utils.CursorManager;
-import extract.utils.InputManager;
 
 #if sys
 import extract.systems.ClientTransportSystem;
@@ -174,9 +173,8 @@ class GamePlayView extends BaseScene
 
 	override public function update(dt : Float)
 	{
-		// global input snapshot for this frame; ESC toggles the settings menu
-		InputManager.get().update();
-		if (InputManager.get().consumePressed(hxd.Key.ESCAPE))
+		// ESC toggles the settings menu
+		if (Key.isPressed(Key.ESCAPE))
 			GameplayState.get().toggle();
 	#if sys
 		updateNet();
@@ -353,7 +351,6 @@ class GamePlayView extends BaseScene
 		bus.unsubscribe(ShooterHit, onShooterHit);
 		bus.unsubscribe(VictimHit, onVictimHit);
 		bus.unsubscribe(PlayerDamaged, onDamage);
-		InputManager.get().dispose(); // lazily recreated on next view
 		super.dispose();
 	}
 #end

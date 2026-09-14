@@ -6,11 +6,9 @@ import shared.IUpdate;
 
 /**
 	Extensible keyboard movement controller (client-side input math).
-	Polls held keys from the `InputManager` singleton (`isDown(Key.W)` etc.)
-	and a jump edge (`consumePressed(Key.SPACE)`), eases a smoothed velocity,
-	exposes the world-space direction for a given yaw. Knows nothing about the
-	sim, the hero or the camera — the owner (PlayerControllerSystem) takes
-	`dirWorld(yaw)` and publishes it as an intent.
+	Polls held keys from `hxd.Key.isDown()` and a jump edge from
+	`hxd.Key.isPressed()` — no subscriptions, no custom events, no
+	singleton wrappers. Heaps handles OS-repeat filtering natively.
 
 	Smoothing is frame-rate independent (exponential), style of CameraFly.
 **/
@@ -56,15 +54,14 @@ class MovementController implements IUpdate
 
 	public function update(dt : Float) : Void
 	{
-		var im = InputManager.get();
-		var sp = speed * (im.isDown(Key.SHIFT) ? fastMult : 1);
+		var sp = speed * (Key.isDown(Key.SHIFT) ? fastMult : 1);
 		// local input: +x right, +z forward (matches camera yaw basis)
 		var ix = 0.0;
 		var iz = 0.0;
-		if (im.isDown(Key.W)) iz += 1;
-		if (im.isDown(Key.S)) iz -= 1;
-		if (im.isDown(Key.D)) ix += 1;
-		if (im.isDown(Key.A)) ix -= 1;
+		if (Key.isDown(Key.W)) iz += 1;
+		if (Key.isDown(Key.S)) iz -= 1;
+		if (Key.isDown(Key.D)) ix += 1;
+		if (Key.isDown(Key.A)) ix -= 1;
 		if (invertX) ix = -ix;
 		if (invertZ) iz = -iz;
 
@@ -87,8 +84,8 @@ class MovementController implements IUpdate
 			vel.z = 0;
 		}
 
-		// jump edge (OS key repeat is filtered by InputManager)
-		if (im.consumePressed(Key.SPACE))
+		// jump edge — isPressed returns true once per press
+		if (Key.isPressed(Key.SPACE))
 			jumpRequested = true;
 	}
 
