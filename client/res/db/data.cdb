@@ -166,8 +166,8 @@
 				{
 					"id": "default",
 					"moveSmooth": 12,
-					"stopSmooth": 20,
-					"stopThreshold": 0.05,
+					"stopSmooth": 28,
+					"stopThreshold": 0.08,
 					"fastMult": 2,
 					"invertX": true,
 					"invertZ": false
