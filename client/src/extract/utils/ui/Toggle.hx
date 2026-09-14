@@ -20,8 +20,11 @@ class Toggle extends Flow implements Object
 
 	public var onChange : Null<Bool -> Void>;
 
+	/** Pill fill — kept identical for on/off so the control never looks disabled. */
+	public var pillColor : Int = 0x6B6040;
 	var onColor : Int = 0xE0D080;
-	var offColor : Int = 0x4A4036;
+	/** Off-knob: close to the active gold but darker, still clearly usable. */
+	var offColor : Int = 0xBFA468;
 	var value : Bool = false;
 	var pillBg : Graphics;
 	var knobGfx : Graphics;
@@ -57,7 +60,7 @@ class Toggle extends Flow implements Object
 		value = v;
 
 		pillBg.clear();
-		pillBg.beginFill(value ? 0x6B6040 : 0x2E2620);
+		pillBg.beginFill(pillColor);
 		pillBg.drawRoundedRect(0, 0, 44, 20, 10);
 		pillBg.endFill();
 

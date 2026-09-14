@@ -29,7 +29,10 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		tabView = new TabView<SettingsTab>(settings.getContentWrap(), style, createSubView);
 
 		settings.onTabClick = function(idx : Int)
+		{
+			settings.setTab(idx);
 			tabView.switchToAnimated(Type.createEnumIndex(SettingsTab, idx));
+		};
 
 		tabView.switchTo(SettingsTab.Audio);
 	}
