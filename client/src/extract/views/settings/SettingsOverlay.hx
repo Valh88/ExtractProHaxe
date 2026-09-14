@@ -23,6 +23,9 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		super(bus, settings, parent);
 		this.style = style;
 
+		// clip sub-view animations (slide in/out) to the content box
+		settings.getContentWrap().overflow = h2d.Flow.FlowOverflow.Hidden;
+
 		settings.onBack = close;
 		settings.onSave = close;
 
