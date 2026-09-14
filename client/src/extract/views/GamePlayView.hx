@@ -155,7 +155,7 @@ class GamePlayView extends BaseScene
 		CursorManager.get().hide();
 
 		// settings overlay — manages own fade animation, toggled by FSM
-		settingsOverlay = new SettingsOverlay(bus, style);
+		settingsOverlay = new SettingsOverlay(bus, style, hud);
 		s2d.addChild(settingsOverlay.design);
 		style.addObject(settingsOverlay.design);
 
