@@ -3,16 +3,14 @@ package extract.utils;
 import hxd.Key;
 
 import shared.IUpdate;
-import shared.events.EventBus;
-
-import extract.events.InputEvents.KeyEvent;
 
 /**
 	Extensible keyboard movement controller (client-side input math).
-	Tracks WASD/Shift/Space via `InputSystem` bus events (edge-triggered),
-	eases a smoothed velocity, exposes the world-space direction for a given
-	yaw. Knows nothing about the sim, the hero or the camera — the owner
-	(PlayerControllerSystem) takes `dirWorld(yaw)` and publishes it as an intent.
+	Polls held keys from the `InputManager` singleton (`isDown(Key.W)` etc.)
+	and a jump edge (`consumePressed(Key.SPACE)`), eases a smoothed velocity,
+	exposes the world-space direction for a given yaw. Knows nothing about the
+	sim, the hero or the camera — the owner (PlayerControllerSystem) takes
+	`dirWorld(yaw)` and publishes it as an intent.
 
 	Smoothing is frame-rate independent (exponential), style of CameraFly.
 **/
@@ -36,40 +34,11 @@ class MovementController implements IUpdate
 	/** Set by the owner when a jump key is pressed; consumed (reset) by the sim. */
 	public var jumpRequested(default, null) : Bool = false;
 
-	var bus : EventBus;
-	// held reference: HL creates a NEW closure per `this.onKey` access, and
-	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse one
-	final keyHandler : KeyEvent -> Void;
-
 	// smoothed velocity (world-space, updated against the last known yaw)
 	var vel : h3d.Vector = new h3d.Vector();
 	var lastYaw : Float = 0;
 
-	// current key states (fed by InputSystem KeyEvent edges)
-	var keyW : Bool = false;
-	var keyS : Bool = false;
-	var keyA : Bool = false;
-	var keyD : Bool = false;
-	var keyShift : Bool = false;
-
-	public function new(bus : EventBus)
-	{
-		this.bus = bus;
-		keyHandler = onKey;
-		bus.subscribe(KeyEvent, keyHandler);
-	}
-
-	function onKey(e : KeyEvent) : Void
-	{
-		if (e.keyCode == Key.W) keyW = e.pressed;
-		else if (e.keyCode == Key.S) keyS = e.pressed;
-		else if (e.keyCode == Key.A) keyA = e.pressed;
-		else if (e.keyCode == Key.D) keyD = e.pressed;
-		else if (e.keyCode == Key.SHIFT) keyShift = e.pressed;
-		else if (e.keyCode == Key.SPACE && e.pressed)
-			// fresh press only — repeat is already filtered by InputSystem
-			requestJump();
-	}
+	public function new() {}
 
 	/** Flag a jump request (consumed by the owner, then auto-clears on read below). */
 	public function requestJump() : Void
@@ -85,22 +54,17 @@ class MovementController implements IUpdate
 		return j;
 	}
 
-	/** Release the bus subscription (called by the owning system on dispose). */
-	public function dispose() : Void
-	{
-		bus.unsubscribe(KeyEvent, keyHandler);
-	}
-
 	public function update(dt : Float) : Void
 	{
-		var sp = speed * (keyShift ? fastMult : 1);
+		var im = InputManager.get();
+		var sp = speed * (im.isDown(Key.SHIFT) ? fastMult : 1);
 		// local input: +x right, +z forward (matches camera yaw basis)
 		var ix = 0.0;
 		var iz = 0.0;
-		if (keyW) iz += 1;
-		if (keyS) iz -= 1;
-		if (keyD) ix += 1;
-		if (keyA) ix -= 1;
+		if (im.isDown(Key.W)) iz += 1;
+		if (im.isDown(Key.S)) iz -= 1;
+		if (im.isDown(Key.D)) ix += 1;
+		if (im.isDown(Key.A)) ix -= 1;
 		if (invertX) ix = -ix;
 		if (invertZ) iz = -iz;
 
@@ -122,6 +86,10 @@ class MovementController implements IUpdate
 			vel.x = 0;
 			vel.z = 0;
 		}
+
+		// jump edge (OS key repeat is filtered by InputManager)
+		if (im.consumePressed(Key.SPACE))
+			jumpRequested = true;
 	}
 
 	/** Remember the yaw the input was rotated by (call before update). */

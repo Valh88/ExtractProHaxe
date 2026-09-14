@@ -3,9 +3,8 @@ package extract.systems;
 import h3d.Camera;
 
 import extract.utils.CameraController;
+import extract.utils.InputManager;
 import extract.utils.MovementController;
-import extract.events.InputEvents.MouseMoveEvent;
-import extract.events.InputEvents.MouseButtonEvent;
 import shared.GameData;
 import shared.Player;
 import shared.events.EventBus;
@@ -19,10 +18,11 @@ import shared.systems.System;
 	Never touches the sim — the HeroSystem (shared) applies movement, which
 	keeps client and server simulations identical.
 
-	Input comes from `InputSystem` bus events — no direct hxd.Key/window
-	polling here. Look follows the mouse continuously (cursor hidden in-game);
-	LMB fires. Camera anchor is the hero mesh (interpolated by PhysRenderer);
-	cdb numbers are read once per mesh bind.
+	Input is polled from the `InputManager` singleton (mouse delta + LMB edge,
+	keys via MovementController) — no bus events, no direct hxd.Key/window
+	access. Look follows the mouse continuously (cursor hidden in-game); LMB
+	fires. Camera anchor is the hero mesh (interpolated by PhysRenderer); cdb
+	numbers are read once per mesh bind.
 **/
 class PlayerControllerSystem extends System
 {
@@ -45,22 +45,13 @@ class PlayerControllerSystem extends System
 	var pYaw : Float = 0;
 	var pMag : Float = 0;
 
-	// held refs: HL creates a NEW closure per method-field access, but
-	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
-	final mouseMoveHandler : MouseMoveEvent -> Void;
-	final mouseButtonHandler : MouseButtonEvent -> Void;
-
 	public function new(bus : EventBus, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
 		super(bus, null, gd, "PlayerController");
 		this.cam = cam;
 		this.camCtrl = new CameraController(cam);
-		this.moveCtrl = new MovementController(bus);
+		this.moveCtrl = new MovementController();
 		this.mesh = mesh;
-		mouseMoveHandler = onMouseMove;
-		mouseButtonHandler = onMouseButton;
-		bus.subscribe(MouseMoveEvent, mouseMoveHandler);
-		bus.subscribe(MouseButtonEvent, mouseButtonHandler);
 	}
 
 	function set_mesh(m : Null<h3d.scene.Object>) : Null<h3d.scene.Object>
@@ -95,26 +86,16 @@ class PlayerControllerSystem extends System
 		return mesh = m;
 	}
 
-	/** Cursor stays in FPS free-look while in-game; deltas are window-space. */
-	function onMouseMove(e : MouseMoveEvent) : Void
-	{
-		if (!enabled) return; // settings open — freeze camera
-		camCtrl.addLook(e.dx, e.dy);
-	}
-
-	function onMouseButton(e : MouseButtonEvent) : Void
-	{
-		if (!enabled) return;
-		switch (e.button)
-		{
-			case 0 if (e.pressed):
-				shootRequested = true; // LMB: one-shot fire (applied in update)
-			default:
-		}
-	}
-
 	override public function update(dt : Float) : Void
 	{
+		// --- look + shoot from the InputManager singleton (per-frame snapshot) ---
+		if (enabled)
+		{
+			var im = InputManager.get();
+			camCtrl.addLook(im.mouseDX, im.mouseDY); // cursor hidden in-game
+			if (im.consumePressedButton(0)) shootRequested = true; // LMB: one-shot
+		}
+
 		// --- move ---
 		moveCtrl.setYaw(camCtrl.yaw);
 		moveCtrl.update(dt);
@@ -160,12 +141,5 @@ class PlayerControllerSystem extends System
 		var p = mesh.getAbsPos();
 		camCtrl.anchor.set(p.tx, p.ty, p.tz);
 		camCtrl.update(dt);
-	}
-
-	override public function dispose() : Void
-	{
-		bus.unsubscribe(MouseMoveEvent, mouseMoveHandler);
-		bus.unsubscribe(MouseButtonEvent, mouseButtonHandler);
-		moveCtrl.dispose();
 	}
 }
