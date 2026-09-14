@@ -1,9 +1,11 @@
 package extract.systems;
 
 import h3d.Camera;
+import hxd.Key;
 
+import extract.fsm.GameplayMode;
+import extract.fsm.GameplayState;
 import extract.utils.CameraController;
-import extract.utils.InputManager;
 import extract.utils.MovementController;
 import shared.GameData;
 import shared.Player;
@@ -15,14 +17,14 @@ import shared.systems.System;
 /**
 	Client-side player controller: composes the extensible CameraController
 	(look) and MovementController (WASD) and publishes intents to the bus.
-	Never touches the sim — the HeroSystem (shared) applies movement, which
-	keeps client and server simulations identical.
 
-	Input is polled from the `InputManager` singleton (mouse delta + LMB edge,
-	keys via MovementController) — no bus events, no direct hxd.Key/window
-	access. Look follows the mouse continuously (cursor hidden in-game); LMB
-	fires. Camera anchor is the hero mesh (interpolated by PhysRenderer); cdb
-	numbers are read once per mesh bind.
+	Look follows the mouse continuously (cursor hidden in-game); LMB fires.
+	Camera anchor is the hero mesh (interpolated by PhysRenderer); cdb numbers
+	are read once per mesh bind.
+
+	When the settings menu is open (`GameplayState.fsSettings`), movement /
+	look / shoot are frozen AND the hero body's velocity is zeroed directly
+	via `SimWorld` (bypassing the bus to avoid the one-frame delivery delay).
 **/
 class PlayerControllerSystem extends System
 {
@@ -45,6 +47,23 @@ class PlayerControllerSystem extends System
 	var pYaw : Float = 0;
 	var pMag : Float = 0;
 
+	/** True while the settings menu is open — freeze everything. */
+	var inSettings(get, never) : Bool;
+
+	function get_inSettings() : Bool
+		return GameplayState.get().current == GameplayMode.fsSettings;
+
+	/** Was in settings last frame — used to skip the first delta after closing. */
+	var wasInSettings : Bool = false;
+
+	// mouse delta tracking (single Window listener for the whole project)
+	final winHandler : hxd.Event -> Void;
+	var lastX : Float = 0;
+	var lastY : Float = 0;
+	var gotBaseline : Bool = false;
+	var accDX : Float = 0;
+	var accDY : Float = 0;
+
 	public function new(bus : EventBus, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
 		super(bus, null, gd, "PlayerController");
@@ -52,6 +71,25 @@ class PlayerControllerSystem extends System
 		this.camCtrl = new CameraController(cam);
 		this.moveCtrl = new MovementController();
 		this.mesh = mesh;
+		winHandler = onWindowEvent;
+		hxd.Window.getInstance().addEventTarget(winHandler);
+	}
+
+	function onWindowEvent(e : hxd.Event) : Void
+	{
+		switch (e.kind)
+		{
+			case EMove:
+				if (gotBaseline)
+				{
+					accDX += e.relX - lastX;
+					accDY += e.relY - lastY;
+				}
+				lastX = e.relX;
+				lastY = e.relY;
+				gotBaseline = true;
+			case _:
+		}
 	}
 
 	function set_mesh(m : Null<h3d.scene.Object>) : Null<h3d.scene.Object>
@@ -88,13 +126,29 @@ class PlayerControllerSystem extends System
 
 	override public function update(dt : Float) : Void
 	{
-		// --- look + shoot from the InputManager singleton (per-frame snapshot) ---
-		if (enabled)
+		if (inSettings)
 		{
-			var im = InputManager.get();
-			camCtrl.addLook(im.mouseDX, im.mouseDY); // cursor hidden in-game
-			if (im.consumePressedButton(0)) shootRequested = true; // LMB: one-shot
+			// settings open — freeze look + consume accumulated delta
+			accDX = 0;
+			accDY = 0;
+			wasInSettings = true;
+			return;
 		}
+
+		// first frame after closing settings — discard stale delta, skip look
+		if (wasInSettings)
+		{
+			wasInSettings = false;
+			accDX = 0;
+			accDY = 0;
+		}
+		else
+		{
+			// --- look (mouse delta from the window handler) ---
+			camCtrl.addLook(accDX, accDY);
+		}
+		accDX = 0;
+		accDY = 0;
 
 		// --- move ---
 		moveCtrl.setYaw(camCtrl.yaw);
@@ -116,6 +170,7 @@ class PlayerControllerSystem extends System
 
 		// --- shoot (LMB one-shot): fire from the eye along the view dir,
 		// starting beyond the hero capsule so it doesn't hit the player ---
+		if (Key.isPressed(Key.MOUSE_LEFT)) shootRequested = true;
 		if (shootRequested)
 		{
 			shootRequested = false;
@@ -123,7 +178,6 @@ class PlayerControllerSystem extends System
 			{
 				var p = mesh.getAbsPos();
 				var eyeY = p.ty + camCtrl.eyeHeight;
-				// view forward from yaw/pitch (same basis as CameraController)
 				var cp = Math.cos(camCtrl.pitch);
 				var fx = -Math.sin(camCtrl.yaw) * cp;
 				var fy = Math.sin(camCtrl.pitch);
@@ -141,5 +195,10 @@ class PlayerControllerSystem extends System
 		var p = mesh.getAbsPos();
 		camCtrl.anchor.set(p.tx, p.ty, p.tz);
 		camCtrl.update(dt);
+	}
+
+	override public function dispose() : Void
+	{
+		hxd.Window.getInstance().removeEventTarget(winHandler);
 	}
 }

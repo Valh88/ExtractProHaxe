@@ -21,6 +21,8 @@ import extract.views.settings.SettingsOverlay;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
+import hxd.Key;
+import shared.Player;
 import shared.utils.fsm.StateChangeEvent;
 
 import extract.utils.BaseScene;
@@ -179,6 +181,14 @@ class GamePlayView extends BaseScene
 	#if sys
 		updateNet();
 	#end
+		// freeze hero body + clear movement intent BEFORE physics step
+		if (GameplayState.get().current == GameplayMode.fsSettings)
+		{
+			var body = sim.heroes.get(Player.LOCAL);
+			if (body != null) body.setLinearVelocity(0, body.body.getLinearVelocity().y, 0);
+			var heroSys : HeroSystem = cast sim.systems.get("Hero");
+			if (heroSys != null) heroSys.clearIntent(Player.LOCAL);
+		}
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
 		if (hud != null) hud.update(dt);

@@ -83,6 +83,20 @@ class HeroSystem extends System
 		return s;
 	}
 
+	/** Zero a player's movement intent immediately (used by the client to
+		freeze the hero when the settings menu opens — must run BEFORE the
+		physics step so `apply()` sees the cleared state). */
+	public function clearIntent(playerId : String) : Void
+	{
+		var s = states.get(playerId);
+		if (s != null)
+		{
+			s.dirX = 0;
+			s.dirZ = 0;
+			s.mag = 0;
+		}
+	}
+
 	function onIntent(e : HeroMoveIntent) : Void
 	{
 		var s = state(states, e.playerId);
