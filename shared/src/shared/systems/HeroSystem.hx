@@ -196,12 +196,25 @@ class HeroSystem extends System
 		var tx = s.dirX * speed * s.mag;
 		var tz = s.dirZ * speed * s.mag;
 		var v = body.body.getLinearVelocity();
-		var k = 1.0 - Math.exp(-smooth * dt);
-		body.setLinearVelocity(
-			v.x + (tx - v.x) * k,
-			v.y,
-			v.z + (tz - v.z) * k
-		);
+
+		// A fully-zeroed intent (stop signal from opening the settings menu)
+		// should halt the hero immediately — kill horizontal velocity outright
+		// instead of the exponential easing tail that would otherwise let the
+		// body coast a few extra steps. Yaw is still applied below (common path)
+		// so the body keeps facing the camera even while standing still.
+		if (s.mag == 0 && s.dirX == 0 && s.dirZ == 0)
+		{
+			body.setLinearVelocity(0, v.y, 0);
+		}
+		else
+		{
+			var k = 1.0 - Math.exp(-smooth * dt);
+			body.setLinearVelocity(
+				v.x + (tx - v.x) * k,
+				v.y,
+				v.z + (tz - v.z) * k
+			);
+		}
 
 		// face the camera yaw: rotation around Y, forward = -Z at yaw 0.
 		// Oimo Quat has no euler ctor — build the axis-angle quat directly.
