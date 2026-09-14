@@ -119,6 +119,11 @@ class MovementController implements IUpdate
 	public function magnitude() : Float
 	{
 		var l = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+		// Snap to a full stop when below the threshold — otherwise the slowly
+		// decaying tail keeps sending a tiny non-zero mag to the server, whose
+		// authority then coasts a little and the client's SyncBridge pulls the
+		// (locally already-stopped) body forward. Snapping makes the stop clean.
+		if (l < stopThreshold) return 0;
 		return l < 1e-4 ? 0 : l / speed;
 	}
 
