@@ -1,0 +1,17 @@
+# utest suite for the shared FSM + client GameplayFsm (headless, HL target)
+# run:  haxe test.hxml && <hl> bin/test/test.hl
+-cp test
+-cp client/src
+
+-cp shared/src
+
+-cp D:/projects/haxe/OimoPhysics/src
+
+-lib HeapsPhysics
+-lib castle
+-lib hxrnl
+-lib utest
+
+--main test.Runner
+
+-hl bin/test/test.hl

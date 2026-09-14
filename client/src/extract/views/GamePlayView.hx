@@ -15,6 +15,7 @@ import shared.systems.HeroSystem;
 import extract.design.HudDesign;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
+import extract.systems.GameplayFsm;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
 import extract.views.settings.SettingsOverlay;
@@ -39,6 +40,7 @@ class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
 	var settingsOverlay : SettingsOverlay;
+	var gameplayFsm : GameplayFsm;
 
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
@@ -149,6 +151,11 @@ class GamePlayView extends BaseScene
 		settingsOverlay = new SettingsOverlay(bus, style);
 		s2d.addChild(settingsOverlay.design);
 		style.addObject(settingsOverlay.design);
+
+		// client FSM (extensible gameplay states) — publishes StateChangeEvent
+		// on the view bus; no behavioural logic yet
+		gameplayFsm = new GameplayFsm(bus, this.gd);
+		systems.add(gameplayFsm);
 
 		// fly camera: WASD move, Q/E down/up, Shift fast, RMB drag to look
 		//systems.add(new DebugCameraSystem(bus, camera, 12)); // disabled: camera belongs to the hero now
