@@ -16,12 +16,14 @@ import extract.design.HudDesign;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.systems.GameplayFsm;
+import extract.systems.InputSystem;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
 import extract.views.settings.SettingsOverlay;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayToggleRequest;
+import extract.events.InputEvents.KeyEvent;
 import shared.utils.fsm.StateChangeEvent;
 
 import extract.utils.BaseScene;
@@ -44,11 +46,10 @@ class GamePlayView extends BaseScene
 {
 	var hud : HudDesign;
 	var settingsOverlay : SettingsOverlay;
-	/** ESC edge-detection (publish the settings request once per press). */
-	var escWasDown : Bool = false;
 	// pinned closure: HL creates a new closure per method-field access, but
 	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
 	final stateHandler : StateChangeEvent<GameplayMode> -> Void;
+	final inputHandler : KeyEvent -> Void;
 
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
@@ -161,12 +162,18 @@ class GamePlayView extends BaseScene
 		s2d.addChild(settingsOverlay.design);
 		style.addObject(settingsOverlay.design);
 
+		// central input tracker → bus events (keys/mouse edges); consumer systems
+		// subscribe, nothing else polls hxd.Key or adds window event targets
+		systems.add(new InputSystem(bus));
+
 		// client FSM (extensible gameplay states) — publishes StateChangeEvent
 		// on the view bus; the settings menu follows fsSettings/fsIngame
 		var gameplayFsm = new GameplayFsm(bus, this.gd);
 		systems.add(gameplayFsm);
 		stateHandler = onStateChanged;
 		bus.subscribe(StateChangeEvent, stateHandler);
+		inputHandler = onKeyEvent;
+		bus.subscribe(KeyEvent, inputHandler);
 
 		// fly camera: WASD move, Q/E down/up, Shift fast, RMB drag to look
 		//systems.add(new DebugCameraSystem(bus, camera, 12)); // disabled: camera belongs to the hero now
@@ -174,13 +181,6 @@ class GamePlayView extends BaseScene
 
 	override public function update(dt : Float)
 	{
-		// ESC → FSM toggle on the bus (edge detection, no key-repeat).
-		// GameplayStateRequest is for forced transitions; ESC is always a flip
-		var escDown = hxd.Key.isDown(hxd.Key.ESCAPE);
-		if (escDown && !escWasDown)
-			bus.publish(new GameplayToggleRequest());
-		escWasDown = escDown;
-
 	#if sys
 		updateNet();
 	#end
@@ -189,6 +189,13 @@ class GamePlayView extends BaseScene
 		if (hud != null) hud.update(dt);
 		if (settingsOverlay != null) settingsOverlay.update(dt);
 		super.update(dt);  // scene systems (debug cam, ...) + domkit sync
+	}
+
+	/** ESC comes through the central input stream → flip the gameplay FSM. */
+	function onKeyEvent(e : KeyEvent) : Void
+	{
+		if (e.keyCode == hxd.Key.ESCAPE && e.pressed)
+			bus.publish(new GameplayToggleRequest());
 	}
 
 	/** FSM transition delivered on the bus → show/hide the settings menu. */
@@ -344,6 +351,7 @@ class GamePlayView extends BaseScene
 	override public function dispose() : Void
 	{
 		bus.unsubscribe(StateChangeEvent, stateHandler);
+		bus.unsubscribe(KeyEvent, inputHandler);
 		bus.unsubscribe(HeroMoveIntent, onHeroMoveIntent);
 		bus.unsubscribe(BulletFired, onBulletFired);
 		bus.unsubscribe(PlayerJoined, onPlayerJoined);

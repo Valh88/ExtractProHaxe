@@ -1,10 +1,11 @@
 package extract.systems;
 
 import h3d.Camera;
-import hxd.Key;
 
 import extract.utils.CameraController;
 import extract.utils.MovementController;
+import extract.events.InputEvents.MouseMoveEvent;
+import extract.events.InputEvents.MouseButtonEvent;
 import shared.GameData;
 import shared.Player;
 import shared.events.EventBus;
@@ -18,9 +19,10 @@ import shared.systems.System;
 	Never touches the sim — the HeroSystem (shared) applies movement, which
 	keeps client and server simulations identical.
 
-	Input: RMB drag to look, WASD/Shift to move. Camera anchor is the hero
-	mesh (interpolated by PhysRenderer); cdb numbers are read once per mesh
-	bind.
+	Input comes from `InputSystem` bus events — no direct hxd.Key/window
+	polling here. Look follows the mouse continuously (cursor hidden in-game);
+	LMB fires. Camera anchor is the hero mesh (interpolated by PhysRenderer);
+	cdb numbers are read once per mesh bind.
 **/
 class PlayerControllerSystem extends System
 {
@@ -34,31 +36,31 @@ class PlayerControllerSystem extends System
 	public var moveCtrl(default, null) : MovementController;
 
 	var cam : Camera;
-	/** True when cursor is hidden — camera follows mouse without RMB. */
-	var freeLook : Bool = true;
-	var rmbDown : Bool = false;
-	var dragging : Bool = false;
 	var shootRequested : Bool = false;
-	var mx : Float = 0;
-	var my : Float = 0;
-	var lastMX : Float = 0;
-	var lastMY : Float = 0;
+	/** Bullet spawn clearance along the fire direction (cached from cdb). */
+	var spawnAhead : Float = 0.6;
 	// last published intent (publish only on change)
 	var pDirX : Float = 0;
 	var pDirZ : Float = 0;
 	var pYaw : Float = 0;
 	var pMag : Float = 0;
-	/** Bullet spawn clearance along the fire direction (cached from cdb). */
-	var spawnAhead : Float = 0.6;
+
+	// held refs: HL creates a NEW closure per method-field access, but
+	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
+	final mouseMoveHandler : MouseMoveEvent -> Void;
+	final mouseButtonHandler : MouseButtonEvent -> Void;
 
 	public function new(bus : EventBus, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
 		super(bus, null, gd, "PlayerController");
 		this.cam = cam;
 		this.camCtrl = new CameraController(cam);
-		this.moveCtrl = new MovementController();
+		this.moveCtrl = new MovementController(bus);
 		this.mesh = mesh;
-		hxd.Window.getInstance().addEventTarget(onEvent);
+		mouseMoveHandler = onMouseMove;
+		mouseButtonHandler = onMouseButton;
+		bus.subscribe(MouseMoveEvent, mouseMoveHandler);
+		bus.subscribe(MouseButtonEvent, mouseButtonHandler);
 	}
 
 	function set_mesh(m : Null<h3d.scene.Object>) : Null<h3d.scene.Object>
@@ -93,58 +95,26 @@ class PlayerControllerSystem extends System
 		return mesh = m;
 	}
 
-	function onEvent(e : hxd.Event) : Void
+	/** Cursor stays in FPS free-look while in-game; deltas are window-space. */
+	function onMouseMove(e : MouseMoveEvent) : Void
 	{
-		switch (e.kind)
+		if (!enabled) return; // settings open — freeze camera
+		camCtrl.addLook(e.dx, e.dy);
+	}
+
+	function onMouseButton(e : MouseButtonEvent) : Void
+	{
+		if (!enabled) return;
+		switch (e.button)
 		{
-			case EMove:
-				mx = e.relX;
-				my = e.relY;
-			case EPush if (e.button == 1):
-				rmbDown = true;
-				dragging = false;
-				mx = e.relX;
-				my = e.relY;
-			case ERelease if (e.button == 1):
-				rmbDown = false;
-			case EPush if (e.button == 0):
+			case 0 if (e.pressed):
 				shootRequested = true; // LMB: one-shot fire (applied in update)
-			case _:
+			default:
 		}
 	}
 
 	override public function update(dt : Float) : Void
 	{
-		// --- ESC is handled by the gameplay FSM (GamePlayView): it publishes a
-		// GameplayStateRequest → fsSettings/fsIngame; the view disables this
-		// system while the settings menu is open. ---
-
-		// --- look ---
-		// freeLook (cursor hidden): camera follows mouse without RMB
-		// rmbDown: classic FPS drag-to-look
-		var looking = freeLook || rmbDown;
-		if (looking)
-		{
-			if (!dragging)
-			{
-				dragging = true;
-				lastMX = mx;
-				lastMY = my;
-			}
-			else
-			{
-				camCtrl.addLook(mx - lastMX, my - lastMY);
-				lastMX = mx;
-				lastMY = my;
-			}
-		}
-		else
-		{
-			dragging = false;
-			if (Key.isDown(Key.LEFT)) camCtrl.addLook(2, 0);   // keyboard fallback
-			if (Key.isDown(Key.RIGHT)) camCtrl.addLook(-2, 0);
-		}
-
 		// --- move ---
 		moveCtrl.setYaw(camCtrl.yaw);
 		moveCtrl.update(dt);
@@ -190,5 +160,12 @@ class PlayerControllerSystem extends System
 		var p = mesh.getAbsPos();
 		camCtrl.anchor.set(p.tx, p.ty, p.tz);
 		camCtrl.update(dt);
+	}
+
+	override public function dispose() : Void
+	{
+		bus.unsubscribe(MouseMoveEvent, mouseMoveHandler);
+		bus.unsubscribe(MouseButtonEvent, mouseButtonHandler);
+		moveCtrl.dispose();
 	}
 }
