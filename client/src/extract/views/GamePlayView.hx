@@ -198,7 +198,13 @@ class GamePlayView extends BaseScene
 			case GameplayMode.fsSettings:
 				settingsOverlay.open();
 				CursorManager.get().show();
-				player.enabled = false;
+				// NOTE: the controller stays ENABLED — its update() keeps
+				// running so the camera keeps following the hero anchor (position
+				// + rotation) while look/move are frozen by the inSettings branch.
+				// Disabling the system would kill the follow and snap the camera.
+				// Tell the server to stop: keep the current yaw so the body isn't
+				// rotated back to 0 — the hero freezes in place facing the same way.
+				bus.publish(new HeroMoveIntent(Player.LOCAL, 0, 0, player.camCtrl.yaw, 0, false));
 			case GameplayMode.fsIngame:
 				settingsOverlay.close();
 				CursorManager.get().hide();

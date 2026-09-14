@@ -27,7 +27,8 @@ class StatisticSystem extends System
 	var socket : Null<SocketHost>;
 	#end
 
-	public function new(bus : EventBus, hud : HudDesign, ?socket : SocketHost)
+	public function new(bus : EventBus, hud : HudDesign,
+		#if sys ?socket : SocketHost #end)
 	{
 		super(bus, null, null, "Statistic");
 		this.hud = hud;

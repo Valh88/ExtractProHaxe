@@ -6,6 +6,8 @@ import shared.events.GameEvents.BulletFired;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.net.GameNet;
 import shared.systems.System;
+import extract.fsm.GameplayMode;
+import extract.fsm.GameplayState;
 
 /**
 	Client-side transport layer (HL only, used under `#if sys`): subscribes to
@@ -31,6 +33,12 @@ class ClientTransportSystem extends System
 
 	function onHeroMove(e : HeroMoveIntent) : Void
 	{
+		// Settings open: block actual movement, but let a ZEROED intent (the
+		// stop signal sent on the fsSettings transition) through — otherwise
+		// the server keeps its last non-zero intent and the authoritative
+		// hero walks forever while the local view is frozen.
+		if (GameplayState.get().current == GameplayMode.fsSettings
+			&& (e.mag > 0 || e.dirX != 0 || e.dirZ != 0)) return;
 		if (gameNet != null) gameNet.heroInput(e.dirX, e.dirZ, e.yaw, e.mag, e.jump);
 	}
 

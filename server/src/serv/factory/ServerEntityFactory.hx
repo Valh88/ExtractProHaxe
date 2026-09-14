@@ -11,7 +11,10 @@ import shared.BaseEntityFactory;
 **/
 class ServerEntityFactory extends BaseEntityFactory
 {
-	public function new() {}
+	public function new()
+	{
+		super();
+	}
 
 	override public function onBodyAdded(b : PhysBody) : Void {}
 

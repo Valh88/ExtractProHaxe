@@ -39,7 +39,6 @@ class PlayerControllerSystem extends System
 	public var moveCtrl(default, null) : MovementController;
 
 	var cam : Camera;
-	var sim : SimWorld;
 	var shootRequested : Bool = false;
 	/** Bullet spawn clearance along the fire direction (cached from cdb). */
 	var spawnAhead : Float = 0.6;
@@ -55,9 +54,6 @@ class PlayerControllerSystem extends System
 	function get_inSettings() : Bool
 		return GameplayState.get().current == GameplayMode.fsSettings;
 
-	/** Was in settings last frame — used to skip the first delta after closing. */
-	var wasInSettings : Bool = false;
-
 	// mouse delta tracking (single Window listener for the whole project)
 	final winHandler : hxd.Event -> Void;
 	var lastX : Float = 0;
@@ -68,8 +64,7 @@ class PlayerControllerSystem extends System
 
 	public function new(bus : EventBus, sim : SimWorld, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
 	{
-		super(bus, null, gd, "PlayerController");
-		this.sim = sim;
+		super(bus, sim, gd, "PlayerController");
 		this.cam = cam;
 		this.camCtrl = new CameraController(cam);
 		this.moveCtrl = new MovementController();
@@ -141,25 +136,23 @@ class PlayerControllerSystem extends System
 	{
 		if (inSettings)
 		{
-			// settings open — freeze look + consume accumulated delta
+			// settings open — freeze look, consume delta, but keep the camera
+			// following the hero anchor: the body may coast a touch from
+			// inertia/velocity easing after the freeze, and the camera should
+			// glide with it instead of snapping to a standstill.
 			accDX = 0;
 			accDY = 0;
-			wasInSettings = true;
+			if (mesh != null)
+			{
+				var p = mesh.getAbsPos();
+				camCtrl.anchor.set(p.tx, p.ty, p.tz);
+				camCtrl.update(dt);
+			}
 			return;
 		}
 
-		// first frame after closing settings — discard stale delta, skip look
-		if (wasInSettings)
-		{
-			wasInSettings = false;
-			accDX = 0;
-			accDY = 0;
-		}
-		else
-		{
-			// --- look (mouse delta from the window handler) ---
-			camCtrl.addLook(accDX, accDY);
-		}
+		// --- look (mouse delta from the window handler) ---
+		camCtrl.addLook(accDX, accDY);
 		accDX = 0;
 		accDY = 0;
 
