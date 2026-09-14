@@ -67,7 +67,7 @@
 .settings-root { position:absolute; width:1920; height:1080; }
 .settings-overlay { position:absolute; width:1920; height:1080; }
 .settings-panel { position:absolute; width:600; height:740; }
-.settings-title { color:#C4A44A; font: font/oswald_bold_22.fnt; }
+.settings-title { position:absolute; color:#C4A44A; font: font/oswald_bold_22.fnt; }
 .settings-divider { position:absolute; width:480; height:2; }
 .settings-tab { position:absolute; font: font/oswald_medium_22.fnt; }
 .settings-tab-active { color:#C4A44A; }

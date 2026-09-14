@@ -12,7 +12,7 @@ class SettingsDesign extends Flow implements Object
 		<settings-design class="settings-root">
 			<flow id="overlay" class="settings-overlay" x="0" y="0"/>
 			<flow id="panel" class="settings-panel" x="660" y="170">
-				<text id="title" class="settings-title" x="200" y="35"/>
+				<text id="title" class="settings-title" x="250" y="35"/>
 				<flow id="divider" class="settings-divider" x="60" y="150"/>
 				<flow id="tabsWrap" class="settings-tabs-wrap" x="50" y="106">
 					<text id="tabAudio" class="settings-tab" x="10" y="0"/>
