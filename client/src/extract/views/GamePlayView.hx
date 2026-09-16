@@ -72,7 +72,7 @@ class GamePlayView extends BaseScene
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 		var distanceFog = new extract.gfx.DistanceFog();
 		this.renderer.effects.push(distanceFog);
-		settingsBlur = new extract.gfx.SettingsBlur(distanceFog, 6.0);
+		settingsBlur = new extract.gfx.SettingsBlur(distanceFog);
 		this.renderer.effects.push(settingsBlur);
 
 		// entity factory owns the world: creates it (client side: meshes),
