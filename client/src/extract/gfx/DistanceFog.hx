@@ -39,6 +39,10 @@ class DistanceFog implements h3d.impl.RendererFX
 	var fogTarget : h3d.mat.Texture;
 	var pbr : h3d.scene.pbr.Renderer;
 
+	/** Post-fog result — lets later effects (e.g. SettingsBlur) chain off it instead of raw hdr. */
+	public var blurSource(get, never) : h3d.mat.Texture;
+	function get_blurSource() return fogTarget;
+
 	public function new(fogColor = 0x8FA3B5, fogStart = 40.0, fogEnd = 200.0, fogHeightFalloff = 0.05)
 	{
 		var s = fx.shader;

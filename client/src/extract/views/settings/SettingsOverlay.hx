@@ -12,6 +12,7 @@ import extract.utils.SubView;
 import extract.utils.ui.TabView;
 import extract.utils.animations.AnimationController;
 import extract.utils.animations.Easing;
+import extract.utils.animations.NumTween;
 import extract.utils.animations.VarTween;
 import shared.events.EventBus;
 import extract.fsm.GameplayToggleRequest;
@@ -58,7 +59,12 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		fadeAnim.start();
 		if (hudObj != null)
 			ctrl.add(new VarTween(hudObj, "alpha", 1, 0, 0.4, Easing.cubicOut));
-		if (blur != null) blur.enabled = true;
+		if (blur != null)
+		{
+			var t = new NumTween(0, 1, 0.4, Easing.cubicOut);
+			t.onUpdate = function(_) blur.setAmount(t.value);
+			ctrl.add(t);
+		}
 	}
 
 	public function close() : Void
@@ -67,11 +73,17 @@ class SettingsOverlay extends SubView<SettingsDesign>
 		fadeAnim.onComplete = function()
 		{
 			design.visible = false;
-			if (blur != null) blur.enabled = false;
+			if (blur != null) blur.setAmount(0);
 		};
 		fadeAnim.start();
 		if (hudObj != null)
 			ctrl.add(new VarTween(hudObj, "alpha", 0, 1, 0.4, Easing.cubicIn));
+		if (blur != null)
+		{
+			var t = new NumTween(1, 0, 0.4, Easing.cubicIn);
+			t.onUpdate = function(_) blur.setAmount(t.value);
+			ctrl.add(t);
+		}
 	}
 
 	override public function update(dt : Float) : Void
