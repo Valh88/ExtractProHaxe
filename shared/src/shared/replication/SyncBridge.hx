@@ -2,6 +2,7 @@
 package shared.replication;
 
 import oimo.common.Quat;
+import haxe.Timer;
 
 import shared.Player;
 import shared.SimWorld;
@@ -20,8 +21,8 @@ import shared.systems.System;
 	  (`ownId`) — its movement runs locally (prediction), applying the mirror
 	  would yank the own body.
 
-	HP/weapon/score are NOT copied here — systems write them straight into the
-	`@:s` fields of HeroObject (dirty tracking is automatic in rnl).
+	Remote heroes use snapshot-based interpolation (rendered ~120ms behind
+	real-time) to flatten jitter and avoid teleport artifacts at high latency.
 **/
 class SyncBridge extends System
 {
@@ -30,26 +31,36 @@ class SyncBridge extends System
 
 	/** The local player's own id — its body is prediction-driven, but the
 		mirror is still PULLED to reconcile the prediction with the authority
-		(server): small offsets converge smoothly, large ones snap. Server:
-		irrelevant. Defaults to Player.LOCAL; the client sets it to its
-		server id once discovered. */
+		(server). Server: irrelevant. Defaults to Player.LOCAL; the client
+		sets it to its server id once discovered. */
 	public var ownId : String = Player.LOCAL;
 
-	/** Convergence rate for own-hero reconciliation (exp smoothing, /s). */
-	static inline var RECONCILE_RATE : Float = 8.0;
-	/** Errors below this (meters) are left to prediction (no tug). */
-	static inline var RECONCILE_TOLERANCE : Float = 0.05;
-	/** Errors above this (meters) snap — a stuck-on-obstacle desync must not
-		stradle the view mechanics. */
-	static inline var RECONCILE_SNAP_DIST : Float = 0.8;
-	/** Horizontal speed below which the hero is "stopped" — then any
-		serious offset snaps to the server instead of easing (no ice-slide). */
-	static inline var RECONCILE_STOP_SPEED : Float = 0.15;
+	// --- own-hero reconciliation ---
+	/** Errors above this (meters) snap — a REAL desync (collision mismatch,
+		tunnel) must not stradle the view mechanics. During normal movement
+		and at rest the client is NOT corrected at all: the simulation is
+		deterministic on both ends, the server receives the same intents and
+		stops on its own a ping later. Pulling toward the mirror (which is
+		~ping stale) at stop/cruise fights a moving target and produces the
+		visible "spring back" — so it is deliberately removed. */
+	static inline var RECONCILE_SNAP_DIST : Float = 3.0;
+
+	// --- puppet interpolation (remote heroes) ---
+	/** Seconds behind real-time that puppet positions are rendered. This
+		flattens network jitter at the cost of visual delay. At 150ms ping
+		this absorbs most of the jitter without noticeable lag. */
+	static inline var INTERP_DELAY : Float = 0.12;
+	/** Max snapshot entries kept per puppet (ring buffer). 8 snapshots at
+		30Hz = ~267ms of history — more than enough for INTERP_DELAY. */
+	static inline var SNAPSHOT_MAX : Int = 8;
+
+	var puppetSnaps : Map<String, Array<{px:Float, py:Float, pz:Float, yaw:Float, t:Float}>>;
 
 	public function new(bus : EventBus, sim : SimWorld, isServer : Bool, ?gd : GameData)
 	{
 		super(bus, sim, gd, "SyncBridge");
 		this.isServer = isServer;
+		puppetSnaps = new Map();
 	}
 
 	override public function update(dt : Float) : Void
@@ -70,23 +81,18 @@ class SyncBridge extends System
 			obj.posX = p.x;
 			obj.posY = p.y;
 			obj.posZ = p.z;
-			// yaw: inverse of HeroSystem.apply's orientation setter. The hero's
-			// rotation is locked to pitch/roll (rotationFactor 0,1,0), so the
-			// quat is a pure Y rotation: q = (0, sin(-yaw/2), 0, cos(yaw/2))
-			// → yaw = -2 * atan2(q.y, q.w).
 			var q = body.body.getOrientation();
 			obj.yaw = -2 * Math.atan2(q.y, q.w);
 		}
 	}
 
-	/** Client: mirror → hero body. Remote heroes are puppets (hard-set).
-		The own hero keeps local prediction but RECONCILES against the server
-		authority: small offsets ease back, large ones (collision desync) snap —
-		so the local view converges to what everyone else sees. The own body is
-		keyed Player.LOCAL in sim.heroes on the client, while `ownId` is the
-		server-assigned pid — match either, but ALWAYS reconcile vs ownId's mirror. */
+	/** Client: mirror → hero body.
+		Own hero: prediction runs locally, reconciliation ONLY at rest.
+		Remote heroes: snapshot-based interpolation (lerp between historical
+		mirror positions offset by INTERP_DELAY). */
 	function pullNetToSim(dt : Float) : Void
 	{
+		var now = Timer.stamp();
 		for (id in sim.heroes.keys())
 		{
 			var isOwn = id == Player.LOCAL || id == ownId;
@@ -100,34 +106,56 @@ class SyncBridge extends System
 				var p = body.getPosition();
 				var ex = obj.posX - p.x, ey = obj.posY - p.y, ez = obj.posZ - p.z;
 				var dist = Math.sqrt(ex * ex + ey * ey + ez * ez);
+				// No reconciliation at rest or during movement — the server
+				// mirror is stale by ~ping and easing toward it makes the
+				// stopped hero "spring" first forward (server still cruising
+				// before it got the stop intent) then back (fresh snapshot
+				// behind prediction). The deterministic sim + identical
+				// intents converge the body by itself; only a REAL desync
+				// (stuck in a wall, tunnel) snaps.
 				if (dist > RECONCILE_SNAP_DIST)
-				{
 					body.setPosition(obj.posX, obj.posY, obj.posZ);
-				}
-				else if (dist > RECONCILE_TOLERANCE)
-				{
-					var v = body.body.getLinearVelocity();
-					var hSpeed = Math.sqrt(v.x * v.x + v.z * v.z);
-					// don't pull a stopped hero toward the server: the small
-					// residual offset (server's ease tail) would drag the
-					// locally-stopped body forward creating a visible
-					// micro-slide at the end of every movement.
-					if (hSpeed >= RECONCILE_STOP_SPEED)
-					{
-						var k = 1.0 - Math.exp(-RECONCILE_RATE * dt);
-						body.setPosition(p.x + ex * k, p.y + ey * k, p.z + ez * k);
-					}
-				}
 				continue;
 			}
 
-			// remote: face the owner's view yaw — same rotation form
-			// HeroSystem.apply uses, so the capsule turns toward where the
-			// player aims. Remote bodies have no HeroSystem state (puppets) —
-			// nothing overwrites this between pulls.
-			var ha = obj.yaw * 0.5;
-			body.setPosition(obj.posX, obj.posY, obj.posZ);
-			body.body.setOrientation(new Quat(0, Math.sin(-ha), 0, Math.cos(ha)));
+			// --- remote hero: interpolated puppet ---
+			var snaps = puppetSnaps.get(id);
+			if (snaps == null)
+			{
+				snaps = [];
+				puppetSnaps.set(id, snaps);
+			}
+			snaps.push({px: obj.posX, py: obj.posY, pz: obj.posZ, yaw: obj.yaw, t: now});
+			while (snaps.length > SNAPSHOT_MAX) snaps.shift();
+
+			var targetT = now - INTERP_DELAY;
+			var i = snaps.length - 1;
+			while (i > 0 && snaps[i].t > targetT) i--;
+
+			if (i < snaps.length - 1 && snaps.length >= 2)
+			{
+				var a = snaps[i], b = snaps[i + 1];
+				var span = b.t - a.t;
+				var f = span > 0.001 ? (targetT - a.t) / span : 0;
+				f = f < 0 ? 0 : f > 1 ? 1 : f;
+				body.setPosition(
+					a.px + (b.px - a.px) * f,
+					a.py + (b.py - a.py) * f,
+					a.pz + (b.pz - a.pz) * f
+				);
+				var dy = b.yaw - a.yaw;
+				if (dy > Math.PI) dy -= Math.PI * 2;
+				if (dy < -Math.PI) dy += Math.PI * 2;
+				var iy = a.yaw + dy * f;
+				var ha = iy * 0.5;
+				body.body.setOrientation(new Quat(0, Math.sin(-ha), 0, Math.cos(ha)));
+			}
+			else
+			{
+				body.setPosition(obj.posX, obj.posY, obj.posZ);
+				var ha = obj.yaw * 0.5;
+				body.body.setOrientation(new Quat(0, Math.sin(-ha), 0, Math.cos(ha)));
+			}
 		}
 	}
 }

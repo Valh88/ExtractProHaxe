@@ -111,11 +111,45 @@ future systems read it there). The socket is owned by the room's `NetRoomSystem`
 `DemoRoom` subscribes to `EntityNetSpawned`/`EntityNetRemoved` on the bus and calls
 `socket.add(obj)`/`socket.remove(obj)`. The events are `#if sys` — on the client the
 mirror arrives from the network (`GamePlayView.updateNet` writes it into `sim.heroEnts` for
-`SyncBridge` reconciliation); the client never creates a `HeroObject`.
+`SyncBridge`); the client never creates a `HeroObject`.
 
 Rule of thumb — continuous per-player fields (`@:s`, e.g. `hp`) are written into the HeroObject
 by the owning system; rnl replicates the dirty delta automatically. One-shot events (input, hits,
 spawns) go through `@:rpc` on `GameNet`.
+
+### SyncBridge — position replication (server push, client prediction + puppet interpolation)
+
+`shared/src/shared/replication/SyncBridge.hx` is the ONLY explicit copy of hero position (Oimo
+owns the PhysBody transform; it cannot be an `@:s` field). `isServer` decides the copy direction:
+
+- **Server** (`isServer == true`): `pushSimToNet()` — authoritative physics body → `HeroObject`
+  `@:s` fields, dirty SYNCs flow down to clients.
+- **Client** (`isServer == false`): `pullNetToSim()` — mirror → hero bodies.
+
+**Own hero (client) — pure prediction, NO reconciliation.** The client's own body is keyed
+`Player.LOCAL` and the sim is deterministic on both ends (identical inputs → identical
+positions), so the client NEVER pulls toward the mirror: neither during movement nor at rest.
+Pulling toward a mirror that is stale by ~ping makes a stopped hero "spring" (first forward
+while the server is still cruising before it received the stop intent, then back when the fresh
+snapshot lands behind prediction) — so all easing was removed. The only correction left is a
+hard snap when the offset exceeds `RECONCILE_SNAP_DIST = 3.0m` (real desync: collision mismatch,
+tunnel). Consequence: the local player sees their own predicted position, other players see the
+server position (delayed by ping) — a spectator would see players ~0–1m off from where their
+owner thinks they are at 150ms ping.
+
+**Remote heroes (puppets) — snapshot-based interpolation.** Mirrors are hard to render raw
+(packet loss → teleport), so the client buffers `{pos,yaw,timestamp}` snapshots per remote hero
+(ring buffer `SNAPSHOT_MAX = 8`, recorded at 30Hz physics ticks) and renders the position
+`INTERP_DELAY = 120ms` *behind* real time by lerping between the two snapshots that bracket
+`now - INTERP_DELAY`. This flattens jitter and high-ping lateness into smooth motion. Until a
+second snapshot exists (first frames after spawn) it hard-sets. Yaw lerps with ±π wrap-around.
+Puppet bodies have no `HeroSystem` state on the client (`spawnHero(simulated=false)`), so nothing
+overwrites the interpolated transform between pulls.
+
+**Why two models:** deterministic sim + forwarded intents converge the own body by itself, so
+server-authority on the local view is only needed to catch *genuine* desyncs (snap) — correcting
+per-frame against a lagging mirror costs responsiveness. Remote heroes have no local sim at all
+(their inputs never reach this client), so they must be reconstructed purely from the mirror.
 
 ### rnl.net Registry CLID — must be seeded on BOTH ends (`NetRegistry`)
 
