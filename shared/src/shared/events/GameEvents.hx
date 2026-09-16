@@ -206,30 +206,42 @@ class PlayerDamaged
 	Server-only: a per-player entity (HeroObject) was created by a system
 	and placed in `sim.heroEnts`. The room's transport subscribes to this
 	event and calls `socket.add(obj)` — the sim never touches the socket.
+
+	Carries the OBJECT ITSELF, not just the id: EventBus delivery is deferred
+	(publish queues, flush() delivers at the end of the tick), so by the time
+	a handler runs the object may already be gone from `sim.heroEnts` (the
+	remove case). The transport must not re-fetch from the world map.
 **/
 class EntityNetSpawned
 {
 	public var playerId : String;
+	public var obj : shared.net.HeroObject;
 
-	public function new(playerId : String)
+	public function new(playerId : String, obj : shared.net.HeroObject)
 	{
 		this.playerId = playerId;
+		this.obj = obj;
 	}
 }
 
 /**
-	Server-only: a per-player entity is about to be removed from
+	Server-only: a per-player entity (HeroObject) was removed from
 	`sim.heroEnts`. The room's transport subscribes and calls
-	`socket.remove(obj)` — the object is still in the map when
-	this event fires.
+	`socket.remove(obj)`.
+
+	Carries the OBJECT ITSELF: EventBus.publish is deferred (delivered in
+	flush() at the end of the room tick), by which time the entity is already
+	out of the world map — carrying the reference keeps the remove working.
 **/
 class EntityNetRemoved
 {
 	public var playerId : String;
+	public var obj : shared.net.HeroObject;
 
-	public function new(playerId : String)
+	public function new(playerId : String, obj : shared.net.HeroObject)
 	{
 		this.playerId = playerId;
+		this.obj = obj;
 	}
 }
 

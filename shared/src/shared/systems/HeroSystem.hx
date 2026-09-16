@@ -137,7 +137,7 @@ class HeroSystem extends System
 			obj.hp = 100;
 			obj.maxHp = 100;
 			sim.heroEnts.set(playerId, obj);
-			bus.publish(new EntityNetSpawned(playerId));
+			bus.publish(new EntityNetSpawned(playerId, obj));
 		}
     #end
 	}
@@ -156,7 +156,7 @@ class HeroSystem extends System
 			var obj = sim.heroEnts.get(playerId);
 			if (obj != null)
 			{
-				bus.publish(new EntityNetRemoved(playerId));
+				bus.publish(new EntityNetRemoved(playerId, obj));
 				sim.heroEnts.remove(playerId);
 			}
 		}

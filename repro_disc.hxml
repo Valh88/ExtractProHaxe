@@ -1,0 +1,12 @@
+-cp client/src
+-cp server/src
+-cp shared/src
+-cp tools
+-cp D:/projects/haxe/OimoPhysics/src
+-lib HeapsPhysics
+-lib castle
+-lib hxrnl
+-D dce=no
+--macro include("shared.net")
+-main DisconnectRepro
+-hl bin/repro_disc.hl

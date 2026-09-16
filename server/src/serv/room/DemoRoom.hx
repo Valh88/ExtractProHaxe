@@ -84,12 +84,10 @@ class DemoRoom extends Room
 		// by the sim. Transport subscribes to the bus events that HeroSystem
 		// publishes when it creates/removes an entity.
 		bus.subscribe(EntityNetSpawned, e -> {
-			var obj = world.heroEnts.get(e.playerId);
-			if (obj != null) netSys.socket.add(obj);
+			if (e.obj != null) netSys.socket.add(e.obj);
 		});
 		bus.subscribe(EntityNetRemoved, e -> {
-			var obj = world.heroEnts.get(e.playerId);
-			if (obj != null) netSys.socket.remove(obj);
+			if (e.obj != null) netSys.socket.remove(e.obj);
 		});
 	}
 
