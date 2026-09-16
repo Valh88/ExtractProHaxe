@@ -36,12 +36,15 @@ class SyncBridge extends System
 	public var ownId : String = Player.LOCAL;
 
 	/** Convergence rate for own-hero reconciliation (exp smoothing, /s). */
-	static inline var RECONCILE_RATE : Float = 2.5;
+	static inline var RECONCILE_RATE : Float = 8.0;
 	/** Errors below this (meters) are left to prediction (no tug). */
 	static inline var RECONCILE_TOLERANCE : Float = 0.05;
 	/** Errors above this (meters) snap — a stuck-on-obstacle desync must not
 		stradle the view mechanics. */
 	static inline var RECONCILE_SNAP_DIST : Float = 0.8;
+	/** Horizontal speed below which the hero is "stopped" — then any
+		serious offset snaps to the server instead of easing (no ice-slide). */
+	static inline var RECONCILE_STOP_SPEED : Float = 0.15;
 
 	public function new(bus : EventBus, sim : SimWorld, isServer : Bool, ?gd : GameData)
 	{
@@ -98,13 +101,24 @@ class SyncBridge extends System
 				var ex = obj.posX - p.x, ey = obj.posY - p.y, ez = obj.posZ - p.z;
 				var dist = Math.sqrt(ex * ex + ey * ey + ez * ez);
 				if (dist > RECONCILE_SNAP_DIST)
-					body.setPosition(obj.posX, obj.posY, obj.posZ); // big desync: correct
+				{
+					body.setPosition(obj.posX, obj.posY, obj.posZ);
+				}
 				else if (dist > RECONCILE_TOLERANCE)
 				{
-					var k = 1.0 - Math.exp(-RECONCILE_RATE * dt);
-					body.setPosition(p.x + ex * k, p.y + ey * k, p.z + ez * k);
+					var v = body.body.getLinearVelocity();
+					var hSpeed = Math.sqrt(v.x * v.x + v.z * v.z);
+					// don't pull a stopped hero toward the server: the small
+					// residual offset (server's ease tail) would drag the
+					// locally-stopped body forward creating a visible
+					// micro-slide at the end of every movement.
+					if (hSpeed >= RECONCILE_STOP_SPEED)
+					{
+						var k = 1.0 - Math.exp(-RECONCILE_RATE * dt);
+						body.setPosition(p.x + ex * k, p.y + ey * k, p.z + ez * k);
+					}
 				}
-				continue; // yaw stays from local camera input
+				continue;
 			}
 
 			// remote: face the owner's view yaw — same rotation form
