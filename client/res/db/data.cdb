@@ -118,10 +118,14 @@
 					"name": "adsFov",
 					"typeStr": "4"
 				},
-				{
-					"name": "adsSpeed",
-					"typeStr": "4"
-				}
+			{
+				"name": "adsSpeed",
+				"typeStr": "4"
+			},
+			{
+				"name": "weaponSmooth",
+				"typeStr": "4"
+			}
 			],
 			"lines": [
 				{
@@ -133,8 +137,9 @@
 					"invertX": true,
 					"invertY": false,
 					"eyeHeight": 1.6,
-					"adsFov": 60,
-					"adsSpeed": 0.15
+			"adsFov": 60,
+				"adsSpeed": 0.15,
+				"weaponSmooth": 80
 				}
 			],
 			"separators": [],

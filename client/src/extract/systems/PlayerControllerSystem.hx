@@ -63,6 +63,21 @@ class PlayerControllerSystem extends System
 	/** Tracks last published aim state to publish AimStateChanged only on flip. */
 	var lastAiming : Bool = false;
 
+	// --- weapon anchor smoothing ---
+	/** Weapon follows camera with independent exponential smoothing, creating
+	    a subtle lag effect (weapon "catches up" to the camera). Rate per second
+	    — lower = more lag, higher = tighter follow. 0 = snap (no lag). */
+	var weaponSmooth : Float = 15;
+	/** Smoothed weapon anchor position. */
+	var sWpnX : Float = 0;
+	var sWpnY : Float = 0;
+	var sWpnZ : Float = 0;
+	/** Smoothed weapon anchor rotation. */
+	var sWpnPitch : Float = 0;
+	var sWpnYaw : Float = 0;
+	/** True until the first sync (snap instead of smooth). */
+	var wpnHasState : Bool = false;
+
 	/** True while the settings menu is open — freeze everything. */
 	var inSettings(get, never) : Bool;
 
@@ -133,6 +148,7 @@ class PlayerControllerSystem extends System
 		defaultFov = camCtrl.fov;
 		adsFov = gd.req("Camera", "adsFov");
 		adsSpeed = gd.req("Camera", "adsSpeed");
+		weaponSmooth = gd.req("Camera", "weaponSmooth");
 		// FPS: eye snaps to the anchor (mesh is already interpolated by
 		// PhysRenderer) — a very high follow rate filters the 30 Hz
 		// contact/gravity micro-wobble without perceptible lag
@@ -163,7 +179,7 @@ class PlayerControllerSystem extends System
 				var p = hero.bodyMesh.getAbsPos();
 				camCtrl.anchor.set(p.tx, p.ty, p.tz);
 				camCtrl.update(dt);
-				syncWeaponAnchor();
+				syncWeaponAnchor(dt);
 			}
 			return;
 		}
@@ -234,18 +250,40 @@ class PlayerControllerSystem extends System
 		var p = hero.bodyMesh.getAbsPos();
 		camCtrl.anchor.set(p.tx, p.ty, p.tz);
 		camCtrl.update(dt);
-		syncWeaponAnchor();
+		syncWeaponAnchor(dt);
 	}
 
 	/** Sync the weapon anchor (cameraAnchor inside HeroVisual) to the camera
-		and interpolate weapon position/scale/FOV based on adsBlend. */
-	function syncWeaponAnchor() : Void
+		with independent exponential smoothing — weapon lags slightly behind
+		the camera, creating a sense of weight ("catching up" effect). */
+	function syncWeaponAnchor(dt : Float) : Void
 	{
+		var kw = weaponSmooth > 0 ? 1 - Math.exp(-weaponSmooth * dt) : 1;
+
+		if (!wpnHasState)
+		{
+			// first frame: snap to current eye / rotation
+			sWpnX = camCtrl.eye.x;
+			sWpnY = camCtrl.eye.y;
+			sWpnZ = camCtrl.eye.z;
+			sWpnPitch = camCtrl.pitch;
+			sWpnYaw = camCtrl.yaw;
+			wpnHasState = true;
+		}
+		else
+		{
+			sWpnX += (camCtrl.eye.x - sWpnX) * kw;
+			sWpnY += (camCtrl.eye.y - sWpnY) * kw;
+			sWpnZ += (camCtrl.eye.z - sWpnZ) * kw;
+			sWpnPitch += (camCtrl.pitch - sWpnPitch) * kw;
+			sWpnYaw += (camCtrl.yaw - sWpnYaw) * kw;
+		}
+
 		var ca = hero.cameraAnchor;
-		ca.x = camCtrl.eye.x;
-		ca.y = camCtrl.eye.y;
-		ca.z = camCtrl.eye.z;
-		ca.setRotation(camCtrl.pitch, camCtrl.yaw, 0);
+		ca.x = sWpnX;
+		ca.y = sWpnY;
+		ca.z = sWpnZ;
+		ca.setRotation(sWpnPitch, sWpnYaw, 0);
 
 		// lerp weapon transform between hip and ADS
 		var w = hero.mainWeapon;
