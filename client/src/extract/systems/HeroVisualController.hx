@@ -1,5 +1,7 @@
 package extract.systems;
 
+import extract.fsm.GameplayMode;
+import extract.fsm.GameplayState;
 import extract.models.HeroVisual;
 import extract.utils.CameraController;
 import extract.utils.MovementController;
@@ -95,10 +97,11 @@ class HeroVisualController
 		hero = null;
 	}
 
-	/** Snap ADS blend to hip (used when settings menu opens). */
-	public function snapToHip() : Void
+	/** Snap ADS blend to hip and restore default FOV. */
+	public function snapToHip(camCtrl : CameraController) : Void
 	{
 		adsBlend = 0;
+		camCtrl.fov = defaultFov;
 	}
 
 	/** Read sensitivity scaled by ADS. Call before camCtrl.addLook. */
@@ -107,25 +110,36 @@ class HeroVisualController
 		return defaultSensitivity * (1.0 - adsBlend * (1.0 - adsSensMult));
 	}
 
-	/** Advance ADS blend, weapon smoothing, sway, camera anchor, FOV. */
+	/** Advance ADS blend, weapon smoothing, sway, camera anchor, FOV.
+		ADS only active when GameplayState == fsIngame. */
 	public function update(dt : Float, camCtrl : CameraController, moveCtrl : MovementController) : Void
 	{
 		if (hero == null) return;
 
-		// --- ADS blend ---
-		var isAiming = hxd.Key.isDown(hxd.Key.MOUSE_RIGHT);
-		var adsTarget : Float = isAiming ? 1.0 : 0.0;
-		var adsDelta = adsTarget - adsBlend;
-		if (adsDelta != 0)
+		var inGameplay = GameplayState.get().current == GameplayMode.fsIngame;
+
+		// --- ADS blend (only in gameplay) ---
+		if (inGameplay)
 		{
-			var k = adsSpeed > 0 ? dt / adsSpeed : 1.0;
-			if (k > 1) k = 1;
-			adsBlend += adsDelta * k;
+			var isAiming = hxd.Key.isDown(hxd.Key.MOUSE_RIGHT);
+			var adsTarget : Float = isAiming ? 1.0 : 0.0;
+			var adsDelta = adsTarget - adsBlend;
+			if (adsDelta != 0)
+			{
+				var k = adsSpeed > 0 ? dt / adsSpeed : 1.0;
+				if (k > 1) k = 1;
+				adsBlend += adsDelta * k;
+			}
+			if (isAiming != lastAiming)
+			{
+				lastAiming = isAiming;
+				bus.publish(new AimStateChanged(isAiming));
+			}
 		}
-		if (isAiming != lastAiming)
+		else
 		{
-			lastAiming = isAiming;
-			bus.publish(new AimStateChanged(isAiming));
+			// not gameplay — force hip
+			if (adsBlend != 0) snapToHip(camCtrl);
 		}
 
 		// --- camera anchor sync ---

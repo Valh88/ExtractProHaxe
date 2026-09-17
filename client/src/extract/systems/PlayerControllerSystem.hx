@@ -118,14 +118,13 @@ class PlayerControllerSystem extends System
 		{
 			accDX = 0;
 			accDY = 0;
-			heroVisCtrl.snapToHip();
+			heroVisCtrl.snapToHip(camCtrl);
 			if (heroVisCtrl.hero != null)
 			{
 				var p = heroVisCtrl.hero.bodyMesh.getAbsPos();
 				camCtrl.anchor.set(p.tx, p.ty, p.tz);
-				camCtrl.update(dt);
-				heroVisCtrl.update(dt, camCtrl, moveCtrl);
 			}
+			camCtrl.update(dt);
 			return;
 		}
 
