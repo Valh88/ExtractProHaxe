@@ -52,7 +52,7 @@ class PlayerControllerSystem extends System
 
 	// --- ADS (aim-down-sights) ---
 	/** Blend factor 0=hip 1=ADS, interpolated each frame. */
-	var adsBlend : Float = 0;
+	public var adsBlend(default, null) : Float = 0;
 	/** FOV at hip (cached from cdb on bind). */
 	var defaultFov : Float = 75;
 	/** FOV when fully aimed (from cdb Camera.adsFov). */

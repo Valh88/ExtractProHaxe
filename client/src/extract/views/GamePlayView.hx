@@ -182,6 +182,9 @@ class GamePlayView extends BaseScene
 		sim.update(dt);    // shared simulation (fixed Hz) — same call as the server
 		physRenderer.render(); // interpolated visuals every frame
 		if (hud != null) hud.update(dt);
+		// hide crosshair when aiming (ADS), show when hip
+		if (hud != null && hud.crosshair != null)
+			hud.crosshair.visible = player.adsBlend < 0.5;
 		if (settingsOverlay != null) settingsOverlay.update(dt);
 		GameplayState.get().update(dt); // tick the active gameplay state
 		super.update(dt); // scene systems (debug cam, ...) + domkit sync
