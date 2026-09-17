@@ -20,7 +20,8 @@ import shared.systems.System;
 	Client-side player controller: composes the extensible CameraController
 	(look) and MovementController (WASD) and publishes intents to the bus.
 
-	Look follows the mouse continuously (cursor hidden in-game); LMB fires.
+	Look follows the mouse continuously (cursor hidden in-game); LMB fires;
+	RMB hold blends into ADS (aim-down-sights) — weapon lerp + FOV zoom.
 	Camera anchor is the hero mesh (interpolated by PhysRenderer); cdb numbers
 	are read once per mesh bind.
 
@@ -48,6 +49,16 @@ class PlayerControllerSystem extends System
 	var pDirZ : Float = 0;
 	var pYaw : Float = 0;
 	var pMag : Float = 0;
+
+	// --- ADS (aim-down-sights) ---
+	/** Blend factor 0=hip 1=ADS, interpolated each frame. */
+	var adsBlend : Float = 0;
+	/** FOV at hip (cached from cdb on bind). */
+	var defaultFov : Float = 75;
+	/** FOV when fully aimed (from cdb Camera.adsFov). */
+	var adsFov : Float = 60;
+	/** Transition speed in seconds (from cdb Camera.adsSpeed). */
+	var adsSpeed : Float = 0.15;
 
 	/** True while the settings menu is open — freeze everything. */
 	var inSettings(get, never) : Bool;
@@ -116,6 +127,9 @@ class PlayerControllerSystem extends System
 		camCtrl.lookSmooth = gd.req("Camera", "lookSmooth");
 		camCtrl.invertX = gd.reqB("Camera", "invertX");
 		camCtrl.invertY = gd.reqB("Camera", "invertY");
+		defaultFov = camCtrl.fov;
+		adsFov = gd.req("Camera", "adsFov");
+		adsSpeed = gd.req("Camera", "adsSpeed");
 		// FPS: eye snaps to the anchor (mesh is already interpolated by
 		// PhysRenderer) — a very high follow rate filters the 30 Hz
 		// contact/gravity micro-wobble without perceptible lag
@@ -137,12 +151,10 @@ class PlayerControllerSystem extends System
 	{
 		if (inSettings)
 		{
-			// settings open — freeze look, consume delta, but keep the camera
-			// following the hero anchor: the body may coast a touch from
-			// inertia/velocity easing after the freeze, and the camera should
-			// glide with it instead of snapping to a standstill.
+			// settings open — freeze look, consume delta, snap ADS back to hip
 			accDX = 0;
 			accDY = 0;
+			adsBlend = 0;
 			if (hero != null)
 			{
 				var p = hero.bodyMesh.getAbsPos();
@@ -157,6 +169,17 @@ class PlayerControllerSystem extends System
 		camCtrl.addLook(accDX, accDY);
 		accDX = 0;
 		accDY = 0;
+
+		// --- ADS (right mouse button hold) ---
+		var isAiming = Key.isDown(Key.MOUSE_RIGHT);
+		var adsTarget : Float = isAiming ? 1.0 : 0.0;
+		var adsDelta = adsTarget - adsBlend;
+		if (adsDelta != 0)
+		{
+			var k = adsSpeed > 0 ? dt / adsSpeed : 1.0;
+			if (k > 1) k = 1;
+			adsBlend += adsDelta * k;
+		}
 
 		// --- move ---
 		moveCtrl.setYaw(camCtrl.yaw);
@@ -207,7 +230,7 @@ class PlayerControllerSystem extends System
 	}
 
 	/** Sync the weapon anchor (cameraAnchor inside HeroVisual) to the camera
-		so the weapon follows the eye position and rotation. */
+		and interpolate weapon position/scale/FOV based on adsBlend. */
 	function syncWeaponAnchor() : Void
 	{
 		var ca = hero.cameraAnchor;
@@ -215,6 +238,17 @@ class PlayerControllerSystem extends System
 		ca.y = camCtrl.eye.y;
 		ca.z = camCtrl.eye.z;
 		ca.setRotation(camCtrl.pitch, camCtrl.yaw, 0);
+
+		// lerp weapon transform between hip and ADS
+		var w = hero.mainWeapon;
+		var b = adsBlend;
+		w.x = HeroVisual.HIP_X + (HeroVisual.ADS_X - HeroVisual.HIP_X) * b;
+		w.y = HeroVisual.HIP_Y + (HeroVisual.ADS_Y - HeroVisual.HIP_Y) * b;
+		w.z = HeroVisual.HIP_Z + (HeroVisual.ADS_Z - HeroVisual.HIP_Z) * b;
+		w.setScale(HeroVisual.HIP_SCALE + (HeroVisual.ADS_SCALE - HeroVisual.HIP_SCALE) * b);
+
+		// lerp FOV between hip and ADS
+		camCtrl.fov = defaultFov + (adsFov - defaultFov) * b;
 	}
 
 	override public function dispose() : Void

@@ -15,6 +15,18 @@ import h3d.scene.Object;
 **/
 class HeroVisual extends Object
 {
+	// --- hip (default) weapon transform ---
+	public static inline var HIP_X : Float = -0.2;
+	public static inline var HIP_Y : Float = -0.15;
+	public static inline var HIP_Z : Float = -0.4;
+	public static inline var HIP_SCALE : Float = 1.3;
+
+	// --- ADS (aim-down-sights) weapon transform ---
+	public static inline var ADS_X : Float = -0.012;
+	public static inline var ADS_Y : Float = -0.08;
+	public static inline var ADS_Z : Float = -0.35;
+	public static inline var ADS_SCALE : Float = 1.5;
+
 	/** Capsule mesh that the PhysRenderer binds to the hero PhysBody. */
 	public var bodyMesh : Mesh;
 
@@ -43,11 +55,11 @@ class HeroVisual extends Object
 		// --- camera anchor (weapon follows eye) ---
 		cameraAnchor = new Object(this);
 		mainWeapon = new MainWeaponModel(cameraAnchor);
-		mainWeapon.x = -0.2;
-		mainWeapon.y = -0.15;
-		mainWeapon.z = -0.4;
-		mainWeapon.setScale(1.3);
-		// FBX model faces +X; rotate -90° around Y so it points forward (-Z)
+		mainWeapon.x = HIP_X;
+		mainWeapon.y = HIP_Y;
+		mainWeapon.z = HIP_Z;
+		mainWeapon.setScale(HIP_SCALE);
+		// FBX model faces +X; rotate so it points forward (-Z)
 		mainWeapon.setRotation(-Math.PI / 2, -Math.PI / 2, 0);
 	}
 }

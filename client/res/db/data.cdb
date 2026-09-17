@@ -113,6 +113,14 @@
 				{
 					"name": "eyeHeight",
 					"typeStr": "4"
+				},
+				{
+					"name": "adsFov",
+					"typeStr": "4"
+				},
+				{
+					"name": "adsSpeed",
+					"typeStr": "4"
 				}
 			],
 			"lines": [
@@ -124,7 +132,9 @@
 					"lookSmooth": 25,
 					"invertX": true,
 					"invertY": false,
-					"eyeHeight": 1.6
+					"eyeHeight": 1.6,
+					"adsFov": 60,
+					"adsSpeed": 0.15
 				}
 			],
 			"separators": [],
