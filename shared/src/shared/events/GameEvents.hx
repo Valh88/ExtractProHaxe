@@ -246,6 +246,22 @@ class EntityNetRemoved
 }
 
 /**
+	Client-only: player toggled ADS (aim-down-sights).
+	Published by PlayerControllerSystem on each state flip (PKM press/release).
+	Consumers (HUD crosshair, future spread/sway) subscribe to this instead of
+	polling adsBlend.
+**/
+class AimStateChanged
+{
+	public var isAiming : Bool;
+
+	public function new(isAiming : Bool)
+	{
+		this.isAiming = isAiming;
+	}
+}
+
+/**
 	Client-only: periodic stats snapshot (FPS + ping). Published by
 	StatisticSystem every UPDATE_INTERVAL seconds.
 **/

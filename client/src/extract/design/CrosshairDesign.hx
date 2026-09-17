@@ -3,6 +3,8 @@ package extract.design;
 import h2d.Graphics;
 import h2d.Object;
 import shared.GameData;
+import shared.events.EventBus;
+import shared.events.GameEvents.AimStateChanged;
 
 class CrosshairDesign extends Object
 {
@@ -24,13 +26,15 @@ class CrosshairDesign extends Object
 	var targetSpread : Float = 0;
 	var moving : Bool = false;
 	var shootTimer : Float = 0;
+	var bus : EventBus;
 
 	/** Light green, semi-transparent (ARGB). */
 	static inline var BAR_COLOR : Int = 0xCC66FF66;
 
-	public function new(?parent : Object, gd : GameData)
+	public function new(?parent : Object, gd : GameData, bus : EventBus)
 	{
 		super(parent);
+		this.bus = bus;
 
 		barWidth = gd.req("Crosshair", "barWidth");
 		barLength = gd.req("Crosshair", "barLength");
@@ -66,6 +70,13 @@ class CrosshairDesign extends Object
 		barBottom.y = spread;
 		barLeft.x = -spread;
 		barRight.x = spread;
+
+		bus.subscribe(AimStateChanged, onAimStateChanged);
+	}
+
+	function onAimStateChanged(e : AimStateChanged) : Void
+	{
+		visible = !e.isAiming;
 	}
 
 	/** Call each frame — exponential ease toward target + apply bar positions. */

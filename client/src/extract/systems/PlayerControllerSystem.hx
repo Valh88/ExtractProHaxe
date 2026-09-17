@@ -14,6 +14,7 @@ import shared.SimWorld;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.events.GameEvents.BulletFired;
+import shared.events.GameEvents.AimStateChanged;
 import shared.systems.System;
 
 /**
@@ -59,6 +60,8 @@ class PlayerControllerSystem extends System
 	var adsFov : Float = 60;
 	/** Transition speed in seconds (from cdb Camera.adsSpeed). */
 	var adsSpeed : Float = 0.15;
+	/** Tracks last published aim state to publish AimStateChanged only on flip. */
+	var lastAiming : Bool = false;
 
 	/** True while the settings menu is open — freeze everything. */
 	var inSettings(get, never) : Bool;
@@ -179,6 +182,11 @@ class PlayerControllerSystem extends System
 			var k = adsSpeed > 0 ? dt / adsSpeed : 1.0;
 			if (k > 1) k = 1;
 			adsBlend += adsDelta * k;
+		}
+		if (isAiming != lastAiming)
+		{
+			lastAiming = isAiming;
+			bus.publish(new AimStateChanged(isAiming));
 		}
 
 		// --- move ---
