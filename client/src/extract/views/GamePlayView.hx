@@ -127,7 +127,7 @@ class GamePlayView extends BaseScene
 		if (heroSys != null)
 		{
 			heroSys.spawnHero(Player.LOCAL);
-			if (factory.localHeroVisual != null) player.hero = factory.localHeroVisual;
+			if (factory.localHeroVisual != null) player.heroVisCtrl.bind(factory.localHeroVisual);
 		}
 
 		// HUD on top of the gameplay scene
