@@ -43,7 +43,7 @@ class HeroVisual extends Object
 		// --- camera anchor (weapon follows eye) ---
 		cameraAnchor = new Object(this);
 		mainWeapon = new MainWeaponModel(cameraAnchor);
-		mainWeapon.x = 0.2;
+		mainWeapon.x = -0.2;
 		mainWeapon.y = -0.15;
 		mainWeapon.z = -0.4;
 		// FBX model faces +X; rotate -90° around Y so it points forward (-Z)
