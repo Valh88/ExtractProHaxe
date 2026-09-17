@@ -15,7 +15,7 @@ import shared.BaseEntityFactory;
 	binds it to the interpolating PhysRenderer; `onBodyRemoved` is NOT needed —
 	the PhysRenderer already unbinds/removes the mesh when the body is removed
 	(PhysCore.removeBody -> consumer.onBodyRemoved). The LOCAL hero's mesh is
-	exposed (`localHeroMesh`) so the view can anchor the camera.
+	exposed (`localHeroVisual`) so the view can anchor the camera.
 
 	meshForBody (heaps) must NOT live in the shared interface — it would drag
 	h3d into the headless server build. That's the whole point of the split:
@@ -29,8 +29,8 @@ class ClientEntityFactory extends BaseEntityFactory
 	/** Interpolating renderer every body is bound to (see bindRenderer). */
 	var renderer : Null<PhysRenderer>;
 
-	/** Mesh of the LOCAL hero, set when its body spawns — camera anchor. */
-	public var localHeroMesh(default, null) : Null<Mesh>;
+	/** Visuals of the LOCAL hero, set when its body spawns — camera anchor. */
+	public var localHeroVisual(default, null) : Null<extract.models.HeroVisual>;
 
 	public function new(parent : h3d.scene.Object)
 	{
@@ -52,13 +52,22 @@ class ClientEntityFactory extends BaseEntityFactory
 	override public function onBodyAdded(b : PhysBody) : Void
 	{
 		if (renderer == null) return;
+		// LOCAL hero gets a HeroVisual (capsule + cameraAnchor + weapon);
+		// remote heroes get a plain capsule from meshForBody.
+		if (b.name == "hero" && world != null && world.hero == b)
+		{
+			var sizes = b.getShapeSizes();
+			if (sizes == null) return;
+			var visual = new extract.models.HeroVisual(parent, sizes.hx, sizes.hy);
+			parent.addChild(visual);
+			renderer.bind(b, visual.bodyMesh);
+			localHeroVisual = visual;
+			return;
+		}
 		var mesh = meshForBody(b);
 		if (mesh == null) return;
 		parent.addChild(mesh);
 		renderer.bind(b, mesh);
-		// the LOCAL hero is the camera anchor — remote heroes must NOT steal it
-		if (b.name == "hero" && world != null && world.hero == b)
-			localHeroMesh = mesh;
 	}
 
 	override public function onBodyRemoved(b : PhysBody) : Void

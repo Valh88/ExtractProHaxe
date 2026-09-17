@@ -5,6 +5,7 @@ import hxd.Key;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
+import extract.models.HeroVisual;
 import extract.utils.CameraController;
 import extract.utils.MovementController;
 import shared.GameData;
@@ -29,8 +30,8 @@ import shared.systems.System;
 **/
 class PlayerControllerSystem extends System
 {
-	/** Hero mesh anchor (set by the view when the hero mesh is created). */
-	public var mesh(default, set) : Null<h3d.scene.Object>;
+	/** Hero visuals (set by the view when the hero body spawns). */
+	public var hero(default, set) : Null<HeroVisual>;
 
 	/** Extensible camera controller (eye height, sensitivity, fov, ...). */
 	public var camCtrl(default, null) : CameraController;
@@ -62,13 +63,13 @@ class PlayerControllerSystem extends System
 	var accDX : Float = 0;
 	var accDY : Float = 0;
 
-	public function new(bus : EventBus, sim : SimWorld, cam : Camera, mesh : Null<h3d.scene.Object>, ?gd : GameData)
+	public function new(bus : EventBus, sim : SimWorld, cam : Camera, ?hero : HeroVisual, ?gd : GameData)
 	{
 		super(bus, sim, gd, "PlayerController");
 		this.cam = cam;
 		this.camCtrl = new CameraController(cam);
 		this.moveCtrl = new MovementController();
-		this.mesh = mesh;
+		this.hero = hero;
 		winHandler = onWindowEvent;
 		hxd.Window.getInstance().addEventTarget(winHandler);
 	}
@@ -100,7 +101,7 @@ class PlayerControllerSystem extends System
 		if (heroSys != null) heroSys.clearIntent(Player.LOCAL);
 	}
 
-	function set_mesh(m : Null<h3d.scene.Object>) : Null<h3d.scene.Object>
+	function set_hero(h : Null<HeroVisual>) : Null<HeroVisual>
 	{
 		camCtrl.snap();
 		// cdb-driven tuning, read once per bind (they don't change between
@@ -129,7 +130,7 @@ class PlayerControllerSystem extends System
 		// bullet spawn clearance: eye is inside the hero capsule, so the
 		// projectile must start beyond it along the fire direction
 		spawnAhead = gd.req("Hero", "heroRadius") + gd.req("Bullet", "radius") + 0.05;
-		return mesh = m;
+		return hero = h;
 	}
 
 	override public function update(dt : Float) : Void
@@ -142,11 +143,12 @@ class PlayerControllerSystem extends System
 			// glide with it instead of snapping to a standstill.
 			accDX = 0;
 			accDY = 0;
-			if (mesh != null)
+			if (hero != null)
 			{
-				var p = mesh.getAbsPos();
+				var p = hero.bodyMesh.getAbsPos();
 				camCtrl.anchor.set(p.tx, p.ty, p.tz);
 				camCtrl.update(dt);
+				syncWeaponAnchor();
 			}
 			return;
 		}
@@ -180,9 +182,9 @@ class PlayerControllerSystem extends System
 		if (shootRequested)
 		{
 			shootRequested = false;
-			if (mesh != null)
+			if (hero != null)
 			{
-				var p = mesh.getAbsPos();
+				var p = hero.bodyMesh.getAbsPos();
 				var eyeY = p.ty + camCtrl.eyeHeight;
 				var cp = Math.cos(camCtrl.pitch);
 				var fx = -Math.sin(camCtrl.yaw) * cp;
@@ -197,10 +199,22 @@ class PlayerControllerSystem extends System
 		}
 
 		// --- camera follows the hero mesh anchor ---
-		if (mesh == null) return;
-		var p = mesh.getAbsPos();
+		if (hero == null) return;
+		var p = hero.bodyMesh.getAbsPos();
 		camCtrl.anchor.set(p.tx, p.ty, p.tz);
 		camCtrl.update(dt);
+		syncWeaponAnchor();
+	}
+
+	/** Sync the weapon anchor (cameraAnchor inside HeroVisual) to the camera
+		so the weapon follows the eye position and rotation. */
+	function syncWeaponAnchor() : Void
+	{
+		var ca = hero.cameraAnchor;
+		ca.x = camCtrl.eye.x;
+		ca.y = camCtrl.eye.y;
+		ca.z = camCtrl.eye.z;
+		ca.setRotation(camCtrl.pitch, camCtrl.yaw, 0);
 	}
 
 	override public function dispose() : Void

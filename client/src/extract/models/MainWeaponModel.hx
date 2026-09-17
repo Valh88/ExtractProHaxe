@@ -44,8 +44,6 @@ class MainWeaponModel extends h3d.scene.Object
 		// (base.getObjectByName), so strip the suffix or the animation objects
 		// would be silently dropped and nothing would move.
 		stripDedupSuffix(weapon);
-		y = 1.5;
-		x = 1.5;
 		// part animation curves live in their own FBX files; each holds a
 		// single animation stack (named after the Blender action). loadAnimation
 		// without a name returns the first stack of the file.

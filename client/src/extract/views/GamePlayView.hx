@@ -13,8 +13,6 @@ import shared.events.GameEvents.BulletFired;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.systems.HeroSystem;
 import extract.design.HudDesign;
-import extract.models.MainWeaponModel;
-import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
@@ -54,8 +52,6 @@ class GamePlayView extends BaseScene
 	var sim : SimWorld;
 	var physRenderer : PhysRenderer;
 	var player : PlayerControllerSystem;
-	var playerModel : PlayerModel;
-	var mainWeapon : MainWeaponModel;
 	/** This side's entity factory — owns the world + binds meshes. */
 	var factory : extract.factory.ClientEntityFactory;
 
@@ -100,14 +96,6 @@ class GamePlayView extends BaseScene
 		factory.bindRenderer(physRenderer);
 		sim.buildLevel();
 
-		// rigged hero character model (holds hero + future weapons/attachments)
-		playerModel = new PlayerModel();
-		this.addChild(playerModel);
-
-		// main weapon model (static gun + part animations)
-		mainWeapon = new MainWeaponModel(this);
-		//mainWeapon.playMagazineChange();
-
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
 		player = new PlayerControllerSystem(bus, sim, camera, null, this.gd);
@@ -139,7 +127,7 @@ class GamePlayView extends BaseScene
 		if (heroSys != null)
 		{
 			heroSys.spawnHero(Player.LOCAL);
-			if (factory.localHeroMesh != null) player.mesh = factory.localHeroMesh;
+			if (factory.localHeroVisual != null) player.hero = factory.localHeroVisual;
 		}
 
 		// HUD on top of the gameplay scene
