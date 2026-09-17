@@ -30,26 +30,43 @@ class MainWeaponModel extends h3d.scene.Object
 	{
 		super(parent);
 
-		// static gun (FBX converted to HMD at load) loaded via
-		// h3d.prim.ModelCache — loads the actor/weapon textures automatically
-		// (paths in the FBX resolve relative to the model folder, see
-		// ModelCache.loadTexture fallback)
 		modelCache = new h3d.prim.ModelCache();
 		weapon = modelCache.loadModel(hxd.Res.load(modelResource()).toModel());
 		addChild(weapon);
-		// Blender's FBX exporter appends a numeric dedup suffix (_001, _002, …)
-		// to duplicate mesh names, so the gun parts are named e.g.
-		// "Magazine_lowT_001" while the part animation curves target the clean
-		// names ("Magazine_lowT"). Heaps binds animations by object name
-		// (base.getObjectByName), so strip the suffix or the animation objects
-		// would be silently dropped and nothing would move.
 		stripDedupSuffix(weapon);
-		// part animation curves live in their own FBX files; each holds a
-		// single animation stack (named after the Blender action). loadAnimation
-		// without a name returns the first stack of the file.
+		// apply PBR textures (albedo + normal map) and metalness/roughness
+		applyPbrTextures();
 		shutterFire = modelCache.loadAnimation(hxd.Res.load(shutterFireResource()).toModel());
 		magazineChange = modelCache.loadAnimation(hxd.Res.load(magazineChangeResource()).toModel());
 		magazineInsert = modelCache.loadAnimation(hxd.Res.load(magazineInsertResource()).toModel());
+	}
+
+	/** Apply PBR textures (albedo + normal) and metallic/roughness to all meshes. */
+	function applyPbrTextures()
+	{
+		var texBase = "models/main_weapons/ak-74m/";
+		var albedo = hxd.Res.load(texBase + "AK_albedo.png").toTexture();
+		var normal = hxd.Res.load(texBase + "AK_normal.png").toTexture();
+		applyTexturesRecursive(weapon, albedo, normal);
+	}
+
+	function applyTexturesRecursive(obj : h3d.scene.Object, albedo : h3d.mat.Texture,
+		normal : h3d.mat.Texture)
+	{
+		if (Std.isOfType(obj, h3d.scene.Mesh))
+		{
+			var mesh : h3d.scene.Mesh = cast obj;
+			var mat = mesh.material;
+			mat.texture = albedo;
+			mat.normalMap = normal;
+			// metallic shine: high metalness, low roughness
+			var pbr = new h3d.shader.pbr.PropsValues();
+			pbr.metalnessValue = 0.8;
+			pbr.roughnessValue = 0.3;
+			mat.mainPass.addShader(pbr);
+		}
+		for (child in obj.children)
+			applyTexturesRecursive(child, albedo, normal);
 	}
 
 	/** Bolt recoil (1–8 frames). */
