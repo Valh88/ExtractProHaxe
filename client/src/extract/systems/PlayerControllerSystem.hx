@@ -8,6 +8,8 @@ import extract.fsm.GameplayState;
 import extract.models.HeroVisual;
 import extract.utils.CameraController;
 import extract.utils.MovementController;
+import extract.utils.animations.AnimationController;
+import extract.utils.animations.SineAnimation;
 import shared.GameData;
 import shared.Player;
 import shared.SimWorld;
@@ -78,19 +80,14 @@ class PlayerControllerSystem extends System
 	/** True until the first sync (snap instead of smooth). */
 	var wpnHasState : Bool = false;
 
-	// --- idle sway + weapon bob ---
-	var wpnTime : Float = 0;
-	var wpnSwayAmt : Float = 0.003;
-	var wpnSwaySpeed : Float = 1.5;
-	var wpnBreathAmt : Float = 0.002;
-	var wpnBreathSpeed : Float = 1.2;
-	var wpnRollAmt : Float = 0.004;
-	var wpnRollSpeed : Float = 1.0;
+	// --- idle sway (SineAnimation instances managed by wpnAnim) ---
+	var wpnAnim : AnimationController;
+	var swayOsc : SineAnimation;
+	var breathOsc : SineAnimation;
+	var rollOsc : SineAnimation;
+	var bobOsc : SineAnimation;
 	/** Extra sway multiplier while moving (0 = no extra). */
 	var wpnMoveSwayMult : Float = 1.5;
-	/** Walking bob amplitude and speed. */
-	var wpnBobAmt : Float = 0.004;
-	var wpnBobSpeed : Float = 8.0;
 
 	/** True while the settings menu is open — freeze everything. */
 	var inSettings(get, never) : Bool;
@@ -115,6 +112,17 @@ class PlayerControllerSystem extends System
 		this.hero = hero;
 		winHandler = onWindowEvent;
 		hxd.Window.getInstance().addEventTarget(winHandler);
+
+		// idle sway oscillators (continuous, managed by local AnimationController)
+		wpnAnim = new AnimationController();
+		swayOsc = new SineAnimation(0.003, 1.5);
+		breathOsc = new SineAnimation(0.002, 1.2);
+		rollOsc = new SineAnimation(0.004, 1.0);
+		bobOsc = new SineAnimation(0.004, 8.0);
+		wpnAnim.add(swayOsc);
+		wpnAnim.add(breathOsc);
+		wpnAnim.add(rollOsc);
+		wpnAnim.add(bobOsc);
 	}
 
 	function onWindowEvent(e : hxd.Event) : Void
@@ -269,6 +277,7 @@ class PlayerControllerSystem extends System
 		var p = hero.bodyMesh.getAbsPos();
 		camCtrl.anchor.set(p.tx, p.ty, p.tz);
 		camCtrl.update(dt);
+		wpnAnim.update(dt);
 		syncWeaponAnchor(dt);
 	}
 
@@ -276,8 +285,7 @@ class PlayerControllerSystem extends System
 		Position snaps to eye (no lag — avoids movement jerk).
 		Rotation uses independent exponential smoothing (weapon "catches up"
 		when turning, giving a sense of weight).
-		Idle sway adds procedural sine oscillation (breathing + micro-sway)
-		that fades out while aiming. Walking adds extra bob. */
+		Idle sway comes from SineAnimation oscillators managed by wpnAnim. */
 	function syncWeaponAnchor(dt : Float) : Void
 	{
 		var kw = weaponSmooth > 0 ? 1 - Math.exp(-weaponSmooth * dt) : 1;
@@ -300,30 +308,23 @@ class PlayerControllerSystem extends System
 		}
 		ca.setRotation(sWpnPitch, sWpnYaw, 0);
 
-		// --- idle sway (procedural sine, fades with ADS) ---
-		wpnTime += dt;
-		var idle = 1.0 - adsBlend; // 1=hip, 0=ADS
+		// --- idle sway from SineAnimation oscillators ---
+		var idle = 1.0 - adsBlend;
 		var moving = moveCtrl.magnitude();
 		var moveBoost = 1.0 + moving * wpnMoveSwayMult;
 
-		// horizontal sway + breathing + roll rotation — pivot is near the stock
-		// because rotation is applied to the whole weapon, the barrel (further
-		// from origin) moves more than the stock end
-		var sx = Math.sin(wpnTime * wpnSwaySpeed) * wpnSwayAmt * idle * moveBoost;
-		var sy = Math.sin(wpnTime * wpnBreathSpeed) * wpnBreathAmt * idle * moveBoost;
-		var sr = Math.sin(wpnTime * wpnRollSpeed) * wpnRollAmt * idle * moveBoost;
+		var sx = swayOsc.value * idle * moveBoost;
+		var sy = breathOsc.value * idle * moveBoost;
+		var sr = rollOsc.value * idle * moveBoost;
+		var bob = bobOsc.value * moving * idle;
 
-		// walking bob (vertical offset synced to step frequency)
-		var bob = Math.sin(wpnTime * wpnBobSpeed) * wpnBobAmt * moving * idle;
-
-		// apply sway offsets on top of base weapon transform
+		// apply sway on top of base weapon transform
 		var w = hero.mainWeapon;
 		var b = adsBlend;
 		w.x = HeroVisual.HIP_X + (HeroVisual.ADS_X - HeroVisual.HIP_X) * b + sx;
 		w.y = HeroVisual.HIP_Y + (HeroVisual.ADS_Y - HeroVisual.HIP_Y) * b + sy + bob;
 		w.z = HeroVisual.HIP_Z + (HeroVisual.ADS_Z - HeroVisual.HIP_Z) * b;
 		w.setScale(HeroVisual.HIP_SCALE + (HeroVisual.ADS_SCALE - HeroVisual.HIP_SCALE) * b);
-		// base rotation is (-PI/2, -PI/2, 0) — add pitch sway to first axis
 		w.setRotation(-Math.PI / 2 + sr, -Math.PI / 2, 0);
 
 		// lerp FOV between hip and ADS
