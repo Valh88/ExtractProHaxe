@@ -125,6 +125,10 @@
 			{
 				"name": "weaponSmooth",
 				"typeStr": "4"
+			},
+			{
+				"name": "adsSensMult",
+				"typeStr": "4"
 			}
 			],
 			"lines": [
@@ -139,7 +143,8 @@
 					"eyeHeight": 1.6,
 			"adsFov": 60,
 				"adsSpeed": 0.15,
-				"weaponSmooth": 80
+				"weaponSmooth": 80,
+				"adsSensMult": 0.5
 				}
 			],
 			"separators": [],

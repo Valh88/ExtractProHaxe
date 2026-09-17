@@ -60,6 +60,10 @@ class PlayerControllerSystem extends System
 	var adsFov : Float = 60;
 	/** Transition speed in seconds (from cdb Camera.adsSpeed). */
 	var adsSpeed : Float = 0.15;
+	/** Mouse sensitivity multiplier when fully aimed (from cdb Camera.adsSensMult). */
+	var adsSensMult : Float = 0.5;
+	/** Original sensitivity at hip (cached on bind). */
+	var defaultSensitivity : Float = 0.005;
 	/** Tracks last published aim state to publish AimStateChanged only on flip. */
 	var lastAiming : Bool = false;
 
@@ -144,6 +148,8 @@ class PlayerControllerSystem extends System
 		defaultFov = camCtrl.fov;
 		adsFov = gd.req("Camera", "adsFov");
 		adsSpeed = gd.req("Camera", "adsSpeed");
+		adsSensMult = gd.req("Camera", "adsSensMult");
+		defaultSensitivity = camCtrl.sensitivity;
 		weaponSmooth = gd.req("Camera", "weaponSmooth");
 		// FPS: eye snaps to the anchor (mesh is already interpolated by
 		// PhysRenderer) — a very high follow rate filters the 30 Hz
@@ -180,11 +186,6 @@ class PlayerControllerSystem extends System
 			return;
 		}
 
-		// --- look (mouse delta from the window handler) ---
-		camCtrl.addLook(accDX, accDY);
-		accDX = 0;
-		accDY = 0;
-
 		// --- ADS (right mouse button hold) ---
 		var isAiming = Key.isDown(Key.MOUSE_RIGHT);
 		var adsTarget : Float = isAiming ? 1.0 : 0.0;
@@ -200,6 +201,14 @@ class PlayerControllerSystem extends System
 			lastAiming = isAiming;
 			bus.publish(new AimStateChanged(isAiming));
 		}
+
+		// sensitivity scales down with ADS blend
+		camCtrl.sensitivity = defaultSensitivity * (1.0 - adsBlend * (1.0 - adsSensMult));
+
+		// --- look (mouse delta from the window handler) ---
+		camCtrl.addLook(accDX, accDY);
+		accDX = 0;
+		accDY = 0;
 
 		// --- move ---
 		moveCtrl.setYaw(camCtrl.yaw);
