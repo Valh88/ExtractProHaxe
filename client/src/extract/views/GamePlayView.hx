@@ -106,7 +106,7 @@ class GamePlayView extends BaseScene
 
 		// main weapon model (static gun + part animations)
 		mainWeapon = new MainWeaponModel(this);
-		mainWeapon.playMagazineChange();
+		//mainWeapon.playMagazineChange();
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
