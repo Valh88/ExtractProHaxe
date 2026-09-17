@@ -41,17 +41,18 @@ class MainWeaponModel extends h3d.scene.Object
 		magazineInsert = modelCache.loadAnimation(hxd.Res.load(magazineInsertResource()).toModel());
 	}
 
-	/** Apply PBR textures (albedo + normal) and metallic/roughness to all meshes. */
+	/** Apply PBR textures (albedo + normal + packed metallic/roughness/AO). */
 	function applyPbrTextures()
 	{
 		var texBase = "models/main_weapons/ak-74m/";
 		var albedo = hxd.Res.load(texBase + "AK_albedo.png").toTexture();
 		var normal = hxd.Res.load(texBase + "AK_normal.png").toTexture();
-		applyTexturesRecursive(weapon, albedo, normal);
+		var pbrTex = hxd.Res.load(texBase + "AK_pbr.png").toTexture();
+		applyTexturesRecursive(weapon, albedo, normal, pbrTex);
 	}
 
 	function applyTexturesRecursive(obj : h3d.scene.Object, albedo : h3d.mat.Texture,
-		normal : h3d.mat.Texture)
+		normal : h3d.mat.Texture, pbrTex : h3d.mat.Texture)
 	{
 		if (Std.isOfType(obj, h3d.scene.Mesh))
 		{
@@ -59,14 +60,11 @@ class MainWeaponModel extends h3d.scene.Object
 			var mat = mesh.material;
 			mat.texture = albedo;
 			mat.normalMap = normal;
-			// metallic shine: high metalness, low roughness
-			var pbr = new h3d.shader.pbr.PropsValues();
-			pbr.metalnessValue = 0.8;
-			pbr.roughnessValue = 0.3;
-			mat.mainPass.addShader(pbr);
+			// PBR props from packed texture: R=metalness, G=perceptual roughness, B=AO
+			mat.mainPass.addShader(new h3d.shader.pbr.PropsTexture(pbrTex));
 		}
 		for (child in obj.children)
-			applyTexturesRecursive(child, albedo, normal);
+			applyTexturesRecursive(child, albedo, normal, pbrTex);
 	}
 
 	/** Bolt recoil (1–8 frames). */
