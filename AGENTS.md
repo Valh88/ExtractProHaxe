@@ -665,6 +665,88 @@ needs the bind fix.
 > `deepCopyMaterial`, after the passes are cloned. Same class of local patch as the `hmd`/domkit
 > ones above — **wiped on heaps update**, re-apply after `haxelib update heaps`.
 
+## Heaps PBR material & texture pipeline
+
+Heaps PBR materials use a **shader-stack** architecture: base lighting comes from
+`h3d.mat.PbrMaterial` (mode=PBR by default); textures and PBR properties are added by
+**shaders** that plug into `material.mainPass`. None of the following are added automatically
+by `PbrMaterial` — you add them explicitly in code.
+
+### Texture slots on Material (`h3d.mat.Material`)
+
+| Setter | Shader added | Purpose |
+|---|---|---|
+| `material.texture = t` | `h3d.shader.Texture` | **Albedo** — base color |
+| `material.normalMap = t` | `h3d.shader.NormalMap` | **Normal map** — surface detail |
+| `material.specularTexture = t` | `h3d.shader.SpecularTexture` | **Specular** — reflection tint |
+
+These are the **only** built-in texture slots on `Material`. There is no `metallicTexture`,
+`roughnessTexture`, or `occlusionTexture` property — metallic/roughness/AO are handled by
+dedicated PBR shaders (see below).
+
+### PBR property shaders
+
+**`h3d.shader.pbr.PropsValues`** — scalar uniform values (one value for whole mesh):
+```haxe
+var pbr = new h3d.shader.pbr.PropsValues();
+pbr.metalnessValue = 0.8;   // 0 = dielectric, 1 = pure metal
+pbr.roughnessValue = 0.3;   // 0 = mirror, 1 = matte
+pbr.occlusionValue = 1.0;   // 1 = no AO darkening
+pbr.emissiveValue = 0.0;    // glow intensity
+pbr.custom1Value = 0.0;     // user-defined
+pbr.custom2Value = 0.0;     // user-defined
+pbr.translucencyValue = ...; // Vec3 for subsurface scattering
+mesh.material.mainPass.addShader(pbr);
+```
+
+**`h3d.shader.pbr.PropsTexture`** — packed RGB texture (per-pixel values, standard glTF
+metallic-roughness workflow):
+```haxe
+var pbrTex = hxd.Res.load("tex/weapon_pbr.png").toTexture();
+mesh.material.mainPass.addShader(new h3d.shader.pbr.PropsTexture(pbrTex));
+```
+Channel layout (single texture, one fetch):
+| Channel | Value |
+|---|---|
+| R | Metalness (0..1) |
+| G | Perceptual roughness → shader decodes as `1 - G²` |
+| B | Ambient occlusion (1 = no darkening) |
+| A | Emissive multiplier × `emissiveValue` param |
+
+The roughness **squaring** (`roughness_out = 1 - G*G`) is intentional — perceptual encoding
+distributes detail in the low-roughness range where the eye is most sensitive. If generating
+the packed texture from separate roughness maps, encode as `G = sqrt(1 - roughness)`.
+
+### Recommended workflow for model textures
+
+For models with separate albedo / normal / metallic / roughness / AO PNGs:
+
+1. Load albedo → `material.texture`
+2. Load normal → `material.normalMap`
+3. Pack metallic+roughness+AO into one RGB via `tools/make_pbr_pack.py`:
+   ```sh
+   python tools/make_pbr_pack.py --dir client/res/models/gun --prefix AK
+   # produces AK_pbr.png from AK_metallic.png + AK_roughness.png + AK_ao.png
+   ```
+4. Load packed → `PropsTexture`
+
+`PropsValues` (scalar) is simpler but uniform across the mesh — use it for single-material
+objects or when per-pixel variation isn't needed.
+
+### `h3d.scene.Object` vs camera
+
+Heaps camera (`h3d.scene.Scene.camera`) is **not** a scene object — it cannot have children.
+To parent visuals to the camera (e.g. FPS weapon), create an `h3d.scene.Object` anchor and
+sync its position/rotation each frame to `camera.pos` / pitch/yaw. See `HeroVisual.hx` for
+the pattern: `cameraAnchor` is synced via `camCtrl.eye` and `setRotation(pitch, yaw, 0)`.
+
+### `h3d.scene.Object` API notes
+
+- Properties: `.x`, `.y`, `.z` (Float) — **no `.pos` vector**
+- Rotation: `setRotation(rx, ry, rz)` — **no `.rotationX`/`.rotationY`/`.rotationZ` setters**
+- Absolute transform: `getAbsPos()` → `h3d.Matrix` (`.tx`/`.ty`/`.tz` for world position)
+- Scale: `setScale(s)` or `setScale(sx, sy, sz)`
+
 ## Misc
 
 - Root `js_imports.txt` / `js_externs.txt` / `js_exports.txt` are reference dumps of the Oimo JS API (from oimophysics's JS export); not part of any build, gitignored.
