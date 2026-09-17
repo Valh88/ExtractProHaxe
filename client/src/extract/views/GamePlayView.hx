@@ -13,6 +13,7 @@ import shared.events.GameEvents.BulletFired;
 import shared.events.GameEvents.HeroMoveIntent;
 import shared.systems.HeroSystem;
 import extract.design.HudDesign;
+import extract.models.MainWeaponModel;
 import extract.models.PlayerModel;
 import extract.systems.PlayerControllerSystem;
 import extract.systems.RoomNetSystem;
@@ -54,6 +55,7 @@ class GamePlayView extends BaseScene
 	var physRenderer : PhysRenderer;
 	var player : PlayerControllerSystem;
 	var playerModel : PlayerModel;
+	var mainWeapon : MainWeaponModel;
 	/** This side's entity factory — owns the world + binds meshes. */
 	var factory : extract.factory.ClientEntityFactory;
 
@@ -101,6 +103,10 @@ class GamePlayView extends BaseScene
 		// rigged hero character model (holds hero + future weapons/attachments)
 		playerModel = new PlayerModel();
 		this.addChild(playerModel);
+
+		// main weapon model (static gun + part animations)
+		mainWeapon = new MainWeaponModel(this);
+		mainWeapon.playMagazineChange();
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
