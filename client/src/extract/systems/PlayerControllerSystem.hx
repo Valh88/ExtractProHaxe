@@ -78,6 +78,20 @@ class PlayerControllerSystem extends System
 	/** True until the first sync (snap instead of smooth). */
 	var wpnHasState : Bool = false;
 
+	// --- idle sway + weapon bob ---
+	var wpnTime : Float = 0;
+	var wpnSwayAmt : Float = 0.003;
+	var wpnSwaySpeed : Float = 1.5;
+	var wpnBreathAmt : Float = 0.002;
+	var wpnBreathSpeed : Float = 1.2;
+	var wpnRollAmt : Float = 0.004;
+	var wpnRollSpeed : Float = 1.0;
+	/** Extra sway multiplier while moving (0 = no extra). */
+	var wpnMoveSwayMult : Float = 1.5;
+	/** Walking bob amplitude and speed. */
+	var wpnBobAmt : Float = 0.004;
+	var wpnBobSpeed : Float = 8.0;
+
 	/** True while the settings menu is open — freeze everything. */
 	var inSettings(get, never) : Bool;
 
@@ -261,7 +275,9 @@ class PlayerControllerSystem extends System
 	/** Sync the weapon anchor (cameraAnchor inside HeroVisual) to the camera.
 		Position snaps to eye (no lag — avoids movement jerk).
 		Rotation uses independent exponential smoothing (weapon "catches up"
-		when turning, giving a sense of weight). */
+		when turning, giving a sense of weight).
+		Idle sway adds procedural sine oscillation (breathing + micro-sway)
+		that fades out while aiming. Walking adds extra bob. */
 	function syncWeaponAnchor(dt : Float) : Void
 	{
 		var kw = weaponSmooth > 0 ? 1 - Math.exp(-weaponSmooth * dt) : 1;
@@ -284,13 +300,31 @@ class PlayerControllerSystem extends System
 		}
 		ca.setRotation(sWpnPitch, sWpnYaw, 0);
 
-		// lerp weapon transform between hip and ADS
+		// --- idle sway (procedural sine, fades with ADS) ---
+		wpnTime += dt;
+		var idle = 1.0 - adsBlend; // 1=hip, 0=ADS
+		var moving = moveCtrl.magnitude();
+		var moveBoost = 1.0 + moving * wpnMoveSwayMult;
+
+		// horizontal sway + breathing + roll rotation — pivot is near the stock
+		// because rotation is applied to the whole weapon, the barrel (further
+		// from origin) moves more than the stock end
+		var sx = Math.sin(wpnTime * wpnSwaySpeed) * wpnSwayAmt * idle * moveBoost;
+		var sy = Math.sin(wpnTime * wpnBreathSpeed) * wpnBreathAmt * idle * moveBoost;
+		var sr = Math.sin(wpnTime * wpnRollSpeed) * wpnRollAmt * idle * moveBoost;
+
+		// walking bob (vertical offset synced to step frequency)
+		var bob = Math.sin(wpnTime * wpnBobSpeed) * wpnBobAmt * moving * idle;
+
+		// apply sway offsets on top of base weapon transform
 		var w = hero.mainWeapon;
 		var b = adsBlend;
-		w.x = HeroVisual.HIP_X + (HeroVisual.ADS_X - HeroVisual.HIP_X) * b;
-		w.y = HeroVisual.HIP_Y + (HeroVisual.ADS_Y - HeroVisual.HIP_Y) * b;
+		w.x = HeroVisual.HIP_X + (HeroVisual.ADS_X - HeroVisual.HIP_X) * b + sx;
+		w.y = HeroVisual.HIP_Y + (HeroVisual.ADS_Y - HeroVisual.HIP_Y) * b + sy + bob;
 		w.z = HeroVisual.HIP_Z + (HeroVisual.ADS_Z - HeroVisual.HIP_Z) * b;
 		w.setScale(HeroVisual.HIP_SCALE + (HeroVisual.ADS_SCALE - HeroVisual.HIP_SCALE) * b);
+		// base rotation is (-PI/2, -PI/2, 0) — add pitch sway to first axis
+		w.setRotation(-Math.PI / 2 + sr, -Math.PI / 2, 0);
 
 		// lerp FOV between hip and ADS
 		camCtrl.fov = defaultFov + (adsFov - defaultFov) * b;
