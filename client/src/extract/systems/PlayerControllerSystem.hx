@@ -64,14 +64,10 @@ class PlayerControllerSystem extends System
 	var lastAiming : Bool = false;
 
 	// --- weapon anchor smoothing ---
-	/** Weapon follows camera with independent exponential smoothing, creating
-	    a subtle lag effect (weapon "catches up" to the camera). Rate per second
-	    — lower = more lag, higher = tighter follow. 0 = snap (no lag). */
+	/** Weapon rotation follows camera with independent exponential smoothing,
+	    creating a subtle lag effect (weapon "catches up" when turning).
+	    Position snaps to eye instantly — no position lag avoids jerk during movement. */
 	var weaponSmooth : Float = 15;
-	/** Smoothed weapon anchor position. */
-	var sWpnX : Float = 0;
-	var sWpnY : Float = 0;
-	var sWpnZ : Float = 0;
 	/** Smoothed weapon anchor rotation. */
 	var sWpnPitch : Float = 0;
 	var sWpnYaw : Float = 0;
@@ -253,36 +249,30 @@ class PlayerControllerSystem extends System
 		syncWeaponAnchor(dt);
 	}
 
-	/** Sync the weapon anchor (cameraAnchor inside HeroVisual) to the camera
-		with independent exponential smoothing — weapon lags slightly behind
-		the camera, creating a sense of weight ("catching up" effect). */
+	/** Sync the weapon anchor (cameraAnchor inside HeroVisual) to the camera.
+		Position snaps to eye (no lag — avoids movement jerk).
+		Rotation uses independent exponential smoothing (weapon "catches up"
+		when turning, giving a sense of weight). */
 	function syncWeaponAnchor(dt : Float) : Void
 	{
 		var kw = weaponSmooth > 0 ? 1 - Math.exp(-weaponSmooth * dt) : 1;
 
+		var ca = hero.cameraAnchor;
+		ca.x = camCtrl.eye.x;
+		ca.y = camCtrl.eye.y;
+		ca.z = camCtrl.eye.z;
+
 		if (!wpnHasState)
 		{
-			// first frame: snap to current eye / rotation
-			sWpnX = camCtrl.eye.x;
-			sWpnY = camCtrl.eye.y;
-			sWpnZ = camCtrl.eye.z;
 			sWpnPitch = camCtrl.pitch;
 			sWpnYaw = camCtrl.yaw;
 			wpnHasState = true;
 		}
 		else
 		{
-			sWpnX += (camCtrl.eye.x - sWpnX) * kw;
-			sWpnY += (camCtrl.eye.y - sWpnY) * kw;
-			sWpnZ += (camCtrl.eye.z - sWpnZ) * kw;
 			sWpnPitch += (camCtrl.pitch - sWpnPitch) * kw;
 			sWpnYaw += (camCtrl.yaw - sWpnYaw) * kw;
 		}
-
-		var ca = hero.cameraAnchor;
-		ca.x = sWpnX;
-		ca.y = sWpnY;
-		ca.z = sWpnZ;
 		ca.setRotation(sWpnPitch, sWpnYaw, 0);
 
 		// lerp weapon transform between hip and ADS
