@@ -46,6 +46,7 @@ class HeroVisual extends Object
 		mainWeapon.x = -0.2;
 		mainWeapon.y = -0.15;
 		mainWeapon.z = -0.4;
+		mainWeapon.setScale(1.3);
 		// FBX model faces +X; rotate -90° around Y so it points forward (-Z)
 		mainWeapon.setRotation(-Math.PI / 2, -Math.PI / 2, 0);
 	}
