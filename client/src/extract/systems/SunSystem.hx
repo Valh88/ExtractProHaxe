@@ -1,6 +1,7 @@
 package extract.systems;
 
 import extract.gfx.DistanceFog;
+import extract.gfx.EyeAdaptation;
 import extract.gfx.LensFlare;
 import h3d.Vector;
 import shared.GameData;
@@ -45,21 +46,6 @@ class SunSystem extends System
 	/** Phase: sunAngle == 0 puts the sun at its noon peak. */
 	public static var START_ANGLE : Float = 0;
 
-	/** Eye adaptation: darken the scene (via renderer exposure) while the sun
-	    sits in the middle of the screen (near the crosshair), simulating the
-	    eye/brain stopping down when staring at a bright source. */
-	public static var ADAPT_ENABLED : Bool = true;
-	/** How far the exposure drops when the sun is dead-center (in exposure
-	    units — the tone mapper applies exp(exposure), so 0 = unchanged). */
-	public static var ADAPT_STRENGTH : Float = 0.8;
-	/** Smoothing rate of the adaptation (1/s); higher = snappier. */
-	public static var ADAPT_SPEED : Float = 3.0;
-	/** Screen uv radius around the center where darkening is at full strength
-	    (0.12 ≈ the central ~12% of the screen height). */
-	public static var ADAPT_CENTER : Float = 0.12;
-	/** Screen uv radius around the center where darkening has fully faded out. */
-	public static var ADAPT_CENTER_FALLOFF : Float = 0.30;
-
 	/** Draw the decorative sun disc mesh. Off by default: the sun is rendered
 	    purely by the screen-space glow/flare (LensFlare), leaving the disc as
 	    an optional aid — flip to true (or call setDiscVisible) to show it. */
@@ -73,6 +59,8 @@ class SunSystem extends System
 	public var sunPos(default, null) : h3d.Vector;
 	/** Screen-space lens flare driven by this sun (owned by the system). */
 	public var lensFlare(default, null) : LensFlare;
+	/** Eye adaptation driven by this sun (owned by the system). */
+	public var eyeAdaptation(default, null) : EyeAdaptation;
 	/** Seconds for one full cycle (0..2π of `sunAngle`). */
 	public var dayLength(default, null) : Float;
 	/** Sun path preset. */
@@ -89,11 +77,6 @@ class SunSystem extends System
 	// orbit basis: sunDir(a) = cos(a)*base + sin(a)*side
 	var base : h3d.Vector;
 	var side : h3d.Vector;
-
-	/** Scene exposure captured at ctor, restored on dispose. */
-	var baseExposure : Float = 0.0;
-	/** Smoothed adaptation amount 0..1 (0 = no darkening). */
-	var adapt : Float = 0.0;
 
 	public function new(bus : EventBus, scene : h3d.scene.Scene,
 			sunMesh : h3d.scene.Mesh, ?gd : GameData,
@@ -115,8 +98,6 @@ class SunSystem extends System
 
 		sunAngle = START_ANGLE;
 		movementEnabled = true;
-		var pbrRenderer = scene.renderer == null ? null : Std.downcast(scene.renderer, h3d.scene.pbr.Renderer);
-		if (pbrRenderer != null) baseExposure = pbrRenderer.exposure;
 
 		// orbit plane normal tilted SUN_MAX_ELEV away from vertical: the sun
 		// rides a great circle whose highest point reaches exactly SUN_MAX_ELEV
@@ -153,8 +134,19 @@ class SunSystem extends System
 		lensFlare = new LensFlare(fog);
 		lensFlare.sunPos = sunPos;
 		lensFlare.elevationSource = elevation;
+
+		// eye adaptation also shares the live sun position/direction; it drives
+		// the renderer exposure itself on every frame (no update() call needed)
+		eyeAdaptation = new EyeAdaptation();
+		eyeAdaptation.sunPos = sunPos;
+		eyeAdaptation.sunDir = sunDir;
+
 		var renderer = scene.renderer;
-		if (renderer != null) renderer.effects.push(lensFlare);
+		if (renderer != null)
+		{
+			renderer.effects.push(lensFlare);
+			renderer.effects.push(eyeAdaptation);
+		}
 	}
 
 	/** Turn sun motion on/off. When disabled the sun keeps its current
@@ -162,6 +154,7 @@ class SunSystem extends System
 	public function setMovement(enabled : Bool)
 	{
 		movementEnabled = enabled;
+		if (eyeAdaptation != null) eyeAdaptation.triggerEnabled = enabled;
 	}
 
 	/** Show/hide the decorative sun disc mesh at runtime. */
@@ -179,7 +172,12 @@ class SunSystem extends System
 
 	override public function dispose()
 	{
-		restoreExposure();
+		if (eyeAdaptation != null)
+		{
+			if (scene.renderer != null) scene.renderer.effects.remove(eyeAdaptation);
+			eyeAdaptation.dispose();
+			eyeAdaptation = null;
+		}
 		if (lensFlare != null)
 		{
 			if (scene.renderer != null) scene.renderer.effects.remove(lensFlare);
@@ -194,51 +192,6 @@ class SunSystem extends System
 		if (movementEnabled)
 			sunAngle = (sunAngle + dt * (Math.PI * 2) / dayLength) % (Math.PI * 2);
 		applyOrbit();
-		applyEyeAdaptation(dt);
-	}
-
-	/** Put the captured base exposure back (used on dispose). */
-	function restoreExposure()
-	{
-		var pbrRenderer = scene.renderer == null ? null : Std.downcast(scene.renderer, h3d.scene.pbr.Renderer);
-		if (pbrRenderer != null) pbrRenderer.exposure = baseExposure;
-	}
-
-	/** Darken the scene while the (daytime) sun sits near the middle of the
-	    screen — i.e. the player is actually looking AT it, not just in its
-	    general direction. The sun is projected to screen uv; the trigger is 1
-	    within ADAPT_CENTER uv of the center and fades to 0 by
-	    ADAPT_CENTER_FALLOFF. Cheap (one projection per frame), no occlusion. */
-	function applyEyeAdaptation(dt : Float)
-	{
-		var pbrRenderer = scene.renderer == null ? null : Std.downcast(scene.renderer, h3d.scene.pbr.Renderer);
-		if (pbrRenderer == null) return;
-
-		var target = 0.0;
-		if (ADAPT_ENABLED && movementEnabled)
-		{
-			var cam = scene.camera;
-			var proj = cam.project(sunPos.x, sunPos.y, sunPos.z, 1, 1, false);
-			var uvx = proj.x;
-			var uvy = proj.y;
-			// behind-camera check: pre-divide clip w
-			var m = cam.m;
-			var cw = sunPos.x * m._14 + sunPos.y * m._24 + sunPos.z * m._34 + m._44;
-			if (cw > 0.001)
-			{
-				var dx = (uvx - 0.5) * cam.screenRatio;
-				var dy = uvy - 0.5;
-				var r = Math.sqrt(dx * dx + dy * dy);
-				var t = 1.0 - (r - ADAPT_CENTER) / (ADAPT_CENTER_FALLOFF - ADAPT_CENTER);
-				t = hxd.Math.clamp(t, 0.0, 1.0);
-				// daytime only: fade the trigger as the sun sinks below the horizon
-				t *= hxd.Math.clamp(sunDir.y * 4.0, 0.0, 1.0);
-				target = t;
-			}
-		}
-
-		adapt += (target - adapt) * hxd.Math.min(1.0, dt * ADAPT_SPEED);
-		pbrRenderer.exposure = baseExposure - ADAPT_STRENGTH * adapt;
 	}
 
 	/** Recompute `sunDir` from the current `sunAngle`, move the disc to
