@@ -73,8 +73,6 @@ class GamePlayView extends BaseScene
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
 		distanceFog = new extract.gfx.DistanceFog();
 		this.renderer.effects.push(distanceFog);
-		settingsBlur = new extract.gfx.SettingsBlur(distanceFog);
-		this.renderer.effects.push(settingsBlur);
 
 		// entity factory owns the world: creates it (client side: meshes),
 		// keeps it, spawns every body through the shared recipes
@@ -111,10 +109,15 @@ class GamePlayView extends BaseScene
 		// the sun: directional light emulating solar rays, casts the shadows;
 		// the decorative disc comes from the entity factory. The disc sits at
 		// SUN_DIST (300m) — beyond fogEnd (200m) — so exclude it from the fog.
-		var sun = new SunSystem(bus, this, factory.meshForSun(), gd);
+		var sun = new SunSystem(bus, this, factory.meshForSun(), gd, null, null, distanceFog);
 		systems.add(sun);
 		distanceFog.sunCenter = sun.sunPos;
 		distanceFog.sunRadius = SunSystem.SUN_RADIUS;
+
+		// registered AFTER the sun's lens flare so the settings blur (which
+		// only affects the menu backdrop) overwrites the flare when open
+		settingsBlur = new extract.gfx.SettingsBlur(distanceFog);
+		this.renderer.effects.push(settingsBlur);
 
 		// crosshair movement feedback
 		bus.subscribe(HeroMoveIntent, onHeroMoveIntent);

@@ -1,5 +1,7 @@
 package extract.systems;
 
+import extract.gfx.DistanceFog;
+import extract.gfx.LensFlare;
 import h3d.Vector;
 import shared.GameData;
 import shared.events.EventBus;
@@ -49,6 +51,8 @@ class SunSystem extends System
 	public var sunMesh(default, null) : h3d.scene.Mesh;
 	/** World-space center of the sun disc (shared ref for the fog exclusion). */
 	public var sunPos(default, null) : h3d.Vector;
+	/** Screen-space lens flare driven by this sun (owned by the system). */
+	public var lensFlare(default, null) : LensFlare;
 	/** Seconds for one full cycle (0..2π of `sunAngle`). */
 	public var dayLength(default, null) : Float;
 	/** Sun path preset. */
@@ -68,7 +72,8 @@ class SunSystem extends System
 
 	public function new(bus : EventBus, scene : h3d.scene.Scene,
 			sunMesh : h3d.scene.Mesh, ?gd : GameData,
-			?trajectory : SunTrajectory, ?dayLength : Float)
+			?trajectory : SunTrajectory, ?dayLength : Float,
+			?fog : DistanceFog)
 	{
 		super(bus, null, gd, "Sun");
 		this.scene = scene;
@@ -114,6 +119,15 @@ class SunSystem extends System
 		scene.addChild(sunMesh);
 		sunPos = new h3d.Vector();
 		update(0);
+
+		// the system OWNS the lens flare: registering it here means removing
+		// (and disposing) this system removes the effect in the same place
+		lensFlare = new LensFlare(fog);
+		lensFlare.sunPos = sunPos;
+		lensFlare.sunRadius = SUN_RADIUS;
+		lensFlare.elevationSource = elevation;
+		var renderer = scene.renderer;
+		if (renderer != null) renderer.effects.push(lensFlare);
 	}
 
 	/** Turn sun motion on/off. When disabled the sun keeps its current
@@ -121,6 +135,24 @@ class SunSystem extends System
 	public function setMovement(enabled : Bool)
 	{
 		movementEnabled = enabled;
+	}
+
+	/** Sun elevation: sin of the angle above the horizon (negative at night).
+	    Used by the lens flare to fade out when the sun sets. */
+	public function elevation() : Float
+	{
+		return sunDir.y;
+	}
+
+	override public function dispose()
+	{
+		if (lensFlare != null)
+		{
+			if (scene.renderer != null) scene.renderer.effects.remove(lensFlare);
+			lensFlare.dispose();
+			lensFlare = null;
+		}
+		super.dispose();
 	}
 
 	override public function update(dt : Float)
