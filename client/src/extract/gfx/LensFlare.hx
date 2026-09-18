@@ -32,6 +32,8 @@ class LensFlareShader extends h3d.shader.ScreenShader
 		@param var aspect : Float;
 		/** Multiplier for the ghost radii (drives the ghost chain size). */
 		@param var ghostScale : Float;
+		/** Sun disc radius in screen uv (vertical); drives the occlusion sampling. */
+		@param var sunUvRadius : Float;
 
 		/** Radial gradient of a single ghost: 1 at `center`, 0 at `radius`. */
 		function ghost(uv : Vec2, center : Vec2, radius : Float, falloff : Float) : Float {
@@ -39,21 +41,34 @@ class LensFlareShader extends h3d.shader.ScreenShader
 			return pow(max(1.0 - length(d) / radius, 0.0), falloff);
 		}
 
+		/** Visibility of one screen point: 1 when nothing is in front of the sun
+		    at that point, 0 when geometry sits meaningfully nearer. Reconstructs
+		    the world position of the depth sample and compares it to the FRONT
+		    face of the disc (sunDist - sunRadius). */
+		function occlusionAt(p : Vec2) : Float {
+			var dt = depthTexture.get(p).r;
+			var temp = vec4(uvToScreen(p), dt, 1.0) * inverseViewProj;
+			var wp = temp.xyz / temp.w;
+			var dWall = distance(wp, cameraPos);
+			var discFront = sunDist - sunRadius;
+			return smoothstep(discFront - 4.0, discFront - 0.5, dWall);
+		}
+
 		function fragment() {
 			var uv = calculatedUV;
 			var col = sceneColor.get(uv);
 
-			// occlusion: reconstruct the world position of the depth sample at
-			// the sun center and compare its distance to the camera against the
-			// FRONT face of the disc (sunDist - sunRadius). The disc itself is
-			// opaque and writes depth there, so "at the disc" = visible; any
-			// surface meaningfully nearer is geometry blocking the sun.
-			var dt = depthTexture.get(sunUV).r;
-			var temp = vec4(uvToScreen(sunUV), dt, 1.0) * inverseViewProj;
-			var wp = temp.xyz / temp.w;
-			var dWall = distance(wp, cameraPos);
-			var discFront = sunDist - sunRadius;
-			var occ = smoothstep(discFront - 4.0, discFront - 0.5, dWall);
+			// occlusion: average several depth probes across the disc, so a
+			// partial cover fades the flare partially instead of a single point
+			// blocking the whole halo. uv radius is anisotropic (screen aspect).
+			var rx = sunUvRadius / aspect;
+			var ry = sunUvRadius;
+			var occ = occlusionAt(sunUV);
+			occ += occlusionAt(sunUV + vec2(rx * 0.7, 0.0));
+			occ += occlusionAt(sunUV - vec2(rx * 0.7, 0.0));
+			occ += occlusionAt(sunUV + vec2(0.0, ry * 0.7));
+			occ += occlusionAt(sunUV - vec2(0.0, ry * 0.7));
+			occ /= 5.0;
 
 			// fade the whole flare as the sun leaves the frame
 			var edge = smoothstep(-0.2, 0.02, sunUV.x) * smoothstep(1.2, 0.98, sunUV.x)
@@ -153,6 +168,10 @@ class LensFlare implements h3d.impl.RendererFX
 		var inFrame = uvx >= -EDGE_MARGIN && uvx <= 1 + EDGE_MARGIN
 			&& uvy >= -EDGE_MARGIN && uvy <= 1 + EDGE_MARGIN;
 
+		// disc radius in screen uv (vertical): the screen height at distance d
+		// spans 2*d*tan(fovY/2), so a world radius r covers r/(d*tan(fovY/2)).
+		var sunUvRadius = sunRadius / (sunDist * Math.tan(cam.fovY * 0.5 * Math.PI / 180));
+
 		var s = fx.shader;
 		s.sceneColor = fog != null ? fog.blurSource : @:privateAccess pbr.textures.hdr;
 		s.depthTexture = pbr.getPbrDepth();
@@ -163,6 +182,7 @@ class LensFlare implements h3d.impl.RendererFX
 		s.sunDist = sunDist;
 		s.aspect = w / h;
 		s.ghostScale = GHOST_SCALE;
+		s.sunUvRadius = sunUvRadius;
 		s.sunValid = (cw > 0.001 && inFrame) ? 1.0 : 0.0;
 		var elev = elevationSource != null ? elevationSource() : 1.0;
 		s.inten = INTENSITY * hxd.Math.clamp(1.0 + elev * ELEV_FADE, 0.0, 3.0);

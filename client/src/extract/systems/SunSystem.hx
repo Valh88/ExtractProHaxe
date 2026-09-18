@@ -49,7 +49,7 @@ class SunSystem extends System
 	/** Draw the decorative sun disc mesh. Off by default: the sun is rendered
 	    purely by the screen-space glow/flare (LensFlare), leaving the disc as
 	    an optional aid — flip to true (or call setDiscVisible) to show it. */
-	public static var DISC_VISIBLE : Bool = true;
+	public static var DISC_VISIBLE : Bool = false;
 
 	/** The directional sun light (main light, casts shadows). */
 	public var light(default, null) : h3d.scene.pbr.DirLight;
