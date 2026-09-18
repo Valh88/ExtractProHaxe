@@ -98,7 +98,7 @@ class GamePlayView extends BaseScene
 
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
-		player = new PlayerControllerSystem(bus, sim, camera, null, this.gd);
+		player = new PlayerControllerSystem(bus, sim, camera, this.gd);
 		systems.add(player);
 
 		// crosshair movement feedback
@@ -127,7 +127,6 @@ class GamePlayView extends BaseScene
 		if (heroSys != null)
 		{
 			heroSys.spawnHero(Player.LOCAL);
-			if (factory.localHeroVisual != null) player.heroVisCtrl.bind(factory.localHeroVisual);
 		}
 
 		// HUD on top of the gameplay scene

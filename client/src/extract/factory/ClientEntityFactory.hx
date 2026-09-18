@@ -14,8 +14,9 @@ import shared.BaseEntityFactory;
 	`onBodyAdded` picks a mesh (`meshForBody`), parents it to the scene and
 	binds it to the interpolating PhysRenderer; `onBodyRemoved` is NOT needed —
 	the PhysRenderer already unbinds/removes the mesh when the body is removed
-	(PhysCore.removeBody -> consumer.onBodyRemoved). The LOCAL hero's mesh is
-	exposed (`localHeroVisual`) so the view can anchor the camera.
+	(PhysCore.removeBody -> consumer.onBodyRemoved). When the LOCAL hero's
+	visual spawns it is published on the world bus (`LocalHeroSpawned`) so the
+	view/controllers can anchor to it — the factory neither stores nor owns it.
 
 	meshForBody (heaps) must NOT live in the shared interface — it would drag
 	h3d into the headless server build. That's the whole point of the split:
@@ -28,9 +29,6 @@ class ClientEntityFactory extends BaseEntityFactory
 
 	/** Interpolating renderer every body is bound to (see bindRenderer). */
 	var renderer : Null<PhysRenderer>;
-
-	/** Visuals of the LOCAL hero, set when its body spawns — camera anchor. */
-	public var localHeroVisual(default, null) : Null<extract.models.HeroVisual>;
 
 	public function new(parent : h3d.scene.Object)
 	{
@@ -61,7 +59,7 @@ class ClientEntityFactory extends BaseEntityFactory
 			var visual = new extract.models.HeroVisual(parent, sizes.hx, sizes.hy);
 			parent.addChild(visual);
 			renderer.bind(b, visual.bodyMesh);
-			localHeroVisual = visual;
+			world.bus.publish(new extract.events.ClientEvents.LocalHeroSpawned(visual));
 			return;
 		}
 		var mesh = meshForBody(b);

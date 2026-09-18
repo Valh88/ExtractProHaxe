@@ -2,6 +2,7 @@ package extract.systems;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
+import extract.events.ClientEvents.LocalHeroSpawned;
 import extract.models.HeroVisual;
 import extract.utils.CameraController;
 import extract.utils.MovementController;
@@ -59,6 +60,7 @@ class HeroVisualController
 	{
 		this.bus = bus;
 		this.gd = gd;
+		bus.subscribe(LocalHeroSpawned, onLocalHeroSpawned);
 
 		wpnAnim = new AnimationController();
 		swayOsc = new SineAnimation(0.003, 1.5);
@@ -69,6 +71,12 @@ class HeroVisualController
 		wpnAnim.add(breathOsc);
 		wpnAnim.add(rollOsc);
 		wpnAnim.add(bobOsc);
+	}
+
+	/** Self-bind when the local hero's visual spawns (factory -> bus). */
+	function onLocalHeroSpawned(e : LocalHeroSpawned) : Void
+	{
+		if (e.visual != null) bind(e.visual);
 	}
 
 	/** Bind to a new hero visual. Reads all CDB tuning once. */

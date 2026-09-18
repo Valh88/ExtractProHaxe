@@ -5,7 +5,6 @@ import hxd.Key;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
-import extract.models.HeroVisual;
 import extract.utils.CameraController;
 import extract.utils.MovementController;
 import shared.GameData;
@@ -25,7 +24,7 @@ import shared.systems.System;
 **/
 class PlayerControllerSystem extends System
 {
-	/** Hero visual controller (bind from GamePlayView when hero spawns). */
+	/** Hero visual controller (self-binds on LocalHeroSpawned bus event). */
 	public var heroVisCtrl(default, null) : HeroVisualController;
 
 	/** Extensible camera controller (eye height, sensitivity, fov, ...). */
@@ -57,7 +56,7 @@ class PlayerControllerSystem extends System
 	var accDX : Float = 0;
 	var accDY : Float = 0;
 
-	public function new(bus : EventBus, sim : SimWorld, cam : Camera, ?hero : HeroVisual, ?gd : GameData)
+	public function new(bus : EventBus, sim : SimWorld, cam : Camera, ?gd : GameData)
 	{
 		super(bus, sim, gd, "PlayerController");
 		this.cam = cam;
