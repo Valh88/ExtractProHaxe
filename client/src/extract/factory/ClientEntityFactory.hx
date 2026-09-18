@@ -83,7 +83,7 @@ class ClientEntityFactory extends BaseEntityFactory
 	public function meshForSun() : Mesh
 	{
 		var mat = h3d.mat.Material.create();
-		mat.color.set(1.0, 0.85, 0.5, 1);
+		mat.color.set(1.0, 0.96, 0.9, 1);
 		mat.castShadows = false;
 		var emissive = new h3d.shader.pbr.PropsValues();
 		emissive.emissiveValue = 0.9;

@@ -64,6 +64,9 @@ class LensFlareShader extends h3d.shader.ScreenShader
 			var violet = vec3(0.85, 0.65, 1.0);
 
 			var flare = vec3(0.0);
+			// main warm glow hugging the sun disc (radius is in units of screen
+			// height; ~1.6x the visible disc so it reads as a halo around it)
+			flare += warm * 2.2 * ghost(uv, sunUV, 0.15, 4.0);
 			// ghosts on the center<->sun line (warm near the sun,
 			// cool/violet further out — cheap chromatic dispersion)
 			var c = vec2(0.5, 0.5);
@@ -127,14 +130,15 @@ class LensFlare implements h3d.impl.RendererFX
 			flareTarget = ctx.textures.allocTarget("lensflare", w, h, false, RGBA16F);
 		}
 
-		// project the sun disc center into uv space (camera.project gives
-		// screen pixels for a 1x1 target = 0..1 with y down; flip to uv)
+		// project the sun disc center into texture uv. camera.project already
+		// returns 0..1 with y DOWN, which matches calculatedUV (screenToUv) —
+		// no vertical flip, otherwise the flare mirrors away from the disc.
 		var cam = ctx.camera;
 		var m = cam.m;
 		var cw = sunPos.x * m._14 + sunPos.y * m._24 + sunPos.z * m._34 + m._44;
 		var proj = cam.project(sunPos.x, sunPos.y, sunPos.z, 1, 1, false);
 		var uvx = proj.x;
-		var uvy = 1 - proj.y;
+		var uvy = proj.y;
 		var p = cam.pos;
 		var dx = sunPos.x - p.x, dy = sunPos.y - p.y, dz = sunPos.z - p.z;
 		var sunDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
