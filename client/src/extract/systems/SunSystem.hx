@@ -108,15 +108,26 @@ class SunSystem extends System
 		side = new Vector(1, 0, 0);  // sunrise/sunset: sunDir(±π/2)
 
 		// light rays travel toward the camera in (-0.5,-0.4,-1) — the disc
-		// sits in the opposite direction, i.e. where the sun actually is
+		// sits in the opposite direction, i.e. where the sun actually is.
+		// Default shadow mode (DirShadowMap): hard edges, cheap. Its only
+		// failure mode is that autoShrink's ortho box grows to fit ALL visible
+		// casters — a body flying far away stretches the box, tanks texel
+		// density and breaks the shadows. maxDist clamps the shadow frustum to
+		// a bubble around the camera, so distant bodies simply leave the map.
 		var rays = new Vector(-0.5, -0.4, -1);
 		light = new h3d.scene.pbr.DirLight(rays, scene);
 		light.power = 2;
 		light.isMainLight = true;
 		light.shadows.mode = h3d.pass.Shadows.RenderMode.Dynamic;
-		light.shadows.size = 3048;
+		light.shadows.size = 4048;
 		light.shadows.power = 150;
-		light.shadows.bias *= 0.3;
+		light.shadows.bias = 0.01;
+		var dsm = Std.downcast(light.shadows, h3d.pass.DirShadowMap);
+		if (dsm != null)
+		{
+			dsm.maxDist = 80;  // shadow bubble around the camera; far bodies exit it
+			dsm.minDist = 0.1;
+		}
 		sunDir = rays.clone().normalized();
 		sunDir.scale(-1);
 
