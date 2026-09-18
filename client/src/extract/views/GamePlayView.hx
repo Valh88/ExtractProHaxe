@@ -16,6 +16,7 @@ import extract.design.HudDesign;
 import extract.systems.PlayerControllerSystem;
 import extract.systems.RoomNetSystem;
 import extract.systems.StatisticSystem;
+import extract.systems.SunSystem;
 import extract.views.settings.SettingsOverlay;
 
 import extract.fsm.GameplayMode;
@@ -45,6 +46,8 @@ class GamePlayView extends BaseScene
 	var hud : HudDesign;
 	var settingsOverlay : SettingsOverlay;
 	var settingsBlur : extract.gfx.SettingsBlur;
+	/** The fog effect — its sunCenter/sunRadius are wired to the SunSystem. */
+	var distanceFog : extract.gfx.DistanceFog;
 	// pinned closure: HL creates a new closure per method-field access, but
 	// EventBus.unsubscribe matches via Reflect.compareMethods — reuse ONE
 	final stateHandler : StateChangeEvent<GameplayMode> -> Void;
@@ -68,7 +71,7 @@ class GamePlayView extends BaseScene
 	{
 		super(s2d, style, gd, bus, 0x0D0D0D);
 		this.renderer.effects.push(new extract.gfx.ScalableAO());
-		var distanceFog = new extract.gfx.DistanceFog();
+		distanceFog = new extract.gfx.DistanceFog();
 		this.renderer.effects.push(distanceFog);
 		settingsBlur = new extract.gfx.SettingsBlur(distanceFog);
 		this.renderer.effects.push(settingsBlur);
@@ -96,10 +99,22 @@ class GamePlayView extends BaseScene
 		factory.bindRenderer(physRenderer);
 		sim.buildLevel();
 
+		// the base theme light (BaseScene) stays for the lobby — gameplay uses
+		// its own sun (SunSystem) so it's the only light source here
+		if (themeLight != null) themeLight.remove();
+
 		// when the shared logic spawns a body, the client decides how to draw it
 		// camera is anchored to the hero mesh (eye position) — bind on spawn
 		player = new PlayerControllerSystem(bus, sim, camera, this.gd);
 		systems.add(player);
+
+		// the sun: directional light emulating solar rays, casts the shadows;
+		// the decorative disc comes from the entity factory. The disc sits at
+		// SUN_DIST (300m) — beyond fogEnd (200m) — so exclude it from the fog.
+		var sun = new SunSystem(bus, this, factory.meshForSun(), gd);
+		systems.add(sun);
+		distanceFog.sunCenter = sun.sunPos;
+		distanceFog.sunRadius = SunSystem.SUN_RADIUS;
 
 		// crosshair movement feedback
 		bus.subscribe(HeroMoveIntent, onHeroMoveIntent);

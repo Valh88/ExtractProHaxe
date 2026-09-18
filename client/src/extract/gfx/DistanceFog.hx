@@ -14,6 +14,11 @@ class DistanceFogShader extends h3d.shader.ScreenShader
 		@param var fogStart : Float;
 		@param var fogEnd : Float;
 		@param var fogHeightFalloff : Float;
+		// sun-disc exclusion: world-space sphere that stays fog-free (the
+		// decorative sun is positioned beyond fogEnd, so without this it would
+		// be fully fogged = invisible). skyRadius <= 0 disables it.
+		@param var sunCenter : Vec3;
+		@param var sunRadius : Float;
 
 		function fragment() {
 			var uv = calculatedUV;
@@ -25,6 +30,12 @@ class DistanceFogShader extends h3d.shader.ScreenShader
 			var f = clamp(smoothstep(fogStart, fogEnd, dist), 0.0, 1.0);
 			// height fade: fog thins out above the camera
 			f *= exp(-max(cameraPos.y - wp.y, 0.0) * fogHeightFalloff);
+			// keep the sun disc clear: wp of the visible disc sits on the FRONT
+			// surface, which is exactly sunRadius from sunCenter — so the clear
+			// window must start AT sunRadius (or the whole disc stays fogged)
+			// and fade back to full fog just outside the silhouette (soft halo)
+			if (sunRadius > 0.0)
+				f *= smoothstep(sunRadius, sunRadius * 1.5, distance(wp, sunCenter));
 			var col = sceneColor.get(uv);
 			pixelColor = vec4(mix(col.rgb, fogColor, f), col.a);
 		}
@@ -42,6 +53,12 @@ class DistanceFog implements h3d.impl.RendererFX
 	/** Post-fog result — lets later effects (e.g. SettingsBlur) chain off it instead of raw hdr. */
 	public var blurSource(get, never) : h3d.mat.Texture;
 	function get_blurSource() return fogTarget;
+
+	/** World-space center of the sun disc to exclude from the fog
+		(shared h3d.Vector ref, mutated each frame by SunSystem). */
+	public var sunCenter : h3d.Vector = new h3d.Vector();
+	/** Sun exclusion radius (m); <= 0 disables the exclusion entirely. */
+	public var sunRadius : Float = 0;
 
 	public function new(fogColor = 0x8FA3B5, fogStart = 40.0, fogEnd = 200.0, fogHeightFalloff = 0.05)
 	{
@@ -74,6 +91,8 @@ class DistanceFog implements h3d.impl.RendererFX
 		s.sceneColor = @:privateAccess pbr.textures.hdr;
 		s.depthTexture = pbr.getPbrDepth();
 		s.inverseViewProj = ctx.camera.getInverseViewProj();
+		s.sunCenter.load(sunCenter);
+		s.sunRadius = sunRadius;
 		var p = ctx.camera.pos;
 		s.cameraPos = new h3d.Vector(p.x, p.y, p.z);
 		ctx.engine.pushTarget(fogTarget);

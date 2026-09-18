@@ -74,6 +74,23 @@ class ClientEntityFactory extends BaseEntityFactory
 		// consumer.onBodyRemoved); nothing extra to release yet.
 	}
 
+	/**
+		Build the decorative sun disc — NOT a physics body, so meshForBody
+		doesn't apply. A warm emissive sphere the camera never reaches;
+		castShadows=false keeps it out of the shadow map (always off-bounds).
+		Returns an un-parented mesh; the caller scales/adds it (SunSystem).
+	**/
+	public function meshForSun() : Mesh
+	{
+		var mat = h3d.mat.Material.create();
+		mat.color.set(1.0, 0.85, 0.5, 1);
+		mat.castShadows = false;
+		var emissive = new h3d.shader.pbr.PropsValues();
+		emissive.emissiveValue = 0.9;
+		mat.mainPass.addShader(emissive);
+		return new h3d.scene.Mesh(h3d.prim.Sphere.defaultUnitSphere(), mat);
+	}
+
 	/** Build a mesh for a spawned body. Extend this switch for new entities. */
 	public function meshForBody(b : PhysBody) : Null<Mesh>
 	{

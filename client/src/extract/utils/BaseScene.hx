@@ -23,6 +23,9 @@ class BaseScene extends Scene3D implements IUpdate
 	public var systems(default, null) : Systems;
 	/** Scene-local animation controller — each scene owns its own tweens. */
 	public var animCtrl(default, null) : AnimationController;
+	/** The base theme light created by createLight() — scenes may disable it
+		(remove()) to install their own sun/lighting (see GamePlayView). */
+	public var themeLight(default, null) : h3d.scene.pbr.DirLight;
 
 	public function new(s2d : Scene2D, style : Style, gd : GameData, ?bus : EventBus, ?bgColor : Null<Int>)
 	{
@@ -55,6 +58,7 @@ class BaseScene extends Scene3D implements IUpdate
 		light.shadows.size = 3048;
 		light.shadows.power = 150;
 		light.shadows.bias *= 0.3;
+		themeLight = light;
 		return light;
 	}
 
