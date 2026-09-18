@@ -118,6 +118,7 @@ class ClientEntityFactory extends BaseEntityFactory
 				pbr.metalnessValue = 0;
 				pbr.roughnessValue = 0.9;
 				m.color.set(0.6, 0.6, 0.6, 1);
+				m.castShadows = false;
 			case "cube": // metal
 				pbr.metalnessValue = 0.8;
 				pbr.roughnessValue = 0.3;

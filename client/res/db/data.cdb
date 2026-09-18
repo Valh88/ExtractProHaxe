@@ -30,7 +30,7 @@
 				{
 					"cubeSize": 1,
 					"cubeSpawnInterval": 2,
-					"floorHalf": 10,
+					"floorHalf": 100,
 					"gravityY": -9.80665,
 					"id": "default"
 				}
@@ -118,18 +118,18 @@
 					"name": "adsFov",
 					"typeStr": "4"
 				},
-			{
-				"name": "adsSpeed",
-				"typeStr": "4"
-			},
-			{
-				"name": "weaponSmooth",
-				"typeStr": "4"
-			},
-			{
-				"name": "adsSensMult",
-				"typeStr": "4"
-			}
+				{
+					"name": "adsSpeed",
+					"typeStr": "4"
+				},
+				{
+					"name": "weaponSmooth",
+					"typeStr": "4"
+				},
+				{
+					"name": "adsSensMult",
+					"typeStr": "4"
+				}
 			],
 			"lines": [
 				{
@@ -141,10 +141,10 @@
 					"invertX": true,
 					"invertY": false,
 					"eyeHeight": 1.6,
-			"adsFov": 60,
-				"adsSpeed": 0.15,
-				"weaponSmooth": 80,
-				"adsSensMult": 0.5
+					"adsFov": 60,
+					"adsSpeed": 0.15,
+					"weaponSmooth": 80,
+					"adsSensMult": 0.5
 				}
 			],
 			"separators": [],
