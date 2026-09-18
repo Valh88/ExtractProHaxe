@@ -17,7 +17,7 @@ class SunSystem extends System
 	/** Distance from the camera to the visible sun disc (m). */
 	public static inline var SUN_DIST : Float = 300;
 	/** Radius of the visible sun disc (m). */
-	public static inline var SUN_RADIUS : Float = 40;
+	public static inline var SUN_RADIUS : Float = 25;
 
 	/** The directional sun light (main light, casts shadows). */
 	public var light(default, null) : h3d.scene.pbr.DirLight;
