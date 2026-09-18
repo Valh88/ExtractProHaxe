@@ -30,6 +30,8 @@ class LensFlareShader extends h3d.shader.ScreenShader
 		@param var inten : Float;
 		/** Screen width/height — keeps the round ghosts circular. */
 		@param var aspect : Float;
+		/** Multiplier for the ghost radii (drives the ghost chain size). */
+		@param var ghostScale : Float;
 
 		/** Radial gradient of a single ghost: 1 at `center`, 0 at `radius`. */
 		function ghost(uv : Vec2, center : Vec2, radius : Float, falloff : Float) : Float {
@@ -71,11 +73,12 @@ class LensFlareShader extends h3d.shader.ScreenShader
 			// cool/violet further out — cheap chromatic dispersion)
 			var c = vec2(0.5, 0.5);
 			var dir = sunUV - c;
-			flare += warm * 0.55 * ghost(uv, c + dir * 0.85, 0.030, 7.0);
-			flare += warm * 0.35 * ghost(uv, c + dir * 0.60, 0.018, 8.0);
-			flare += cool * 0.28 * ghost(uv, c + dir * 0.38, 0.012, 9.0);
-			flare += violet * 0.22 * ghost(uv, c + dir * 0.18, 0.008, 10.0);
-			flare += cool * 0.18 * ghost(uv, c - dir * 0.30, 0.010, 9.0);
+			var gs = ghostScale;
+			flare += warm * 0.55 * ghost(uv, c + dir * 0.85, 0.030 * gs, 7.0);
+			flare += warm * 0.35 * ghost(uv, c + dir * 0.60, 0.018 * gs, 8.0);
+			flare += cool * 0.28 * ghost(uv, c + dir * 0.38, 0.012 * gs, 9.0);
+			flare += violet * 0.22 * ghost(uv, c + dir * 0.18, 0.008 * gs, 10.0);
+			flare += cool * 0.18 * ghost(uv, c - dir * 0.30, 0.010 * gs, 9.0);
 
 			pixelColor = col + vec4(flare * f, 0.0);
 		}
@@ -92,6 +95,8 @@ class LensFlare implements h3d.impl.RendererFX
 	public static var ELEV_FADE : Float = 6.0;
 	/** Screen uv margin (beyond the frame) where the edge fade starts. */
 	public static var EDGE_MARGIN : Float = 0.2;
+	/** Size multiplier for the ghost circles (1 = default, 0 = hidden). */
+	public static var GHOST_SCALE : Float = 5.0;
 
 	/** World-space sun position (shared ref, mutated each frame by SunSystem). */
 	public var sunPos : h3d.Vector = new h3d.Vector();
@@ -154,6 +159,7 @@ class LensFlare implements h3d.impl.RendererFX
 		s.sunUV.set(uvx, uvy);
 		s.sunDist = sunDist;
 		s.aspect = w / h;
+		s.ghostScale = GHOST_SCALE;
 		s.sunValid = (cw > 0.001 && inFrame) ? 1.0 : 0.0;
 		var elev = elevationSource != null ? elevationSource() : 1.0;
 		s.inten = INTENSITY * hxd.Math.clamp(1.0 + elev * ELEV_FADE, 0.0, 3.0);

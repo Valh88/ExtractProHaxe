@@ -124,7 +124,6 @@ class SunSystem extends System
 		// (and disposing) this system removes the effect in the same place
 		lensFlare = new LensFlare(fog);
 		lensFlare.sunPos = sunPos;
-		lensFlare.sunRadius = SUN_RADIUS;
 		lensFlare.elevationSource = elevation;
 		var renderer = scene.renderer;
 		if (renderer != null) renderer.effects.push(lensFlare);
