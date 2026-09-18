@@ -66,7 +66,10 @@ class LensFlareShader extends h3d.shader.ScreenShader
 			var violet = vec3(0.85, 0.65, 1.0);
 
 			var flare = vec3(0.0);
-			// main warm glow hugging the sun disc (radius is in units of screen
+			// hot core: small, bright center so the sun still reads as a disc
+			// even with the mesh hidden (radius is in screen-height units)
+			flare += vec3(1.0, 0.95, 0.85) * 3.0 * ghost(uv, sunUV, 0.03, 5.0);
+			// main warm glow around the core (radius is in units of screen
 			// height; ~1.6x the visible disc so it reads as a halo around it)
 			flare += warm * 2.2 * ghost(uv, sunUV, 0.15, 4.0);
 			// ghosts on the center<->sun line (warm near the sun,

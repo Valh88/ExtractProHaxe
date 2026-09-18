@@ -60,6 +60,11 @@ class SunSystem extends System
 	/** Screen uv radius around the center where darkening has fully faded out. */
 	public static var ADAPT_CENTER_FALLOFF : Float = 0.30;
 
+	/** Draw the decorative sun disc mesh. Off by default: the sun is rendered
+	    purely by the screen-space glow/flare (LensFlare), leaving the disc as
+	    an optional aid — flip to true (or call setDiscVisible) to show it. */
+	public static var DISC_VISIBLE : Bool = true;
+
 	/** The directional sun light (main light, casts shadows). */
 	public var light(default, null) : h3d.scene.pbr.DirLight;
 	/** The decorative sun disc — emissive, casts nothing, follows the camera. */
@@ -138,6 +143,7 @@ class SunSystem extends System
 		// no light contribution, no shadows (meshForSun sets castShadows=false)
 		this.sunMesh = sunMesh;
 		sunMesh.setScale(SUN_RADIUS);
+		sunMesh.visible = DISC_VISIBLE;
 		scene.addChild(sunMesh);
 		sunPos = new h3d.Vector();
 		update(0);
@@ -156,6 +162,12 @@ class SunSystem extends System
 	public function setMovement(enabled : Bool)
 	{
 		movementEnabled = enabled;
+	}
+
+	/** Show/hide the decorative sun disc mesh at runtime. */
+	public function setDiscVisible(v : Bool)
+	{
+		if (sunMesh != null) sunMesh.visible = v;
 	}
 
 	/** Sun elevation: sin of the angle above the horizon (negative at night).
