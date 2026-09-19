@@ -8,8 +8,11 @@ import hxd.PixelFormat.RGBA16F;
     Full-screen additive pass that draws a row of lens ghosts along the
     screen-center→sun axis. The ghost chain is anchored to the sun's live
     projected position (sunUV), so it moves and rotates with the sun exactly.
-    Occlusion is a single depth probe at the sun: if geometry sits in front of
-    the disc the whole flare fades out. Runs BEFORE tonemapping (same step as
+    Occlusion is a 3x3 depth probe grid across the sun's silhouette — and each
+    ghost also probes its own screen position — so any geometry in front of the
+    sun fades the flare out; the tiny hot core additionally gets a tight probe
+    cluster of its own so it dies the moment geometry touches it.
+    Runs BEFORE tonemapping (same step as
     {@link DistanceFog}) so values > 1 feed the tone mapper and read as glare. */
 class LensFlareShader extends h3d.shader.ScreenShader
 {
@@ -58,17 +61,23 @@ class LensFlareShader extends h3d.shader.ScreenShader
 			var uv = calculatedUV;
 			var col = sceneColor.get(uv);
 
-			// occlusion: average several depth probes across the disc, so a
-			// partial cover fades the flare partially instead of a single point
-			// blocking the whole halo. uv radius is anisotropic (screen aspect).
+			// occlusion of the disc: a 3x3 grid of depth probes across the sun's
+			// silhouette (anisotropic to screen aspect), so a thin or partial
+			// cover — a wall, a pillar — fades the halo instead of shining
+			// through beside a hidden center probe
 			var rx = sunUvRadius / aspect;
 			var ry = sunUvRadius;
-			var occ = occlusionAt(sunUV);
-			occ += occlusionAt(sunUV + vec2(rx * 0.7, 0.0));
-			occ += occlusionAt(sunUV - vec2(rx * 0.7, 0.0));
-			occ += occlusionAt(sunUV + vec2(0.0, ry * 0.7));
-			occ += occlusionAt(sunUV - vec2(0.0, ry * 0.7));
-			occ /= 5.0;
+			var occ = 0.0;
+			occ += occlusionAt(sunUV + vec2(-rx, -ry));
+			occ += occlusionAt(sunUV + vec2(0.0, -ry));
+			occ += occlusionAt(sunUV + vec2(rx, -ry));
+			occ += occlusionAt(sunUV + vec2(-rx, 0.0));
+			occ += occlusionAt(sunUV);
+			occ += occlusionAt(sunUV + vec2(rx, 0.0));
+			occ += occlusionAt(sunUV + vec2(-rx, ry));
+			occ += occlusionAt(sunUV + vec2(0.0, ry));
+			occ += occlusionAt(sunUV + vec2(rx, ry));
+			occ /= 9.0;
 
 			// fade the whole flare as the sun leaves the frame
 			var edge = smoothstep(-0.2, 0.02, sunUV.x) * smoothstep(1.2, 0.98, sunUV.x)
@@ -76,27 +85,48 @@ class LensFlareShader extends h3d.shader.ScreenShader
 
 			var f = occ * edge * sunValid * inten;
 
+			// the hot core is TINY vs. the disc silhouette (core radius ~0.03
+			// screen height, disc ~0.11), so the 3x3 grid above barely reacts
+			// while geometry eats only the center of the sun — a wall can cover
+			// the point and the flare keeps glowing through it for a long
+			// travel until the WHOLE silhouette clears. Give the core its own
+			// tight probe cluster (just the disc core, ~the hot-core radius) so
+			// the point dies as soon as the geometry touches it.
+			// the hot core dies as soon as the geometry covers the sun's CENTER.
+			// The disc-wide grid above only reacts to the silhouette, so a wall
+			// sliding across the disc would keep the tiny point glowing far
+			// past the occlusion line — but EDGE probes are also wrong: while a
+			// low sun merely grazes the terrain horizon only the outer probes
+			// cross it, killing the point too early. The elevation gate (inten)
+			// is what fades the core at the horizon itself.
+			var coreOcc = occlusionAt(sunUV);
+			var coreF = coreOcc * edge * sunValid * inten;
+
 			var warm = vec3(1.0, 0.82, 0.52);
 			var cool = vec3(0.55, 0.70, 1.0);
 			var violet = vec3(0.85, 0.65, 1.0);
 
 			var flare = vec3(0.0);
 			// hot core: small, bright center so the sun still reads as a disc
-			// even with the mesh hidden (radius is in screen-height units)
-			flare += vec3(1.0, 0.95, 0.85) * 3.0 * ghost(uv, sunUV, 0.03, 5.0);
+			// even with the mesh hidden (radius is in screen-height units).
+			// Faded by coreF — dies on geometry touch, not after a full
+			// silhouette slide.
+			flare += vec3(1.0, 0.95, 0.85) * 3.0 * ghost(uv, sunUV, 0.03, 5.0) * coreF;
 			// main warm glow around the core (radius is in units of screen
 			// height; ~1.6x the visible disc so it reads as a halo around it)
-			flare += warm * 2.2 * ghost(uv, sunUV, 0.15, 4.0);
+			flare += warm * 2.2 * ghost(uv, sunUV, 0.15, 4.0) * coreF;
 			// ghosts on the center<->sun line (warm near the sun,
-			// cool/violet further out — cheap chromatic dispersion)
+			// cool/violet further out — cheap chromatic dispersion). Each ghost
+			// also probes its OWN position against the depth buffer, so geometry
+			// between the camera and the ghost kills it — no dot through walls.
 			var c = vec2(0.5, 0.5);
 			var dir = sunUV - c;
 			var gs = ghostScale;
-			flare += warm * 0.55 * ghost(uv, c + dir * 0.85, 0.030 * gs, 7.0);
-			flare += warm * 0.35 * ghost(uv, c + dir * 0.60, 0.018 * gs, 8.0);
-			flare += cool * 0.28 * ghost(uv, c + dir * 0.38, 0.012 * gs, 9.0);
-			flare += violet * 0.22 * ghost(uv, c + dir * 0.18, 0.008 * gs, 10.0);
-			flare += cool * 0.18 * ghost(uv, c - dir * 0.30, 0.010 * gs, 9.0);
+			flare += warm * 0.55 * ghost(uv, c + dir * 0.85, 0.030 * gs, 7.0) * occlusionAt(c + dir * 0.85);
+			flare += warm * 0.35 * ghost(uv, c + dir * 0.60, 0.018 * gs, 8.0) * occlusionAt(c + dir * 0.60);
+			flare += cool * 0.28 * ghost(uv, c + dir * 0.38, 0.012 * gs, 9.0) * occlusionAt(c + dir * 0.38);
+			flare += violet * 0.22 * ghost(uv, c + dir * 0.18, 0.008 * gs, 10.0) * occlusionAt(c + dir * 0.18);
+			flare += cool * 0.18 * ghost(uv, c - dir * 0.30, 0.010 * gs, 9.0) * occlusionAt(c - dir * 0.30);
 
 			pixelColor = col + vec4(flare * f, 0.0);
 		}
@@ -109,8 +139,11 @@ class LensFlare implements h3d.impl.RendererFX
 
 	/** Master HDR multiplier of the flare. */
 	public static var INTENSITY : Float = 1.0;
-	/** Below the horizon the flare fades: factor = 1 + elevation * ELEV_FADE. */
-	public static var ELEV_FADE : Float = 6.0;
+	/** Elevation (sunDir.y) fade: the halo is FULL right at the horizon and
+	    fades to zero a couple degrees BELOW it — factor = 1 + elevation*ELEV_FADE.
+	    This keeps the sun glowing until it actually sets, without lingering
+	    deep into the night (1/ELEV_FADE rad below the horizon = the fade band). */
+	public static var ELEV_FADE : Float = 30.0;
 	/** Screen uv margin (beyond the frame) where the edge fade starts. */
 	public static var EDGE_MARGIN : Float = 0.2;
 	/** Size multiplier for the ghost circles (1 = default, 0 = hidden). */
