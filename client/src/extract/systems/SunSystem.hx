@@ -1,5 +1,6 @@
 package extract.systems;
 
+import extract.controllers.DayNightController;
 import extract.gfx.DistanceFog;
 import extract.gfx.EyeAdaptation;
 import extract.gfx.LensFlare;

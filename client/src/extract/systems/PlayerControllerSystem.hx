@@ -3,10 +3,11 @@ package extract.systems;
 import h3d.Camera;
 import hxd.Key;
 
+import extract.controllers.CameraController;
+import extract.controllers.HeroVisualController;
+import extract.controllers.MovementController;
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
-import extract.utils.CameraController;
-import extract.utils.MovementController;
 import shared.GameData;
 import shared.Player;
 import shared.SimWorld;
