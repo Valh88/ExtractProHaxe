@@ -25,6 +25,49 @@ hl bin/server/serv.hl     # runs ~15s then exits (Config.SERVER_RUN_SECONDS)
 - Deps are dev-installed haxelibs: `heapsphysics` (provides `phys.*`), `oimophysics`, `heaps`, `format`.
 - Client build emits many `(WDeprecated) @:extern` warnings from oimophysics — harmless, not errors.
 
+## Template branch — reusable modules (`template`)
+
+Branch `template` is the accumulation point for **self-contained, reusable Haxe/Heaps
+modules** that get copied into other projects. It diverges from `master`; work on it
+directly, don't merge it back (no gameplay features belong here). A module qualifies when
+it can be dropped into a fresh project with only ordinary heaps deps and a `package`
+adjustment.
+
+### What already qualifies (self-contained, no project deps)
+
+- `client/src/extract/utils/animations/` — whole package: `Easing`, `AAnimation` + all
+  tweens (`VarTween`, `NumTween`, `MultiVarTween`, `ColorTween`, `AngleTween`), motions
+  (`Linear/Quad/Cubic/CircularMotion`, `LinearPath`, `QuadPath`), `SineAnimation`,
+  `AnimationController`. Imports only its own package — the cleanest template material.
+- `client/src/extract/gfx/` — post‑FX `h3d.impl.RendererFX`: `LensFlare`, `DistanceFog`,
+  `ScalableAO`, `EyeAdaptation`, `SettingsBlur`. Only h3d/hxd imports; `LensFlare`
+  optionally gets a `DistanceFog` (nullable). All knobs are `public static var` statics.
+- `client/src/extract/controllers/CameraController.hx`, `MovementController.hx` — deps are
+  `shared.IUpdate` (tiny interface) + `hxd.Key`; read cdb params through an optional
+  `?gd : GameData`, fail-soft to statics.
+
+### How a module becomes template material
+
+1. Strip project coupling: no imports of `extract.views`, `extract.fsm`, `extract.events`,
+   `extract.design`, `extract.models`, `extract.systems`, `shared.GameData` (hard),
+   `shared.events.EventBus`, `phys.*`, or rnl. `DayNightController.hx` is coupled to
+   `extract.gfx.DistanceFog` (nullable) + `h3d.Vector` — borderline, keep on master until
+   the fog ref is optional. `HeroVisualController.hx` imports fsm/models/events/GameData —
+   does NOT qualify.
+2. Move tunables to `public static var` on the class (project convention) with doc.
+3. Make side deps nullable/optional (e.g. `?fog : DistanceFog`) so no feature gets
+   force-pulled.
+4. Build check on both targets: `haxe win.hxml` and — since web strips rnl — `haxe web.hxml`
+   should succeed as long as the module isn't net-coupled.
+5. Commit to `template` directly (small commits, message style `up`), keep the original
+   file on `master` in sync if the module is still used there — or move it, updating
+   imports as done for the `controllers/` directory split.
+
+### Copying into another project
+
+Copy the module file + its package-local friends, sed the `package` line to the target
+namespace, add the hxml `-cp`. No hidden deps — that is the whole point of the branch.
+
 ## Networking — hx_rnl (RNL) + RPC layer
 
 Multiplayer prototype: **HL-only** (UDP/RNL). The web target has no UDP — all networking
