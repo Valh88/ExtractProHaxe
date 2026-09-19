@@ -61,6 +61,8 @@ class SunSystem extends System
 	public var lensFlare(default, null) : LensFlare;
 	/** Eye adaptation driven by this sun (owned by the system). */
 	public var eyeAdaptation(default, null) : EyeAdaptation;
+	/** Day/night look driver (background + fog + light power/color). */
+	public var dayNight(default, null) : DayNightController;
 	/** Seconds for one full cycle (0..2π of `sunAngle`). */
 	public var dayLength(default, null) : Float;
 	/** Sun path preset. */
@@ -131,6 +133,10 @@ class SunSystem extends System
 		sunDir = rays.clone().normalized();
 		sunDir.scale(-1);
 
+		// day/night look driver — derives phase from the sun elevation each
+		// frame, adjusts background, fog and light power/color (see class)
+		dayNight = new DayNightController(light, fog, scene);
+
 		// the visible sun comes from the entity factory — pure decoration,
 		// no light contribution, no shadows (meshForSun sets castShadows=false)
 		this.sunMesh = sunMesh;
@@ -200,6 +206,9 @@ class SunSystem extends System
 
 	override public function update(dt : Float)
 	{
+		// debug: N jumps a quarter-turn to scrub phases day->sunset->night->sunrise
+		if (hxd.Key.isPressed(hxd.Key.N))
+			sunAngle = (sunAngle + Math.PI / 2) % (Math.PI * 2);
 		if (movementEnabled)
 			sunAngle = (sunAngle + dt * (Math.PI * 2) / dayLength) % (Math.PI * 2);
 		applyOrbit();
@@ -259,5 +268,6 @@ class SunSystem extends System
 		sunMesh.z = cam.pos.z + z * SUN_DIST;
 		sunPos.set(sunMesh.x, sunMesh.y, sunMesh.z);
 		light.setDirection(new Vector(-x, -y, -z));
+		if (dayNight != null) dayNight.apply(sunDir, sunAngle);
 	}
 }

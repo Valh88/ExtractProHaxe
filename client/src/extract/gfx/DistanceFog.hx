@@ -69,6 +69,12 @@ class DistanceFog implements h3d.impl.RendererFX
 		s.fogHeightFalloff = fogHeightFalloff;
 	}
 
+	/** Change the fog color at runtime (driven by the day/night cycle). */
+	public function setColor(c : Int)
+	{
+		fx.shader.fogColor.setColor(c);
+	}
+
 	public function start(r : h3d.scene.Renderer)
 	{
 		enabled = Std.isOfType(r, h3d.scene.pbr.Renderer);
