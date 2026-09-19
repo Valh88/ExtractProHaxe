@@ -202,6 +202,7 @@ class PlayerDamaged
 	}
 }
 
+#if sys
 /**
 	Server-only: a per-player entity (HeroObject) was created by a system
 	and placed in `sim.heroEnts`. The room's transport subscribes to this
@@ -244,6 +245,7 @@ class EntityNetRemoved
 		this.obj = obj;
 	}
 }
+#end
 
 /**
 	Client-only: player toggled ADS (aim-down-sights).

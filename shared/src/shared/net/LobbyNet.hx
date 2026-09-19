@@ -1,3 +1,4 @@
+#if sys
 package shared.net;
 
 import rnl.net.NetworkSerializable;
@@ -65,3 +66,4 @@ class LobbyNet extends NetworkSerializable
 	/** Client-side hook: received a fresh roster snapshot. */
 	public var onRoster : Null<Array<PlayerInfo> -> Void> = null;
 }
+#end

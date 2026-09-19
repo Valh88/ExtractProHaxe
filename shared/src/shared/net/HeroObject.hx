@@ -1,3 +1,4 @@
+#if sys
 package shared.net;
 
 import rnl.net.NetworkSerializable;
@@ -44,3 +45,4 @@ class HeroObject extends NetworkSerializable
 		__syncChannel = 1;
 	}
 }
+#end

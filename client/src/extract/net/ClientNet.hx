@@ -1,13 +1,5 @@
 package extract.net;
 
-import rnl.net.NetworkSerializable;
-import shared.net.NetConfig;
-import shared.net.NetRegistry;
-
-import rnl.net.SocketHost;
-import rnl.Address;
-import rnl.Enums.ChannelType;
-
 /**
 	Client-side networking (HL only, `#if sys`). General-purpose socket
 	transport: connects to a server, polls the socket, tracks mirror arrival,
@@ -39,18 +31,26 @@ class ClientNet
 	public function dispose() : Void {}
 
 	/** Generic mirror search — returns null on the web stub. */
-	public function findMirror<T:NetworkSerializable>(cls : Class<T>) : Null<T>
+	public function findMirror<T>(cls : Class<T>) : Null<T>
 	{
 		return null;
 	}
 
 	/** All mirrored objects of `cls` — empty array on the web stub. */
-	public function findObjects<T:NetworkSerializable>(cls : Class<T>) : Array<T>
+	public function findObjects<T>(cls : Class<T>) : Array<T>
 	{
 		return [];
 	}
 }
 #else
+import rnl.net.NetworkSerializable;
+import shared.net.NetConfig;
+import shared.net.NetRegistry;
+
+import rnl.net.SocketHost;
+import rnl.Address;
+import rnl.Enums.ChannelType;
+
 class ClientNet
 {
 	/** The single active socket host of the current scene. */

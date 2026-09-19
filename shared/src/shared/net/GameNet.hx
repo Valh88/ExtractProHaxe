@@ -1,3 +1,4 @@
+#if sys
 package shared.net;
 
 import rnl.net.NetworkSerializable;
@@ -99,3 +100,4 @@ class GameNet extends NetworkSerializable
 		if (onBulletHit != null) onBulletHit(ownerId, victimId, x, y, z);
 	}
 }
+#end

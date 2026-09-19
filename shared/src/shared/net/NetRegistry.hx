@@ -1,3 +1,4 @@
+#if sys
 package shared.net;
 
 import rnl.net.Registry;
@@ -29,3 +30,4 @@ class NetRegistry
 		Registry.getCLID(Type.getClassName(HeroObject));
 	}
 }
+#end

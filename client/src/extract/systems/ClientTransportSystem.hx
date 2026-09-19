@@ -1,3 +1,4 @@
+#if sys
 package extract.systems;
 
 import shared.GameData;
@@ -55,3 +56,4 @@ class ClientTransportSystem extends System
 		super.dispose();
 	}
 }
+#end

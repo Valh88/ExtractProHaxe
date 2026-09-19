@@ -1,3 +1,4 @@
+#if sys
 package shared.net;
 
 import rnl.net.Serializable;
@@ -17,3 +18,4 @@ class PlayerInfo extends Serializable
 		if (ready != null) this.ready = ready;
 	}
 }
+#end

@@ -5,8 +5,10 @@ import phys.core.PhysBody;
 import shared.Player;
 import shared.events.EventBus;
 import shared.events.GameEvents.HeroMoveIntent;
+#if sys
 import shared.events.GameEvents.EntityNetSpawned;
 import shared.events.GameEvents.EntityNetRemoved;
+#end
 import shared.GameData;
 import shared.systems.System;
 
