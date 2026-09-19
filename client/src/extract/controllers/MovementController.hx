@@ -1,4 +1,4 @@
-package extract.utils;
+package extract.controllers;
 
 import hxd.Key;
 

@@ -1,11 +1,11 @@
-package extract.systems;
+package extract.controllers;
 
 import extract.fsm.GameplayMode;
 import extract.fsm.GameplayState;
 import extract.events.ClientEvents.LocalHeroSpawned;
 import extract.models.HeroVisual;
-import extract.utils.CameraController;
-import extract.utils.MovementController;
+import extract.controllers.CameraController;
+import extract.controllers.MovementController;
 import extract.utils.animations.AnimationController;
 import extract.utils.animations.SineAnimation;
 import shared.GameData;

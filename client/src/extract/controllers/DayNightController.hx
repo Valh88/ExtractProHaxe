@@ -1,4 +1,4 @@
-package extract.systems;
+package extract.controllers;
 
 import extract.gfx.DistanceFog;
 import h3d.Vector;
