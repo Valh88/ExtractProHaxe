@@ -55,6 +55,13 @@ class DayNightController
 	public static var DAY_COLOR : Vector = new Vector(1.0, 0.97, 0.92);
 	public static var SUNSET_COLOR : Vector = new Vector(1.0, 0.62, 0.30);
 	public static var NIGHT_COLOR : Vector = new Vector(0.12, 0.16, 0.35);
+	/** Renderer environment (IBL) strength per phase. Heaps PBR keeps an
+	    environment map on the renderer (`Environment.getDefault()`) and shades
+	    every surface with it unconditionally — that is the flat ambient glow
+	    that stays even when the sun power hits 0. It MUST dim with night or
+	    "dark" never becomes dark. 1.0 = default env at full strength. */
+	public static var DAY_ENV_POWER : Float = 1.0;
+	public static var NIGHT_ENV_POWER : Float = 0.0;
 
 	/** Elevation (sunDir.y) band in which twilight is active. */
 	public static var TWILIGHT_ELEV : Float = 0.02;
@@ -62,6 +69,8 @@ class DayNightController
 	var light : h3d.scene.pbr.DirLight;
 	var fog : Null<DistanceFog>;
 	var scene : h3d.scene.Scene;
+	var envPowerBase : Float = 1.0;
+	var envBaseCaptured : Null<Float> = null;
 
 	/** Current time-of-day phase (updated every {@link apply} call). */
 	public var phase(default, null) : DayPhase = Day;
@@ -107,6 +116,25 @@ class DayNightController
 		var c = lerpVec(NIGHT_COLOR, DAY_COLOR, dayT);
 		c = lerpVec(c, SUNSET_COLOR, warm);
 		light.color.set(c.x, c.y, c.z);
+
+		// dim the renderer's indirect (IBL/env) light with the same envelope —
+		// heaps PBR keeps a default environment map around and shades every
+		// surface with it even when the direct sun light is off; without this
+		// the scene never goes black no matter how dark the palette gets
+		var pbr = Std.downcast(scene.renderer, h3d.scene.pbr.Renderer);
+		if (pbr != null && pbr.env != null)
+		{
+			// capture the user/env base strength once (the default env is 1.0,
+			// but another scene may swap in a custom env) — the per-frame value
+			// then only scales, never clamps, that base
+			if (envBaseCaptured == null)
+			{
+				envBaseCaptured = pbr.env.power;
+				envPowerBase = envBaseCaptured;
+			}
+			var envPower = envPowerBase * lerp(NIGHT_ENV_POWER, DAY_ENV_POWER, dayT);
+			pbr.env.power = envPower;
+		}
 	}
 
 	static function computePhase(y : Float, sunAngle : Float) : DayPhase

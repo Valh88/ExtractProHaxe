@@ -45,6 +45,9 @@ class SunSystem extends System
 	public static var DEFAULT_DAY_LENGTH : Float = 600;
 	/** Phase: sunAngle == 0 puts the sun at its noon peak. */
 	public static var START_ANGLE : Float = 0;
+	/** How many times faster the sun orbits while the debug scrub key (N)
+	    is held down, vs. the normal `dayLength` pace. */
+	public static var SCRUB_SPEED_MULT : Float = 20;
 
 	/** Draw the decorative sun disc mesh. Off by default: the sun is rendered
 	    purely by the screen-space glow/flare (LensFlare), leaving the disc as
@@ -206,10 +209,11 @@ class SunSystem extends System
 
 	override public function update(dt : Float)
 	{
-		// debug: N jumps a quarter-turn to scrub phases day->sunset->night->sunrise
-		if (hxd.Key.isPressed(hxd.Key.N))
-			sunAngle = (sunAngle + Math.PI / 2) % (Math.PI * 2);
-		if (movementEnabled)
+		// debug: hold N to fast-scrub phases day->sunset->night->sunrise at
+		// SCRUB_SPEED_MULT x the normal pace (no more instant quarter-jumps)
+		if (movementEnabled && hxd.Key.isDown(hxd.Key.N))
+			sunAngle = (sunAngle + dt * (Math.PI * 2) / dayLength * SCRUB_SPEED_MULT) % (Math.PI * 2);
+		else if (movementEnabled)
 			sunAngle = (sunAngle + dt * (Math.PI * 2) / dayLength) % (Math.PI * 2);
 		applyOrbit();
 	}
