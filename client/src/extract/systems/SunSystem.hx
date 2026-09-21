@@ -4,6 +4,7 @@ import extract.controllers.DayNightController;
 import extract.gfx.DistanceFog;
 import extract.gfx.EyeAdaptation;
 import extract.gfx.LensFlare;
+import extract.gfx.SunGlow;
 import h3d.Vector;
 import shared.GameData;
 import shared.events.EventBus;
@@ -63,6 +64,9 @@ class SunSystem extends System
 	public var sunPos(default, null) : h3d.Vector;
 	/** Screen-space lens flare driven by this sun (owned by the system). */
 	public var lensFlare(default, null) : LensFlare;
+	/** Screen-space sky glow («зарево») for sunrise/sunset (owned by the
+	    system) — sky-only, stacks additively after the flare. */
+	public var sunGlow(default, null) : SunGlow;
 	/** Eye adaptation driven by this sun (owned by the system). */
 	public var eyeAdaptation(default, null) : EyeAdaptation;
 	/** Day/night look driver (background + fog + light power/color). */
@@ -156,6 +160,13 @@ class SunSystem extends System
 		lensFlare.sunPos = sunPos;
 		lensFlare.elevationSource = elevation;
 
+		// sky glow («зарево») for sunrise/sunset — additive, single shared
+		// effect for both phases, driven by the same sun elevation. Pushed
+		// AFTER the flare so its additive copy stacks on the flared frame.
+		sunGlow = new SunGlow();
+		sunGlow.sunPos = sunPos;
+		sunGlow.elevationSource = elevation;
+
 		// eye adaptation also shares the live sun position/direction; it drives
 		// the renderer exposure itself on every frame (no update() call needed)
 		eyeAdaptation = new EyeAdaptation();
@@ -166,6 +177,7 @@ class SunSystem extends System
 		if (renderer != null)
 		{
 			renderer.effects.push(lensFlare);
+			renderer.effects.push(sunGlow);
 			renderer.effects.push(eyeAdaptation);
 		}
 	}
@@ -198,6 +210,12 @@ class SunSystem extends System
 			if (scene.renderer != null) scene.renderer.effects.remove(eyeAdaptation);
 			eyeAdaptation.dispose();
 			eyeAdaptation = null;
+		}
+		if (sunGlow != null)
+		{
+			if (scene.renderer != null) scene.renderer.effects.remove(sunGlow);
+			sunGlow.dispose();
+			sunGlow = null;
 		}
 		if (lensFlare != null)
 		{
