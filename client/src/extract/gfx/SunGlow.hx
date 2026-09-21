@@ -50,14 +50,19 @@ class SunGlowShader extends h3d.shader.ScreenShader
 		@param var glowColor : Vec3;
 		/** Master glow strength (envelope-scaled on the CPU). */
 		@param var inten : Float;
-		/** Screen width/height — keeps the halo circular. */
+		/** Screen width/height — keeps the dome round. */
 		@param var aspect : Float;
-		/** Halo radius in screen-height units. */
-		@param var haloRadius : Float;
-		/** Horizon band vertical half-height in texture uv. */
-		@param var bandHeight : Float;
-		/** Horizon band horizontal half-width in texture uv. */
-		@param var bandWidth : Float;
+		/** Dome radius in screen-height units (rises this far above the
+		    horizon — top of the glow sits ABOVE the sun). */
+		@param var domeRadius : Float;
+		/** Horizontal stretch of the dome: 1.0 = round, >1 = oval wider than
+		    tall (the classic зарево shape), <1 = narrower. */
+		@param var domeStretch : Float;
+		/** Softness of the dome edge (higher = sharper cut at radius). */
+		@param var domeFalloff : Float;
+		/** Vertical extent (texture uv) over which the dome fades out just
+		    below the horizon line, so it never bleeds onto the ground. */
+		@param var hGateWidth : Float;
 		/** Distance (m) where "sky" starts for the depth mask. */
 		@param var skyMinDist : Float;
 		/** Distance (m) at which the depth mask is fully "sky". */
@@ -67,16 +72,11 @@ class SunGlowShader extends h3d.shader.ScreenShader
 		@param var litSurfaces : Float;
 
 		/** Soft radial lamp: 1 at `center`, 0 at `radius` (radius in
-		    screen-height units; aspect-corrected). */
-		function lamp(uv : Vec2, center : Vec2, radius : Float, falloff : Float) : Float {
-			var d = (uv - center) * vec2(aspect, 1.0);
+		    screen-height units; aspect-corrected). `xStretch` widens the
+		    shape horizontally: 1.0 = round, >1 = oval wider than tall. */
+		function lamp(uv : Vec2, center : Vec2, radius : Float, falloff : Float, xStretch : Float) : Float {
+			var d = (uv - center) * vec2(aspect / max(xStretch, 0.0001), 1.0);
 			return pow(max(1.0 - length(d) / radius, 0.0), falloff);
-		}
-
-		/** Vertical/horizontal gaussian-ish band falloff via smoothstep. */
-		function band(offset : Float, halfWidth : Float) : Float {
-			var t = abs(offset) / max(halfWidth, 0.0001);
-			return 1.0 - smoothstep(0.0, 1.0, t);
 		}
 
 		function fragment() {
@@ -92,19 +92,26 @@ class SunGlowShader extends h3d.shader.ScreenShader
 			var sky = smoothstep(skyMinDist, skyMaxDist, dist);
 			var gate = mix(sky, 1.0, litSurfaces);
 
+			// above-horizon gate: the dome is a SEMICIRCLE — only light pixels
+			// UP from the horizon line. horizonY is the projected horizon at
+			// the sun's azimuth (y is down in uv, so "above" = smaller y).
+			// 1 from the line up, softened into a fade just below it so the
+			// ground edge isn't hard-cut.
+			var above = horizonY - uv.y;
+			var hGate = smoothstep(-hGateWidth, 0.0, above);
+
 			// elevation envelope: peak right at the horizon, fade both into
 			// the day and the night — one formula for sunrise AND sunset
 			var env = 1.0 - smoothstep(0.0, maxElev, abs(elev));
 
-			// the halo around the projected sun (wide, soft — reads as зарево)
-			var halo = sunValid * lamp(uv, sunUV, haloRadius, 5.0);
-			// the horizon band: hugs the horizon line, strongest on the side
-			// of the sun's azimuth, fading sideways and downwards
-			var bandF = horizonValid * band(uv.y - horizonY, bandHeight)
-				* band(uv.x - horizonX, bandWidth);
+			// the dome («зарево»): a semicircle of light standing on the
+			// horizon point at the sun's azimuth, brightest at its base and
+			// fading up-and-out — oval, stretched WIDER than tall (xStretch),
+			// its top rises ABOVE the projected sun, so the glow surrounds the
+			// disc on the sky side.
+			var dome = hGate * lamp(uv, vec2(horizonX, horizonY), domeRadius, domeFalloff, domeStretch);
 
-			var glow = glowColor * inten * env * gate
-				* (halo + bandF * 2.0);
+			var glow = glowColor * inten * env * gate * dome * horizonValid;
 
 			// additive copy is done by the class "end" — here we output purely
 			// the glow contribution, the Copy pass adds it onto the frame.
@@ -120,12 +127,18 @@ class SunGlow implements h3d.impl.RendererFX
 
 	/** Master strength of the whole glow. */
 	public static var INTENSITY : Float = 1.0;
-	/** Radial extent of the halo around the sun, in screen-height units. */
-	public static var HALO_RADIUS : Float = 0.35;
-	/** Vertical half-height of the horizon band in texture uv. */
-	public static var BAND_HEIGHT : Float = 0.05;
-	/** Horizontal half-width of the horizon band in texture uv. */
-	public static var BAND_WIDTH : Float = 0.45;
+	/** Radius of the dome («зарево») in screen-height units — it stands on the
+	    horizon at the sun's azimuth and reaches this far up, so its rim sits
+	    ABOVE the projected sun (0.7 → the glow rises past the disc). */
+	public static var DOME_RADIUS : Float = 0.7;
+	/** Horizontal stretch of the dome: 1.0 = round, 2.0 = oval twice as wide
+	    as tall (the classic зарево shape). */
+	public static var DOME_STRETCH : Float = 2.0;
+	/** Edge softness of the dome (3 = soft, 10 = crisp rim). */
+	public static var DOME_FALLOFF : Float = 3.0;
+	/** Width (texture uv) of the soft fade just below the horizon, so the dome
+	    never bleeds onto the ground. */
+	public static var H_GATE_WIDTH : Float = 0.02;
 	/** Elevation (sunDir.y) range over which the glow fades from its peak at
 	    the horizon (elev = 0) to nothing. ±0.15 ≈ ±8.6° — enough for the
 	    colorful part of sunrise/sunset, gone in deep day/night. */
@@ -218,9 +231,10 @@ class SunGlow implements h3d.impl.RendererFX
 		s.maxElev = MAX_ELEV;
 		s.glowColor.setColor(GLOW_COLOR);
 		s.aspect = w / h;
-		s.haloRadius = HALO_RADIUS;
-		s.bandHeight = BAND_HEIGHT;
-		s.bandWidth = BAND_WIDTH;
+		s.domeRadius = DOME_RADIUS;
+		s.domeStretch = DOME_STRETCH;
+		s.domeFalloff = DOME_FALLOFF;
+		s.hGateWidth = H_GATE_WIDTH;
 		s.skyMinDist = SKY_MIN_DIST;
 		s.skyMaxDist = SKY_MAX_DIST;
 		s.litSurfaces = LIT_SURFACES ? 1.0 : 0.0;
