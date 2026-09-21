@@ -100,13 +100,12 @@ class LensFlareShader extends h3d.shader.ScreenShader
 
 			// the hot core is TINY vs. the disc silhouette (core radius ~0.03
 			// screen height, disc ~0.11), so the 3x3 grid above barely reacts
-			// while geometry eats only the center of the sun. LEGACY mode gives
-			// the core its own single center probe (`coreF`), so the point dies
-			// the moment geometry touches the sun's center. DEFAULT mode skips it
-			// (coreF=1): the core rides the same thresholded `f`, so it only
-			// hides under substantial cover, exactly like the rest of the flare.
+			// while geometry eats only the center of the sun. The core therefore
+			// ALWAYS probes its own center: it dies the moment geometry touches
+			// the sun's projected center — no small hot dot shining through
+			// pillars/walls while the sun is only partially covered.
 			var coreOcc = occlusionAt(sunUV);
-			var coreF = mix(coreOcc * edge * sunValid * inten, 1.0, useThreshold);
+			var coreF = coreOcc * edge * sunValid * inten;
 
 			var warm = vec3(1.0, 0.82, 0.52);
 			var cool = vec3(0.55, 0.70, 1.0);
@@ -116,11 +115,15 @@ class LensFlareShader extends h3d.shader.ScreenShader
 			// hot core: small, bright center so the sun still reads as a disc
 			// even with the mesh hidden (radius is in screen-height units).
 			// Faded by coreF — dies on geometry touch, not after a full
-			// silhouette slide.
+			// silhouette slide. A thin branch covering the center kills the
+			// tiny dot but leaves the wide halo below alive.
 			flare += vec3(1.0, 0.95, 0.85) * 3.0 * ghost(uv, sunUV, 0.03, 5.0) * coreF;
 			// main warm glow around the core (radius is in units of screen
-			// height; ~1.6x the visible disc so it reads as a halo around it)
-			flare += warm * 2.2 * ghost(uv, sunUV, 0.15, 4.0) * coreF;
+			// height; ~1.6x the visible disc so it reads as a halo around it).
+			// Rides the thresholded 3×3 grid `f` (NOT coreF): a thin branch
+			// only eats the center probe — the big halo survives. It only
+			// fades once ~half the silhouette is covered.
+			flare += warm * 2.2 * ghost(uv, sunUV, 0.15, 4.0) * f;
 			// ghosts on the center<->sun line (warm near the sun,
 			// cool/violet further out — cheap chromatic dispersion). Each ghost
 			// also probes its OWN position against the depth buffer, so geometry
@@ -149,12 +152,10 @@ class LensFlareShader extends h3d.shader.ScreenShader
  *   1. Disc grid — 3×3 probes across the sun's silhouette (anisotropic to
  *      screen aspect). Partial cover (a wall, a pillar) fades the halo instead
  *      of shining through beside a single hidden probe.
- *   2. Hot core — gated by {@link USE_THRESHOLD_OCCLUSION}:
- *      DEFAULT (true): the core rides the SAME thresholded disc fraction as the
- *      rest of the flare — a thin pole hiding only the center pixel does NOT
- *      kill the sun; it only fades once ~half the silhouette is covered.
- *      LEGACY (false): the core has its own single center probe and dies the
- *      moment geometry touches the sun's CENTER.
+ *   2. Hot core — ALWAYS its own single center probe: it dies the moment
+ *      geometry touches the sun's projected center, so the tiny bright dot
+ *      never shines through pillars/walls while the sun is partially occluded
+ *      (the bigger halo around it still rides the thresholded grid).
  *   3. Ghosts — each ghost probes its own screen position, so walls between
  *      the camera and a ghost kill it (no dot through geometry).
  *
@@ -193,11 +194,13 @@ class LensFlare implements h3d.impl.RendererFX
 	public static var EDGE_MARGIN : Float = 0.2;
 	/** Size multiplier for the ghost circles (1 = default, 0 = hidden). */
 	public static var GHOST_SCALE : Float = 5.0;
-	/** Occlusion flavour for the hot core. TRUE (default): the core rides the
-	    thresholded disc fraction (smoothstep(0.4,0.7,·)) — a thin pole covering
+	/** Occlusion flavour for the main halo/grid. TRUE (default): the disc
+	    fraction is remapped through smoothstep(0.4,0.7,·) — a thin pole covering
 	    only the center pixel does NOT kill the sun, it only fades once ~half
-	    the silhouette is covered. FALSE (legacy): the core has its own single
-	    center probe and dies the moment geometry touches the sun's center. */
+	    the silhouette is covered. FALSE (legacy): raw average of the 3×3 probes.
+	    The TINY hot core is NOT affected by this flag — it always uses its own
+	    single center probe and dies the moment geometry touches the sun center
+	    (so no small dot shines through objects). */
 	public static var USE_THRESHOLD_OCCLUSION : Bool = true;
 
 	/** World-space sun position (shared ref, mutated each frame by SunSystem). */
