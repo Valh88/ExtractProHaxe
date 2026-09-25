@@ -69,6 +69,12 @@ class Room implements IUpdate
 	/** World physics logger (set by the room itself; dumped each tick). */
 	public var logger : Null<StateLogger> = null;
 
+	/** Room-logic time accumulated since the last sim tick. roomSystems must
+		advance in REAL time, but tick() calls them only on sim-tick rounds —
+		the host feeds tiny per-round dts (spin loop), so the accumulated
+		budget between ticks is what roomSystems.update receives. */
+	var logicDt : Float = 0;
+
 	/** Wall-clock accumulated run time of this room. */
 	public var time(default, null) : Float = 0;
 
@@ -93,6 +99,8 @@ class Room implements IUpdate
 		this.gameNet = new GameNet();
 		netSys.socket.add(gameNet);
 		roomSystems.add(new ServerTransportSystem(bus, gd, gameNet));
+		// sun phase authority: broadcasts the orbit phase to all clients
+		roomSystems.add(new serv.systems.SunSyncSystem(bus, gd, gameNet));
 		if (withWorld)
 			this.world = createWorld(gd, bus);
 	}
@@ -143,9 +151,17 @@ class Room implements IUpdate
 
 		var before = w.phys.tickCount();
 		w.update(dt); // sim systems of the world (PhysCore fixed 30 Hz)
+		logicDt += dt;
 		if (logger != null) logger.dump(dt); // world physics log, ~once per second
 		if (w.phys.tickCount() > before)
-			roomSystems.update(dt); // server-only room logic, aligned to sim ticks
+		{
+			// server-only room logic, aligned to sim ticks but advancing in
+			// REAL time: the host's per-round dt is ~1-2 ms (spin loop) while
+			// a sim tick happens only every ~33 ms — passing the per-round dt
+			// would run room logic ~20x slower than the wall clock.
+			roomSystems.update(logicDt);
+			logicDt = 0;
+		}
 		bus.flush(); // deliver events queued by RPC handlers / sim systems
 	}
 

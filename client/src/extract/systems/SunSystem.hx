@@ -8,6 +8,7 @@ import extract.gfx.SunGlow;
 import h3d.Vector;
 import shared.GameData;
 import shared.events.EventBus;
+import shared.events.GameEvents.SunSynced;
 import shared.systems.System;
 
 /** Sun path preset. `Circle` (default) is a full great-circle orbit — the sun
@@ -180,6 +181,20 @@ class SunSystem extends System
 			renderer.effects.push(sunGlow);
 			renderer.effects.push(eyeAdaptation);
 		}
+
+		// server-authoritative phase: connected rooms sync the orbit phase
+		// periodically (SunSyncSystem); between syncs this system keeps
+		// advancing locally (dead reckoning), so corrections are tiny
+		bus.subscribe(SunSynced, onSunSynced);
+	}
+
+	/** Apply the server's authoritative phase (GameNet.sunUpdate relay).
+		A hard set is fine: with matched dayLength the correction is the
+		drift accumulated over one sync interval (< ~1.2° at a 600 s cycle). */
+	function onSunSynced(e : SunSynced) : Void
+	{
+		sunAngle = e.sunAngle % (Math.PI * 2);
+		if (e.dayLength > 0) dayLength = e.dayLength;
 	}
 
 	/** Turn sun motion on/off. When disabled the sun keeps its current
@@ -205,6 +220,7 @@ class SunSystem extends System
 
 	override public function dispose()
 	{
+		bus.unsubscribe(SunSynced, onSunSynced);
 		if (eyeAdaptation != null)
 		{
 			if (scene.renderer != null) scene.renderer.effects.remove(eyeAdaptation);

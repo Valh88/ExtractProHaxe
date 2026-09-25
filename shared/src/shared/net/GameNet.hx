@@ -42,6 +42,11 @@ class GameNet extends NetworkSerializable
 		= hero pid or world body name, world-space impact point). */
 	public var onBulletHit : Null<String -> String -> Float -> Float -> Float -> Void> = null;
 
+	/** Client handler: authoritative sun phase from the server's SunSyncSystem
+		(sunAngle 0..2π, 0 = noon peak, + dayLength in seconds per full cycle).
+		Clients keep advancing the phase locally between syncs (dead reckoning). */
+	public var onSunUpdate : Null<Float -> Float -> Void> = null;
+
 	public function new()
 	{
 		super();
@@ -98,6 +103,14 @@ class GameNet extends NetworkSerializable
 	public function bulletHit(ownerId : String, victimId : String, x : Float, y : Float, z : Float) : Void
 	{
 		if (onBulletHit != null) onBulletHit(ownerId, victimId, x, y, z);
+	}
+
+	/** Server -> clients: authoritative sun phase (SunSyncSystem broadcasts it
+		periodically; clients dead-reckon locally between syncs). */
+	@:rpc(clients)
+	public function sunUpdate(sunAngle : Float, dayLength : Float) : Void
+	{
+		if (onSunUpdate != null) onSunUpdate(sunAngle, dayLength);
 	}
 }
 #end

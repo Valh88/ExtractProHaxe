@@ -278,3 +278,22 @@ class StatsUpdate
 		this.pingMs = pingMs;
 	}
 }
+
+/**
+	Client-only: authoritative sun phase from the server's SunSyncSystem
+	(relayed by RoomNetSystem from the GameNet mirror's sunUpdate rpc).
+	`sunAngle` is the orbit phase 0..2π (0 = noon peak), `dayLength` the
+	seconds for one full cycle. Consumers (SunSystem) apply the phase and
+	keep advancing locally between syncs (dead reckoning).
+**/
+class SunSynced
+{
+	public var sunAngle : Float;
+	public var dayLength : Float;
+
+	public function new(sunAngle : Float, dayLength : Float)
+	{
+		this.sunAngle = sunAngle;
+		this.dayLength = dayLength;
+	}
+}

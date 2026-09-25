@@ -18,6 +18,7 @@ import shared.events.GameEvents.BulletHit;
 import shared.events.GameEvents.BulletSpawned;
 import shared.events.GameEvents.PlayerDamaged;
 import shared.events.GameEvents.PlayerJoined;
+import shared.events.GameEvents.SunSynced;
 import shared.net.GameNet;
 import shared.net.LobbyNet;
 import shared.net.PlayerInfo;
@@ -88,6 +89,7 @@ class RoomNetSystem extends System
 			gameNet.onBulletSpawn = (owner, x, y, z, dx, dy, dz) -> bus.publish(new BulletSpawned(owner, x, y, z, dx, dy, dz));
 			gameNet.onDamage = (pid, amount) -> bus.publish(new PlayerDamaged(pid, amount));
 			gameNet.onBulletHit = (owner, victim, x, y, z) -> bus.publish(new BulletHit(owner, victim, x, y, z));
+			gameNet.onSunUpdate = (angle, dayLen) -> bus.publish(new SunSynced(angle, dayLen));
 		}
 	}
 
