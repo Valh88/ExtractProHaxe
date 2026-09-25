@@ -25,6 +25,14 @@ import shared.systems.System;
 **/
 class PlayerControllerSystem extends System
 {
+	/**
+		Bullet spawn distance in front of the camera eye ("muzzle"). The shot
+		is published from `eye + dir * MUZZLE_AHEAD` and the SERVER spawns the
+		bullet at exactly those coordinates (fireBullet RPC carries them), so
+		client and server always agree on the spawn point. Tune by eye.
+	**/
+	public static var MUZZLE_AHEAD : Float = 0.5;
+
 	/** Hero visual controller (self-binds on LocalHeroSpawned bus event). */
 	public var heroVisCtrl(default, null) : HeroVisualController;
 
@@ -161,17 +169,18 @@ class PlayerControllerSystem extends System
 			shootRequested = false;
 			if (heroVisCtrl.hero != null)
 			{
-				var p = heroVisCtrl.hero.bodyMesh.getAbsPos();
-				var eyeY = p.ty + camCtrl.eyeHeight;
+				// spawn ahead of the eye along the AIM direction (camera yaw/pitch,
+				// NOT the smoothed weapon rotation) — the tracer starts at the
+				// "muzzle" (see MUZZLE_AHEAD) and lands exactly on the crosshair
+				var e = camCtrl.eye;
 				var cp = Math.cos(camCtrl.pitch);
 				var fx = -Math.sin(camCtrl.yaw) * cp;
 				var fy = Math.sin(camCtrl.pitch);
 				var fz = -Math.cos(camCtrl.yaw) * cp;
-				var sa = heroVisCtrl.spawnAhead;
 				bus.publish(new BulletFired(Player.LOCAL,
-					p.tx + fx * sa,
-					eyeY + fy * sa,
-					p.tz + fz * sa,
+					e.x + fx * MUZZLE_AHEAD,
+					e.y + fy * MUZZLE_AHEAD,
+					e.z + fz * MUZZLE_AHEAD,
 					fx, fy, fz));
 			}
 		}

@@ -27,9 +27,6 @@ class HeroVisualController
 {
 	public var hero(default, null) : Null<HeroVisual>;
 
-	/** Bullet spawn clearance along the fire direction (cached from cdb). */
-	public var spawnAhead : Float = 0.6;
-
 	// --- ADS ---
 	public var adsBlend(default, null) : Float = 0;
 	var defaultFov : Float = 75;
@@ -90,7 +87,6 @@ class HeroVisualController
 		adsSensMult = gd.req("Camera", "adsSensMult");
 		defaultSensitivity = gd.req("Camera", "sensitivity");
 		weaponSmooth = gd.req("Camera", "weaponSmooth");
-		spawnAhead = gd.req("Hero", "heroRadius") + gd.req("Bullet", "radius") + 0.05;
 
 		// reset weapon smoothing state
 		sWpnPitch = 0;

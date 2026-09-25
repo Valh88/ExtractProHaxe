@@ -223,7 +223,7 @@
 			"lines": [
 				{
 					"id": "default",
-					"radius": 0.15,
+					"radius": 0.003,
 					"speed": 25,
 					"cooldown": 0.25,
 					"lifetime": 10

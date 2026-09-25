@@ -14,10 +14,13 @@ import h3d.scene.Object;
 **/
 class BulletVisual extends Object
 {
-	/** Tracer length in meters (cylinder part; the caps add 2 × bullet radius). */
-	public static var TRACER_LENGTH : Float = 0.7;
+	/**
+		Real-caliber tracer (AK-74M — 5.45mm): cross-section = bullet body
+		radius from cdb, streak length in meters. Tune by eye.
+	**/
+	public static var TRACER_LENGTH : Float = 0.15;
 	/** Glow intensity of the tracer (PropsValues emissiveValue). */
-	public static var EMISSIVE : Float = 0.8;
+	public static var EMISSIVE : Float = 1.0;
 
 	/** The rendered tracer mesh — child node carrying the flight rotation. */
 	public var mesh(default, null) : Mesh;
