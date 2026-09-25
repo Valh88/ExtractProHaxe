@@ -17,9 +17,13 @@ import shared.systems.System;
 	(no gravity), and removes it on hit or lifetime expiry.
 
 	Hit detection — two paths, one VERDICT:
-	- WORLD hits (floor/cubes) come from physics (BULLET mask = WORLD). The
-	  contact callback destroys the bullet locally on every sim that has it.
-	  On the server (`isServer`) it ALSO publishes a BulletHit verdict.
+	- WORLD hits (floor/cubes): a CONVEX-CAST sweep of the bullet sphere
+	  along each tick's travel segment. At realistic speeds (150-200 m/s =
+	  5-6.7 m per 30 Hz tick) discrete physics contacts miss thin cubes
+	  entirely (the bullet jumps over them), so the continuous sweep is the
+	  reliable path and the ONLY one that emits the verdict. The physical
+	  contact callback is kept as a destroy-only safety net (mid-solve
+	  removal must stay deferred, and it double-checks spawn-inside cases).
 	- HERO hits are NOT physical (bullets pass through heroes by design, so
 	  the shooter never self-blocks): a swept sphere-vs-capsule test against
 	  `sim.heroes` runs in EVERY sim and destroys the bullet at the same
@@ -60,6 +64,9 @@ class BulletSystem extends System
 	/** True on the server sim: emits authoritative BulletHit verdicts. */
 	var isServer : Bool;
 
+	/** Bullet-sized sphere swept along each tick's travel segment (world hits). */
+	var worldSweep : oimo.collision.geometry.SphereGeometry;
+
 	// fire cooldown state
 	var cd : Float = 0;
 	/** Bullets flagged by contact callbacks — destroyed after phys.step. */
@@ -75,6 +82,7 @@ class BulletSystem extends System
 		lifetime = gd.req("Bullet", "lifetime");
 		heroR = gd.req("Hero", "heroRadius");
 		heroHH = gd.req("Hero", "heroHalfHeight");
+		worldSweep = new oimo.collision.geometry.SphereGeometry(radius);
 		isServer = server;
 		bus.subscribe(BulletFired, onFire);
 	}
@@ -101,21 +109,16 @@ class BulletSystem extends System
     	sim.add(b);
 		var rec : BulletRec = { b : b, t : lifetime, ownerId : ownerId, pX : x, pY : y, pZ : z, hit : false };
 		alive.push(rec);
-		// WORld contact: queue for destruction — removing a body INSIDE the
-		// physics step callback would mutate the world mid-solve.
-		// Verdict is emitted only on the server; clients destroy silently
-		// (their console line comes from the server's broadcast).
+		// WORLD contact: destroy-only safety net (the swept convex-cast in
+		// update() is the reliable hit path and the ONLY verdict source —
+		// emitting here too would double-report whenever both paths fire for
+		// the same crossing). Removing a body INSIDE the physics step
+		// callback would mutate the world mid-solve, hence queue only.
 		var recForCb = rec;
 		b.setCollisionCallbacks(
 			function(other : PhysBody, pos : Vec3, normal : Vec3, depth : Float)
 			{
 				queueDestroy(recForCb);
-				// authoritative verdict: server tells everyone what was hit
-				if (isServer)
-				{
-					var p = b.getPosition();
-					emitHit(ownerId, other != null ? other.name : "?", p.x, p.y, p.z);
-				}
 			},
 			null, null, null
 		);
@@ -198,6 +201,25 @@ class BulletSystem extends System
 			{
 				queueDestroy(a);
 				if (isServer) emitHit(a.ownerId, hitOwner, hitX, hitY, hitZ);
+			}
+			else
+			{
+				// WORLD swept hit: continuous sphere sweep over this tick's
+				// travel segment — catches thin cubes the discrete contacts
+				// skip at high speed. Heroes are ignored here (handled by the
+				// deterministic test above, matching the BULLET->WORLD mask).
+				var rec = a;
+				var swept = false;
+				sim.phys.convexCast(worldSweep, a.pX, a.pY, a.pZ,
+					cx - a.pX, cy - a.pY, cz - a.pZ,
+					function(wb : PhysBody, frac : Float, wpos : Vec3, n : Vec3)
+					{
+						if (wb == null || wb.name == "hero") return;
+						swept = true;
+						// authoritative verdict: server tells everyone what was hit
+						if (isServer) emitHit(rec.ownerId, wb.name, wpos.x, wpos.y, wpos.z);
+					});
+				if (swept) queueDestroy(a);
 			}
 			// remember this position for the NEXT step's sweep
 			a.pX = cx;
