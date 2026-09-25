@@ -17,3 +17,6 @@ client/res/models/hero/
 .session/
 design/hud-referense.png
 .omo/run-continuation/
+.zcode/plans/
+.jitted_scripts/module_cache/
+.zcodeignore

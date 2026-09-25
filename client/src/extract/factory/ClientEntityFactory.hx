@@ -62,6 +62,20 @@ class ClientEntityFactory extends BaseEntityFactory
 			world.bus.publish(new extract.events.ClientEvents.LocalHeroSpawned(visual));
 			return;
 		}
+		// bullets get a BulletVisual tracer: the flight direction is baked into
+		// the CHILD node once (constant in flight — gravityScale = 0) and the
+		// CONTAINER is bound — the renderer drives the bound transform from the
+		// body quaternion (identity for the sphere), which would wipe a
+		// rotation set on the bound node itself.
+		if (b.name == "bullet")
+		{
+			var sizes = b.getShapeSizes();
+			if (sizes == null) return;
+			var v = b.body.getLinearVelocity(); // recipe set it before sim.add
+			var visual = new extract.models.BulletVisual(parent, sizes.hx, v.x, v.y, v.z);
+			renderer.bind(b, visual);
+			return;
+		}
 		var mesh = meshForBody(b);
 		if (mesh == null) return;
 		parent.addChild(mesh);
@@ -108,10 +122,6 @@ class ClientEntityFactory extends BaseEntityFactory
 				var cap = new h3d.prim.Capsule(sizes.hx, sizes.hy * 2, 12, h3d.prim.Capsule.Axis.Y);
 				cap.addNormals();
 				cap;
-			case "bullet":
-				var s = new h3d.prim.Sphere(sizes.hx, 12, 8);
-				s.addNormals();
-				s;
 			default:
 				// static obstacle from the level prefab (pillars, ...): hide
 				// draws the authored meshes on HL, so skip the sim box there;
@@ -144,10 +154,6 @@ class ClientEntityFactory extends BaseEntityFactory
 				pbr.metalnessValue = 0.1;
 				pbr.roughnessValue = 0.5;
 				m.color.set(1, 0.55, 0.2, 1);
-			case "bullet": // bright yellow projectile
-				pbr.metalnessValue = 0.2;
-				pbr.roughnessValue = 0.4;
-				m.color.set(1, 0.95, 0.2, 1);
 			default: // prefab obstacle (pillar, ...) — plain concrete
 				pbr.metalnessValue = 0;
 				pbr.roughnessValue = 0.85;
